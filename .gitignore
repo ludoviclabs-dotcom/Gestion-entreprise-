@@ -36,6 +36,8 @@ yarn-error.log*
 
 # Playwright / capture artifacts
 .playwright-mcp/
+/playwright-report/
+/test-results/
 *.log
 
 # Drizzle / Next dev type artifacts
