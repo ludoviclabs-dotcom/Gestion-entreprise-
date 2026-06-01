@@ -1,0 +1,16 @@
+{
+  "header": { "statut": 200, "message": "OK" },
+  "etablissement": {
+    "siren": "552032534",
+    "nic": "00046",
+    "siret": "55203253400046",
+    "etablissementSiege": true,
+    "adresseEtablissement": {
+      "numeroVoieEtablissement": "17",
+      "typeVoieEtablissement": "BD",
+      "libelleVoieEtablissement": "HAUSSMANN",
+      "codePostalEtablissement": "75009",
+      "libelleCommuneEtablissement": "PARIS 9"
+    }
+  }
+}

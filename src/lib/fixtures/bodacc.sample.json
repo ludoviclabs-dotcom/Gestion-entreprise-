@@ -1,0 +1,41 @@
+{
+  "total_count": 3,
+  "results": [
+    {
+      "id": "A202400120001",
+      "registre": ["552 032 534", "552032534"],
+      "dateparution": "2024-06-12",
+      "familleavis_lib": "Modifications diverses",
+      "typeavis_lib": "annonce",
+      "commercant": "DANONE",
+      "ville": "PARIS",
+      "cp": "75009",
+      "tribunal": "PARIS",
+      "jugement": null
+    },
+    {
+      "id": "A202300090002",
+      "registre": "552032534",
+      "dateparution": "2023-09-01",
+      "familleavis_lib": "Dépôt des comptes",
+      "typeavis_lib": "annonce",
+      "commercant": "DANONE",
+      "ville": "PARIS",
+      "cp": "75009",
+      "tribunal": "PARIS",
+      "jugement": null
+    },
+    {
+      "id": "A201900010003",
+      "registre": "552032534",
+      "dateparution": "1973-01-15",
+      "familleavis_lib": "Créations",
+      "typeavis_lib": "annonce",
+      "commercant": "DANONE",
+      "ville": "PARIS",
+      "cp": "75009",
+      "tribunal": "PARIS",
+      "jugement": null
+    }
+  ]
+}

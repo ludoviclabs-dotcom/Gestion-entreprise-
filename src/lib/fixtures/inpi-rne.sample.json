@@ -1,0 +1,17 @@
+{
+  "siren": "552032534",
+  "dirigeants": [
+    {
+      "nom": "RIBOUD",
+      "prenoms": "Antoine",
+      "qualite": "Président du conseil d'administration",
+      "type": "personne_physique"
+    },
+    {
+      "nom": "FABER",
+      "prenoms": "Emmanuel",
+      "qualite": "Directeur général",
+      "type": "personne_physique"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "header": { "statut": 200, "total": 2, "debut": 0, "nombre": 20 },
+  "unitesLegales": [
+    {
+      "siren": "552032534",
+      "periodesUniteLegale": [
+        {
+          "denominationUniteLegale": "DANONE",
+          "activitePrincipaleUniteLegale": "70.10Z",
+          "etatAdministratifUniteLegale": "A"
+        }
+      ]
+    },
+    {
+      "siren": "552120222",
+      "periodesUniteLegale": [
+        {
+          "denominationUniteLegale": "DANONE PRODUITS FRAIS FRANCE",
+          "activitePrincipaleUniteLegale": "10.51A",
+          "etatAdministratifUniteLegale": "A"
+        }
+      ]
+    }
+  ]
+}
