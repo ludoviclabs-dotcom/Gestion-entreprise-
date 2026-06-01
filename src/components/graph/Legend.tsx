@@ -5,6 +5,7 @@ import {
   NODE_LABELS,
   EVIDENCE_LABELS,
   EVIDENCE_EDGE_COLORS,
+  EVIDENCE_EDGE_SIZE,
 } from "@/lib/graph/graph-types";
 import type { NodeKind, EvidenceLevel } from "@/lib/graph/graph-types";
 
@@ -39,9 +40,14 @@ export default function Legend() {
       <div className="space-y-1.5">
         {LEVELS.map((l) => (
           <div key={l} className="flex items-center gap-2 text-xs">
+            {/* Double encodage : couleur ET épaisseur (a11y daltonisme). */}
             <span
-              className="h-0.5 w-5 rounded"
-              style={{ background: EVIDENCE_EDGE_COLORS[l] }}
+              className="rounded"
+              style={{
+                background: EVIDENCE_EDGE_COLORS[l],
+                width: "20px",
+                height: `${Math.max(1, EVIDENCE_EDGE_SIZE[l] - 0.5)}px`,
+              }}
             />
             <span>{EVIDENCE_LABELS[l]}</span>
           </div>

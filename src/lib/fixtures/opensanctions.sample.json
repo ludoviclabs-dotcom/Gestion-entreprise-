@@ -1,0 +1,23 @@
+{
+  "responses": {
+    "default": {
+      "results": [
+        {
+          "id": "Q1234567",
+          "caption": "Correspondance OFAC (simulée — fixture)",
+          "schema": "Person",
+          "score": 0.72,
+          "match": false,
+          "features": {
+            "name_phonetic_match": 0.65,
+            "name_literal_match": 0.4
+          },
+          "properties": {
+            "name": ["Test Sanction Match"],
+            "datasets": ["us_ofac_sdn", "eu_fsf"]
+          }
+        }
+      ]
+    }
+  }
+}

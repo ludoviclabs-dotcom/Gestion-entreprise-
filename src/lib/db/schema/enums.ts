@@ -31,6 +31,7 @@ export const sourceKind = pgEnum("source_kind", [
   "bodacc",
   "inpi",
   "tresor_gels",
+  "opensanctions",
   "manual",
   "fixture",
 ]);

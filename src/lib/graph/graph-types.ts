@@ -91,16 +91,19 @@ export type GraphEdgeDTO = {
   weight?: string;
   evidenceLevel: EvidenceLevel;
   color: string;
+  size: number; // taille du trait — encode aussi le niveau de preuve (a11y)
 };
 export type GraphDTO = { nodes: GraphNodeDTO[]; edges: GraphEdgeDTO[] };
 
-// ── Couleurs lisibles sur fond navy ──
+// ── Couleurs lisibles sur fond navy (palette Okabe-Ito, colorblind-safe) ──
+// Référence : Okabe & Ito (2008), couleurs distinguables par les principaux
+// types de daltonisme (deutéranopie/protanopie). Audit WCAG 2.1/2.2.
 export const NODE_COLORS: Record<NodeKind, string> = {
-  company: "#38bdf8",
-  person: "#a78bfa",
-  address: "#94a3b8",
-  event: "#f59e0b",
-  sanction: "#ef4444",
+  company: "#56B4E9", // sky blue — distinguable rouge-vert
+  person: "#CC79A7", // reddish purple
+  address: "#999999", // neutral grey
+  event: "#E69F00", // orange
+  sanction: "#D55E00", // vermillion (distinct du orange)
 };
 export const NODE_LABELS: Record<NodeKind, string> = {
   company: "Société",
@@ -120,6 +123,26 @@ export const EVIDENCE_EDGE_COLORS: Record<EvidenceLevel, string> = {
   declared: "#7c8ba1",
   inferred: "#5b6b86",
   simulated: "#b45309",
+};
+
+/**
+ * Double encodage du niveau de preuve : taille de trait en plus de la couleur.
+ * Indispensable pour la lecture par les personnes daltoniennes (audit WCAG).
+ * Sigma v3 ne supporte pas nativement les traits dashed sans shader custom ;
+ * on encode donc par variation de largeur + opacité pour produire un
+ * gradient lisible « plein → fin → fantôme ».
+ */
+export const EVIDENCE_EDGE_SIZE: Record<EvidenceLevel, number> = {
+  confirmed: 3.5,
+  declared: 2.2,
+  inferred: 1.3,
+  simulated: 1.0,
+};
+export const EVIDENCE_EDGE_OPACITY: Record<EvidenceLevel, number> = {
+  confirmed: 1.0,
+  declared: 0.85,
+  inferred: 0.6,
+  simulated: 0.45,
 };
 export const EDGE_LABELS: Record<EdgeKind, string> = {
   DIRIGE: "dirige",

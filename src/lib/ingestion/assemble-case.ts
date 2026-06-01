@@ -5,10 +5,12 @@ import { sirene } from "@/lib/connectors/sirene";
 import { bodacc } from "@/lib/connectors/bodacc";
 import { inpi } from "@/lib/connectors/inpi";
 import { tresorGels } from "@/lib/connectors/tresor-gels";
+import { openSanctions } from "@/lib/connectors/opensanctions";
 import { normalizeSirene } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
 import { normalizeGels } from "./normalize-gels";
+import { normalizeOpenSanctions } from "./normalize-opensanctions";
 import { buildGraph } from "@/lib/graph/build-graph";
 import { computeRisk } from "@/lib/risk/engine";
 
@@ -68,15 +70,32 @@ export async function assembleCase(
   sources.push(toSource("tresor_gels", gelsRes));
   const gelsNorm = normalizeGels(gelsRes.raw, { companyId });
 
+  // OpenSanctions — agrégat UE de listes sanctions/PEP. Le registre national
+  // (DG Trésor gels) reste en parallèle (déduplication via natural key).
+  const osRes = await openSanctions.match({
+    company: {
+      schema: "Company",
+      name: sireneNorm.denomination ?? `SIREN ${siren}`,
+      identifier: siren,
+    },
+  });
+  sources.push(toSource("opensanctions", osRes));
+  const osNorm = normalizeOpenSanctions(osRes.raw, {
+    subjectId: companyId,
+    subjectLabel: sireneNorm.denomination ?? `SIREN ${siren}`,
+  });
+
   const entities: CaseEntity[] = dedupeById([
     ...sireneNorm.entities,
     ...inpiNorm.entities,
     ...gelsNorm.entities,
+    ...osNorm.entities,
   ]);
   const edges: CaseEdge[] = dedupeById([
     ...sireneNorm.edges,
     ...inpiNorm.edges,
     ...gelsNorm.edges,
+    ...osNorm.edges,
   ]);
 
   const bundle: CaseBundle = {

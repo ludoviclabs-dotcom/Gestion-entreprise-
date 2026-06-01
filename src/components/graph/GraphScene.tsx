@@ -68,9 +68,12 @@ function Controllers({
     for (const e of dto.edges) {
       if (g.hasNode(e.source) && g.hasNode(e.target) && !g.hasEdge(e.id)) {
         g.addEdgeWithKey(e.id, e.source, e.target, {
-          size: 2,
+          // Taille = encodage du niveau de preuve (a11y : double encodage
+          // couleur + taille pour les utilisateurs daltoniens).
+          size: e.size,
           color: e.color,
           label: e.label,
+          evidenceLevel: e.evidenceLevel,
         });
       }
     }

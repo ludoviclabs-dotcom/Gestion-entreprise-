@@ -4,32 +4,34 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * KYB Graph — identité sobre « carte réseau » sombre (dark-first).
- * Tokens de marque = source de vérité ; couche sémantique shadcn mappée dessus.
+ * KYB Graph — palette double : sombre par défaut (identité « carte réseau »)
+ * et clair optionnel (impression / certaines DSI — recommandation de l'audit).
+ * `next-themes` injecte `class="dark"` ou `class="light"` sur <html>.
  */
 :root {
-  /* ── Tokens de marque ── */
-  --background: #0a1628; /* navy */
-  --surface: #0e1d33;
-  --surface-2: #13233d;
-  --foreground: #e8eef7;
-  --border: #1e3354;
+  /* ── Palette de marque (tokens partagés clair/sombre) ── */
   --violet: #7c3aed;
   --emerald: #10b981;
   --amber: #f59e0b;
   --red: #ef4444;
 
-  /* ── Couche sémantique shadcn (mappée sur la marque) ── */
+  /* ── Mode CLAIR (par défaut sur :root) ── */
+  --background: #ffffff;
+  --surface: #f8fafc;
+  --surface-2: #f1f5f9;
+  --foreground: #0a1628;
+  --border: #e2e8f0;
+
   --card: var(--surface);
   --card-foreground: var(--foreground);
-  --popover: var(--surface-2);
+  --popover: #ffffff;
   --popover-foreground: var(--foreground);
   --primary: var(--violet);
   --primary-foreground: #ffffff;
   --secondary: var(--surface-2);
   --secondary-foreground: var(--foreground);
-  --muted: #1a2c49; /* surface atténuée (convention shadcn) */
-  --muted-foreground: #8aa0bd; /* texte gris (ancien --muted) */
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
   --accent: var(--surface-2);
   --accent-foreground: var(--foreground);
   --destructive: var(--red);
@@ -38,7 +40,41 @@
   --input: var(--border);
   --radius: 0.625rem;
 
-  /* ── Sidebar (shell) ── */
+  --sidebar: #f8fafc;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--violet);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef2f7;
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--violet);
+}
+
+.dark {
+  /* ── Mode SOMBRE (override sur <html class="dark">) ── */
+  --background: #0a1628;
+  --surface: #0e1d33;
+  --surface-2: #13233d;
+  --foreground: #e8eef7;
+  --border: #1e3354;
+
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--foreground);
+  --primary: var(--violet);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: #1a2c49;
+  --muted-foreground: #8aa0bd;
+  --accent: var(--surface-2);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--red);
+  --destructive-foreground: #ffffff;
+  --ring: var(--violet);
+  --input: var(--border);
+
   --sidebar: #0c1a30;
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--violet);

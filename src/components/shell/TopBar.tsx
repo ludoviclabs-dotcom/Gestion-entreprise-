@@ -2,8 +2,9 @@
 
 import { Search } from "lucide-react";
 import MobileSidebar from "./MobileSidebar";
+import ThemeToggle from "./ThemeToggle";
 
-/** Barre supérieure : hamburger (mobile) + champ ⌘K. */
+/** Barre supérieure : hamburger (mobile) + champ ⌘K + bascule de thème. */
 export default function TopBar({ demoMode }: { demoMode: boolean }) {
   const openPalette = () => window.dispatchEvent(new Event("kyb:open-command"));
 
@@ -21,6 +22,9 @@ export default function TopBar({ demoMode }: { demoMode: boolean }) {
           ⌘K
         </kbd>
       </button>
+      <div className="ml-auto">
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

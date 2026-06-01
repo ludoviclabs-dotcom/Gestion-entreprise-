@@ -7,6 +7,8 @@ import GraphToolbar from "./GraphToolbar";
 import GraphTooltip from "./GraphTooltip";
 import NodePanel from "./NodePanel";
 import EdgePanel from "./EdgePanel";
+import GraphTable from "./GraphTable";
+import { useGraphStore } from "@/lib/store/graph-store";
 
 // Sigma est WebGL → chargé uniquement côté client (jamais de SSR).
 const GraphScene = dynamic(() => import("./GraphScene"), {
@@ -38,17 +40,19 @@ export default function GraphCanvas({
         .filter((id): id is string => Boolean(id)),
     ),
   );
+  const viewMode = useGraphStore((s) => s.viewMode);
 
   return (
     <div
-      role="img"
+      role="region"
       aria-label={`Graphe des relations du dossier ${bundle.case.title}`}
       className="bg-grid relative h-full w-full overflow-hidden"
     >
       <GraphScene dto={dto} flaggedIds={flaggedIds} />
+      {viewMode === "table" && <GraphTable dto={dto} bundle={bundle} />}
       <GraphToolbar />
-      <Legend />
-      <GraphTooltip dto={dto} bundle={bundle} />
+      {viewMode === "graph" && <Legend />}
+      {viewMode === "graph" && <GraphTooltip dto={dto} bundle={bundle} />}
       <NodePanel dto={dto} bundle={bundle} />
       <EdgePanel dto={dto} bundle={bundle} />
     </div>

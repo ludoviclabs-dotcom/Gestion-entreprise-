@@ -1,6 +1,15 @@
 "use client";
 
-import { ZoomIn, ZoomOut, Maximize2, Layers, ImageDown } from "lucide-react";
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Layers,
+  ImageDown,
+  Table as TableIcon,
+  Network,
+} from "lucide-react";
+import { useEffect } from "react";
 import {
   Popover,
   PopoverContent,
@@ -26,12 +35,28 @@ const LAYERS: LayerKey[] = [
 export default function GraphToolbar() {
   const layers = useGraphStore((s) => s.layers);
   const toggleLayer = useGraphStore((s) => s.toggleLayer);
+  const viewMode = useGraphStore((s) => s.viewMode);
+  const toggleViewMode = useGraphStore((s) => s.toggleViewMode);
 
   const cam = (action: "in" | "out" | "fit") =>
     window.dispatchEvent(new CustomEvent("kyb:graph-camera", { detail: action }));
 
   const exportPng = () =>
     window.dispatchEvent(new CustomEvent("kyb:graph-export-png"));
+
+  // Raccourci clavier T = bascule vue table / graphe (a11y).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "t" && e.key !== "T") return;
+      // Ignorer si l'utilisateur tape dans un input.
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      toggleViewMode();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleViewMode]);
 
   const btn =
     "flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface/90 text-muted-foreground backdrop-blur transition hover:text-foreground";
@@ -49,6 +74,15 @@ export default function GraphToolbar() {
       </button>
       <button type="button" className={btn} onClick={exportPng} aria-label="Exporter en PNG">
         <ImageDown size={16} />
+      </button>
+      <button
+        type="button"
+        className={btn}
+        onClick={toggleViewMode}
+        aria-label={viewMode === "graph" ? "Voir en table (T)" : "Voir le graphe (T)"}
+        aria-pressed={viewMode === "table"}
+      >
+        {viewMode === "graph" ? <TableIcon size={16} /> : <Network size={16} />}
       </button>
       <Popover>
         <PopoverTrigger asChild>

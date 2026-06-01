@@ -4,5 +4,6 @@ export type SourceKind =
   | "bodacc"
   | "inpi"
   | "tresor_gels"
+  | "opensanctions"
   | "manual"
   | "fixture";

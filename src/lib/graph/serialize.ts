@@ -7,7 +7,7 @@ import type {
   EdgeKind,
   EvidenceLevel,
 } from "./graph-types";
-import { EVIDENCE_EDGE_COLORS } from "./graph-types";
+import { EVIDENCE_EDGE_COLORS, EVIDENCE_EDGE_SIZE } from "./graph-types";
 
 /** Sérialise un graphe Graphology (déjà layouté) en DTO consommable par le client. */
 export function serializeGraph(graph: Graph): GraphDTO {
@@ -34,6 +34,7 @@ export function serializeGraph(graph: Graph): GraphDTO {
       weight: attr.weight ? String(attr.weight) : undefined,
       evidenceLevel: level,
       color: EVIDENCE_EDGE_COLORS[level],
+      size: EVIDENCE_EDGE_SIZE[level],
     };
   });
 
