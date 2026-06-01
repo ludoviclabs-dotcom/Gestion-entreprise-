@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { sirene } from "@/lib/connectors/sirene";
+import { rateLimit, ipKey } from "@/lib/server/rate-limit";
+import { validate } from "@/lib/server/validate";
 
 export const runtime = "nodejs";
 
@@ -15,6 +17,20 @@ type SearchResponse = { unitesLegales?: SearchUL[] };
 const bodySchema = z.object({ q: z.string().min(1).max(200) });
 
 export async function POST(request: Request) {
+  // Rate limit : 30 req/min/IP (aligné sur le quota Sirene en aval).
+  const rl = rateLimit(ipKey(request), 30, 60_000);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Trop de requêtes. Réessayez dans un instant." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)),
+        },
+      },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -22,10 +38,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Corps JSON invalide." }, { status: 400 });
   }
 
-  const parsed = bodySchema.safeParse(body);
-  if (!parsed.success) {
+  const parsed = validate(body, bodySchema);
+  if (!parsed.ok) {
     return NextResponse.json(
-      { error: "Paramètre « q » requis (1–200 caractères)." },
+      { error: `Paramètre « q » invalide : ${parsed.error}` },
       { status: 400 },
     );
   }

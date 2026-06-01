@@ -6,6 +6,7 @@ import type {
   RiskCategory,
   Severity,
 } from "@/lib/graph/graph-types";
+import { computeGraphMetrics } from "@/lib/graph/algorithms";
 import type { Rule, RuleContext } from "./types";
 
 // ── Utilitaires partagés ─────────────────────────────────────────────────
@@ -273,6 +274,42 @@ export const CYCLE_DETENTION: Rule = {
   },
 };
 
+// ── 7. PIVOT_SUSPECT (betweenness élevée) ────────────────────────────────
+
+/**
+ * Repère les nœuds « pivots » dont la centralité d'intermédiarité (betweenness)
+ * est anormalement élevée — ils relient des sous-réseaux qui sinon seraient
+ * disjoints. Utile pour repérer un nominee, un dirigeant-paille, ou une
+ * société-coquille qui canalise des flux entre groupes.
+ *
+ * Seuil : betweenness normalisée > 0.4 (sur [0, 1]) → signal medium.
+ */
+export const PIVOT_SUSPECT: Rule = {
+  id: "PIVOT_SUSPECT",
+  label: "Pivot suspect",
+  category: "vigilance",
+  evaluate(ctx) {
+    if (ctx.bundle.entities.length < 5) return []; // pas pertinent sur petits graphes
+    const { betweenness } = computeGraphMetrics(ctx.graph);
+    const signals: CaseRiskSignal[] = [];
+    for (const [nodeId, score] of Object.entries(betweenness)) {
+      if (score <= 0.4) continue;
+      const entity = ctx.bundle.entities.find((e) => e.id === nodeId);
+      if (!entity || entity.type === "address" || entity.type === "event") continue;
+      signals.push(
+        makeSignal(
+          "PIVOT_SUSPECT",
+          nodeId,
+          score > 0.7 ? "high" : "medium",
+          "vigilance",
+          `${entity.label} occupe une position de pivot inhabituelle (centralité d'intermédiarité ${Math.round(score * 100)} %).`,
+        ),
+      );
+    }
+    return signals;
+  },
+};
+
 /** Catalogue par défaut, dans l'ordre d'évaluation. */
 export const DEFAULT_RULES: Rule[] = [
   DIRIGEANT_MULTI_SOCIETES,
@@ -281,4 +318,5 @@ export const DEFAULT_RULES: Rule[] = [
   PROCEDURE_COLLECTIVE,
   RADIATION,
   CYCLE_DETENTION,
+  PIVOT_SUSPECT,
 ];

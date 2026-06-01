@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import RisksList from "@/components/cases/RisksList.client";
+import AiSynthesis from "@/components/cases/AiSynthesis.client";
 
 export default async function RisquesTab(props: {
   params: Promise<{ caseId: string }>;
@@ -20,6 +21,9 @@ export default async function RisquesTab(props: {
         Indicateurs de complexité et de vigilance. Ce sont des signaux
         d&apos;analyse, jamais des accusations.
       </p>
+      <div className="mt-6">
+        <AiSynthesis caseId={caseId} />
+      </div>
       <div className="mt-6">
         {signals.length === 0 ? (
           <p className="rounded-xl border border-emerald/30 bg-emerald/10 p-4 text-sm text-emerald">
