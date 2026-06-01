@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpDown, Search } from "lucide-react";
+import { ArrowUpDown, FolderPlus, Search, SearchX } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import CaseStatusBadge from "./CaseStatusBadge";
 import ScorePills from "./ScorePills";
+import EmptyState from "@/components/empty/EmptyState";
 import type { CaseSummary } from "@/lib/data/types";
 
 type SortKey = "title" | "updatedAt" | "vigilance";
@@ -50,6 +51,17 @@ export default function CasesTable({ cases }: { cases: CaseSummary[] }) {
     }
   };
 
+  if (cases.length === 0) {
+    return (
+      <EmptyState
+        icon={FolderPlus}
+        title="Aucun dossier pour l'instant"
+        description="Lance ton premier enrichissement à partir d'un SIREN pour cartographier les liens entre sociétés, dirigeants et événements."
+        cta={{ label: "Créer le premier dossier", href: "/cases/new" }}
+      />
+    );
+  }
+
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
@@ -69,6 +81,15 @@ export default function CasesTable({ cases }: { cases: CaseSummary[] }) {
           {rows.length} dossier{rows.length > 1 ? "s" : ""}
         </span>
       </div>
+
+      {rows.length === 0 && (
+        <EmptyState
+          icon={SearchX}
+          title="Aucun dossier ne correspond"
+          description={`Essaie un autre terme — recherche actuelle : « ${query} ».`}
+        />
+      )}
+      {rows.length > 0 && (
 
       <div className="overflow-hidden rounded-xl border border-border">
         <Table>
@@ -130,6 +151,7 @@ export default function CasesTable({ cases }: { cases: CaseSummary[] }) {
           </TableBody>
         </Table>
       </div>
+      )}
     </div>
   );
 }

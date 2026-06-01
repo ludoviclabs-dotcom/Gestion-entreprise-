@@ -9,6 +9,8 @@ import { normalizeSirene } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
 import { normalizeGels } from "./normalize-gels";
+import { buildGraph } from "@/lib/graph/build-graph";
+import { computeRisk } from "@/lib/risk/engine";
 
 function toSource(source: SourceKind, r: ConnectorResult<unknown>): SourceRecordInput {
   return {
@@ -86,8 +88,14 @@ export async function assembleCase(
     entities,
     edges,
     events,
-    riskSignals: [], // calculés en Phase 3 (risk engine)
+    riskSignals: [],
   };
+
+  // Étape 1.1 — moteur de risque computé : signaux + scores dérivés du graphe.
+  const graph = buildGraph(bundle);
+  const { signals, scores } = computeRisk(bundle, graph);
+  bundle.riskSignals = signals;
+  bundle.case.scores = scores;
 
   return { bundle, sources };
 }

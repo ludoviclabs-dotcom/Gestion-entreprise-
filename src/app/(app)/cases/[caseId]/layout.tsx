@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import ScorePills from "@/components/cases/ScorePills";
 import CaseStatusBadge from "@/components/cases/CaseStatusBadge";
 import WorkspaceTabs from "@/components/cases/WorkspaceTabs";
+import ExportMenu from "@/components/cases/ExportMenu.client";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 
 export default async function CaseWorkspaceLayout(props: {
@@ -44,7 +45,10 @@ export default async function CaseWorkspaceLayout(props: {
             </p>
           </div>
         </div>
-        <ScorePills scores={bundle.case.scores ?? {}} size="sm" />
+        <div className="flex items-center gap-2">
+          <ScorePills scores={bundle.case.scores ?? {}} size="sm" />
+          <ExportMenu caseId={caseId} />
+        </div>
       </div>
 
       <div className="mt-3">

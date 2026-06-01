@@ -1,6 +1,6 @@
 "use client";
 
-import { ZoomIn, ZoomOut, Maximize2, Layers } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Layers, ImageDown } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -30,6 +30,9 @@ export default function GraphToolbar() {
   const cam = (action: "in" | "out" | "fit") =>
     window.dispatchEvent(new CustomEvent("kyb:graph-camera", { detail: action }));
 
+  const exportPng = () =>
+    window.dispatchEvent(new CustomEvent("kyb:graph-export-png"));
+
   const btn =
     "flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface/90 text-muted-foreground backdrop-blur transition hover:text-foreground";
 
@@ -43,6 +46,9 @@ export default function GraphToolbar() {
       </button>
       <button type="button" className={btn} onClick={() => cam("fit")} aria-label="Recentrer">
         <Maximize2 size={16} />
+      </button>
+      <button type="button" className={btn} onClick={exportPng} aria-label="Exporter en PNG">
+        <ImageDown size={16} />
       </button>
       <Popover>
         <PopoverTrigger asChild>

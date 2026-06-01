@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
+import { Clock } from "lucide-react";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import EvidenceBadge from "@/components/graph/EvidenceBadge";
+import EmptyState from "@/components/empty/EmptyState";
 
 export default async function TimelineTab(props: {
   params: Promise<{ caseId: string }>;
@@ -23,9 +25,13 @@ export default async function TimelineTab(props: {
       </p>
 
       {events.length === 0 ? (
-        <p className="mt-8 text-sm text-muted-foreground">
-          Aucun événement pour ce dossier.
-        </p>
+        <div className="mt-8">
+          <EmptyState
+            icon={Clock}
+            title="Aucun événement juridique"
+            description="Aucune annonce BODACC n'a été détectée pour ce dossier. Une fois les connecteurs live activés (clé Sirene + BODACC), les événements remonteront automatiquement."
+          />
+        </div>
       ) : (
         <ol className="mt-6 space-y-0">
           {events.map((ev, i) => (

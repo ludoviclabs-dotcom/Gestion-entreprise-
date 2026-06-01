@@ -51,9 +51,12 @@ export default function NewCaseDialog({
         toast.success("Dossier créé", {
           description: "Enrichissement effectué à partir des sources de démonstration.",
         });
-        setOpen(false);
+        // Important : déclencher la navigation AVANT de fermer le dialog.
+        // Avec React 19 + useTransition, si setOpen(false) démonte le composant
+        // hôte du useRouter() avant router.push, la navigation peut être perdue.
         router.push(`/cases/${res.id}/graphe`);
         router.refresh();
+        setOpen(false);
       } else {
         toast.error(res.error);
       }

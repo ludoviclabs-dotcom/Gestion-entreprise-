@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { FileText } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -9,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { getCasesRepository } from "@/lib/data/cases-repository";
+import EmptyState from "@/components/empty/EmptyState";
 
 const SOURCE_LABELS: Record<string, string> = {
   sirene: "INSEE Sirene",
@@ -38,6 +40,15 @@ export default async function SourcesTab(props: {
         dossier.
       </p>
 
+      {sources.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState
+            icon={FileText}
+            title="Aucune source consultée"
+            description="Ce dossier est en brouillon. Lance un enrichissement pour récupérer Sirene, BODACC et les autres sources, et constituer la chaîne de preuve."
+          />
+        </div>
+      ) : (
       <div className="mt-6 overflow-hidden rounded-xl border border-border">
         <Table>
           <TableHeader>
@@ -70,6 +81,7 @@ export default async function SourcesTab(props: {
           </TableBody>
         </Table>
       </div>
+      )}
     </div>
   );
 }
