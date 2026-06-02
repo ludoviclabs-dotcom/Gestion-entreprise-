@@ -35,8 +35,28 @@ function Controllers({
   const layers = useGraphStore((s) => s.layers);
   const selectedNode = useGraphStore((s) => s.selectedNode);
   const selectedEdge = useGraphStore((s) => s.selectedEdge);
+  const path = useGraphStore((s) => s.path);
 
   const flagged = useMemo(() => new Set(flaggedIds), [flaggedIds]);
+
+  /** Edges sur la séquence du plus court chemin (à mettre en évidence). */
+  const pathSet = useMemo(() => {
+    const result = { nodes: new Set<string>(), edges: new Set<string>() };
+    if (!path || path.nodes.length < 2) return result;
+    for (const n of path.nodes) result.nodes.add(n);
+    const graph = sigma.getGraph();
+    for (let i = 0; i < path.nodes.length - 1; i += 1) {
+      const a = path.nodes[i];
+      const b = path.nodes[i + 1];
+      if (!graph.hasNode(a) || !graph.hasNode(b)) continue;
+      const candidates = [
+        ...graph.outEdges(a).filter((e) => graph.target(e) === b),
+        ...graph.outEdges(b).filter((e) => graph.target(e) === a),
+      ];
+      for (const e of candidates) result.edges.add(e);
+    }
+    return result;
+  }, [path, sigma]);
 
   const { nodeMeta, edgeMeta } = useMemo(() => {
     const kindById = new Map(dto.nodes.map((n) => [n.id, n.kind]));
@@ -176,6 +196,20 @@ function Controllers({
           res.forceLabel = true;
           res.zIndex = 10;
         }
+        // Path-finding : nœuds du chemin → halo violet + label forcé.
+        if (path) {
+          if (pathSet.nodes.has(node)) {
+            res.color = "#7c3aed";
+            res.size = (data.size ?? 8) * 1.4;
+            res.forceLabel = true;
+            res.zIndex = 11;
+            res.hidden = false; // priorité sur les filtres de couche
+          } else {
+            res.color = data.color;
+            res.size = (data.size ?? 8) * 0.55;
+            res.hidden = true;
+          }
+        }
         return res;
       },
       edgeReducer: (edge, data) => {
@@ -190,10 +224,31 @@ function Controllers({
           res.color = "#ffffff";
           res.size = 4;
         }
+        // Path-finding : edges du chemin → trait épais violet, le reste atténué.
+        if (path) {
+          if (pathSet.edges.has(edge)) {
+            res.color = "#7c3aed";
+            res.size = 5;
+            res.zIndex = 11;
+            res.hidden = false;
+          } else {
+            res.hidden = true;
+          }
+        }
         return res;
       },
     });
-  }, [setSettings, layers, selectedNode, selectedEdge, flagged, nodeMeta, edgeMeta]);
+  }, [
+    setSettings,
+    layers,
+    selectedNode,
+    selectedEdge,
+    flagged,
+    nodeMeta,
+    edgeMeta,
+    path,
+    pathSet,
+  ]);
 
   return null;
 }

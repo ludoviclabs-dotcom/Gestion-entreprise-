@@ -1,6 +1,8 @@
 "use client";
 
-import { X } from "lucide-react";
+import { useTransition } from "react";
+import { X, GitBranch, Crosshair, Eraser, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useGraphStore } from "@/lib/store/graph-store";
 import type { CaseBundle, GraphDTO } from "@/lib/graph/graph-types";
 import {
@@ -9,6 +11,7 @@ import {
   SEVERITY_COLORS,
   SEVERITY_LABELS,
 } from "@/lib/graph/graph-types";
+import { findPathAction } from "@/app/(app)/cases/actions";
 import EvidenceBadge from "./EvidenceBadge";
 
 export default function NodePanel({
@@ -20,6 +23,11 @@ export default function NodePanel({
 }) {
   const selectedNode = useGraphStore((s) => s.selectedNode);
   const clear = useGraphStore((s) => s.clearSelection);
+  const pathSource = useGraphStore((s) => s.pathSource);
+  const setPathSource = useGraphStore((s) => s.setPathSource);
+  const setPath = useGraphStore((s) => s.setPath);
+  const clearPath = useGraphStore((s) => s.clearPath);
+  const [pending, startTransition] = useTransition();
 
   if (!selectedNode) return null;
   const node = dto.nodes.find((n) => n.id === selectedNode);
@@ -30,6 +38,26 @@ export default function NodePanel({
   const signals = bundle.riskSignals.filter((r) => r.subjectId === selectedNode);
   const attrs = entity?.attributes ?? {};
   const excerpt = entity?.excerpt ?? event?.source;
+
+  const runPathFinding = (targetId: string) => {
+    if (!pathSource) return;
+    startTransition(async () => {
+      const res = await findPathAction(bundle.case.id, pathSource, targetId);
+      if (res.ok) {
+        setPath({ source: pathSource, target: targetId, nodes: res.nodes });
+        const sourceLabel =
+          bundle.entities.find((e) => e.id === pathSource)?.label ?? pathSource;
+        const targetLabel =
+          bundle.entities.find((e) => e.id === targetId)?.label ?? targetId;
+        toast.success("Chemin trouvé", {
+          description: `${res.nodes.length - 1} liens entre ${sourceLabel} et ${targetLabel}.`,
+        });
+      } else {
+        toast.error(res.error);
+        setPath(null);
+      }
+    });
+  };
 
   return (
     <aside className="absolute bottom-4 right-4 top-4 z-30 flex w-80 flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur">
@@ -60,6 +88,52 @@ export default function NodePanel({
         <div className="mt-2">
           <EvidenceBadge level={node.evidenceLevel} />
         </div>
+
+        {/* Actions path-finding (nœuds société/personne uniquement). */}
+        {(node.kind === "company" || node.kind === "person") && (
+          <div className="mt-4 space-y-1.5">
+            {!pathSource && (
+              <button
+                type="button"
+                onClick={() => setPathSource(selectedNode)}
+                className="flex w-full items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs transition hover:border-primary/50"
+              >
+                <Crosshair size={14} className="text-primary" />
+                Tracer un chemin depuis ce nœud
+              </button>
+            )}
+            {pathSource && pathSource !== selectedNode && (
+              <>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => runPathFinding(selectedNode)}
+                  className="flex w-full items-center gap-2 rounded-lg border border-primary/50 bg-primary/10 px-3 py-2 text-xs text-foreground transition hover:bg-primary/20 disabled:opacity-50"
+                >
+                  {pending ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <GitBranch size={14} className="text-primary" />
+                  )}
+                  Chemin vers ce nœud
+                </button>
+                <button
+                  type="button"
+                  onClick={clearPath}
+                  className="flex w-full items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-xs text-muted-foreground transition hover:text-foreground"
+                >
+                  <Eraser size={14} />
+                  Annuler le chemin
+                </button>
+              </>
+            )}
+            {pathSource === selectedNode && (
+              <p className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
+                Origine du chemin sélectionnée. Clique un autre nœud puis « Chemin vers ce nœud ».
+              </p>
+            )}
+          </div>
+        )}
 
         {Object.keys(attrs).length > 0 && (
           <dl className="mt-4 space-y-1.5">

@@ -2,13 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Network, Clock, ShieldAlert, FileText } from "lucide-react";
+import {
+  Network,
+  Clock,
+  ShieldAlert,
+  FileText,
+  BarChart3,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { slug: "graphe", label: "Graphe", icon: Network },
   { slug: "timeline", label: "Timeline", icon: Clock },
   { slug: "risques", label: "Risques", icon: ShieldAlert },
+  { slug: "analyse", label: "Analyse", icon: BarChart3 },
   { slug: "sources", label: "Sources", icon: FileText },
 ];
 

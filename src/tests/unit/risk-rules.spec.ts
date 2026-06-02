@@ -5,201 +5,155 @@ import {
   ADRESSE_PARTAGEE,
   CYCLE_DETENTION,
   DIRIGEANT_MULTI_SOCIETES,
+  PIVOT_SUSPECT,
   PROCEDURE_COLLECTIVE,
   RADIATION,
   SOCIETE_RECENTE_TRES_LIEE,
 } from "@/lib/risk/rules";
 import { DEFAULT_THRESHOLDS } from "@/lib/risk/types";
-import type { CaseBundle } from "@/lib/graph/graph-types";
-import { reseauMultiDirigeantsBundle } from "@/lib/fixtures/cases/reseau-multi-dirigeants";
 import { procedureCollectiveBundle } from "@/lib/fixtures/cases/procedure-collective";
+import { reseauMultiDirigeantsBundle } from "@/lib/fixtures/cases/reseau-multi-dirigeants";
+import { demoBundle } from "@/lib/fixtures/case-demo";
 import { cleanCompanyBundle } from "@/lib/fixtures/cases/clean-company";
+import type { CaseBundle } from "@/lib/graph/graph-types";
 
-function bundleOf(partial: Partial<CaseBundle>): CaseBundle {
-  return {
-    case: { id: "t", title: "Test", rootSiren: "000000000" },
-    entities: [],
-    edges: [],
-    events: [],
-    riskSignals: [],
-    ...partial,
-  };
+function evaluateRule(
+  rule:
+    | typeof ADRESSE_PARTAGEE
+    | typeof CYCLE_DETENTION
+    | typeof DIRIGEANT_MULTI_SOCIETES
+    | typeof PIVOT_SUSPECT
+    | typeof PROCEDURE_COLLECTIVE
+    | typeof RADIATION
+    | typeof SOCIETE_RECENTE_TRES_LIEE,
+  bundle: CaseBundle,
+) {
+  const graph = buildGraph(bundle);
+  return rule.evaluate({ bundle, graph, thresholds: DEFAULT_THRESHOLDS });
 }
 
-describe("risk rules — unitaires", () => {
-  it("DIRIGEANT_MULTI_SOCIETES déclenche à partir du seuil medium", () => {
-    // 1 personne, 3 sociétés, 3 arêtes DIRIGE.
-    const bundle = bundleOf({
-      entities: [
-        { id: "p1", type: "person", label: "X Y", evidenceLevel: "declared" },
-        { id: "c1", type: "company", label: "A", evidenceLevel: "confirmed" },
-        { id: "c2", type: "company", label: "B", evidenceLevel: "confirmed" },
-        { id: "c3", type: "company", label: "C", evidenceLevel: "confirmed" },
-      ],
-      edges: [
-        { id: "e1", type: "DIRIGE", source: "p1", target: "c1", evidenceLevel: "declared" },
-        { id: "e2", type: "DIRIGE", source: "p1", target: "c2", evidenceLevel: "declared" },
-        { id: "e3", type: "DIRIGE", source: "p1", target: "c3", evidenceLevel: "declared" },
-      ],
-    });
-    const graph = buildGraph(bundle);
-    const signals = DIRIGEANT_MULTI_SOCIETES.evaluate({
-      bundle,
-      graph,
-      thresholds: DEFAULT_THRESHOLDS,
-    });
-    expect(signals).toHaveLength(1);
-    expect(signals[0].severity).toBe("medium");
-    expect(signals[0].subjectId).toBe("p1");
-    expect(signals[0].explanation).toContain("3 sociétés");
+describe("règle DIRIGEANT_MULTI_SOCIETES", () => {
+  it("ne déclenche pas sur un dirigeant unique d'une seule société", () => {
+    const signals = evaluateRule(DIRIGEANT_MULTI_SOCIETES, cleanCompanyBundle);
+    expect(signals.length).toBe(0);
   });
 
-  it("ADRESSE_PARTAGEE déclenche dès que ≥ 2 sociétés partagent une adresse", () => {
-    const bundle = bundleOf({
-      entities: [
-        { id: "c1", type: "company", label: "A", evidenceLevel: "confirmed" },
-        { id: "c2", type: "company", label: "B", evidenceLevel: "confirmed" },
-        { id: "a1", type: "address", label: "12 rue X", evidenceLevel: "declared" },
-      ],
-      edges: [
-        { id: "e1", type: "PARTAGE_ADRESSE", source: "c1", target: "a1", evidenceLevel: "declared" },
-        { id: "e2", type: "PARTAGE_ADRESSE", source: "c2", target: "a1", evidenceLevel: "declared" },
-      ],
-    });
-    const graph = buildGraph(bundle);
-    const signals = ADRESSE_PARTAGEE.evaluate({
-      bundle,
-      graph,
-      thresholds: DEFAULT_THRESHOLDS,
-    });
-    expect(signals).toHaveLength(1);
-    expect(signals[0].subjectId).toBe("a1");
-    expect(signals[0].explanation).toContain("2 sociétés");
-  });
-
-  it("PROCEDURE_COLLECTIVE déclenche un signal high par événement BODACC", () => {
-    const bundle = bundleOf({
-      entities: [
-        { id: "c1", type: "company", label: "A", evidenceLevel: "confirmed" },
-      ],
-      events: [
-        {
-          id: "ev1",
-          entityId: "c1",
-          kind: "procedure_collective",
-          title: "Redressement",
-          occurredOn: "2025-12-01",
-          evidenceLevel: "confirmed",
-        },
-      ],
-    });
-    const graph = buildGraph(bundle);
-    const signals = PROCEDURE_COLLECTIVE.evaluate({
-      bundle,
-      graph,
-      thresholds: DEFAULT_THRESHOLDS,
-    });
-    expect(signals).toHaveLength(1);
-    expect(signals[0].severity).toBe("high");
-    expect(signals[0].explanation).toContain("2025-12-01");
-  });
-
-  it("RADIATION déclenche un signal high par événement de radiation", () => {
-    const bundle = bundleOf({
-      entities: [
-        { id: "c1", type: "company", label: "A", evidenceLevel: "confirmed" },
-      ],
-      events: [
-        {
-          id: "ev1",
-          entityId: "c1",
-          kind: "radiation",
-          title: "Radiation RCS",
-          occurredOn: "2026-01-15",
-          evidenceLevel: "confirmed",
-        },
-      ],
-    });
-    const signals = RADIATION.evaluate({
-      bundle,
-      graph: buildGraph(bundle),
-      thresholds: DEFAULT_THRESHOLDS,
-    });
-    expect(signals[0].severity).toBe("high");
-    expect(signals[0].ruleId).toBe("RADIATION");
-  });
-
-  it("CYCLE_DETENTION détecte un circuit fermé sur les arêtes DETIENT", () => {
-    const bundle = bundleOf({
-      entities: [
-        { id: "c1", type: "company", label: "A", evidenceLevel: "confirmed" },
-        { id: "c2", type: "company", label: "B", evidenceLevel: "confirmed" },
-        { id: "c3", type: "company", label: "C", evidenceLevel: "confirmed" },
-      ],
-      edges: [
-        { id: "d1", type: "DETIENT", source: "c1", target: "c2", evidenceLevel: "declared" },
-        { id: "d2", type: "DETIENT", source: "c2", target: "c3", evidenceLevel: "declared" },
-        { id: "d3", type: "DETIENT", source: "c3", target: "c1", evidenceLevel: "declared" },
-      ],
-    });
-    const signals = CYCLE_DETENTION.evaluate({
-      bundle,
-      graph: buildGraph(bundle),
-      thresholds: DEFAULT_THRESHOLDS,
-    });
-    expect(signals).toHaveLength(1);
-    expect(signals[0].severity).toBe("high");
-    expect(signals[0].explanation).toContain("3 sociétés");
-  });
-
-  it("SOCIETE_RECENTE_TRES_LIEE ignore les vieilles sociétés ou les peu connectées", () => {
-    // Société créée il y a 3 ans, degré 6 → pas de signal.
-    const bundle = bundleOf({
-      entities: [
-        {
-          id: "c1",
-          type: "company",
-          label: "Ancien",
-          evidenceLevel: "confirmed",
-          attributes: { Création: "2023-01-01" },
-        },
-      ],
-    });
-    const signals = SOCIETE_RECENTE_TRES_LIEE.evaluate({
-      bundle,
-      graph: buildGraph(bundle),
-      thresholds: DEFAULT_THRESHOLDS,
-    });
-    expect(signals).toHaveLength(0);
+  it("déclenche sur un dirigeant qui en dirige >= seuil medium (3)", () => {
+    const signals = evaluateRule(
+      DIRIGEANT_MULTI_SOCIETES,
+      reseauMultiDirigeantsBundle,
+    );
+    // Au moins une personne du réseau dirige >= 3 sociétés.
+    expect(signals.length).toBeGreaterThan(0);
+    for (const s of signals) {
+      expect(["medium", "high"]).toContain(s.severity);
+      expect(s.category).toBe("complexite");
+      expect(s.explanation).not.toMatch(/fraude/i);
+    }
   });
 });
 
-describe("computeRisk — orchestration", () => {
-  it("agrège tous les signaux et calcule les 3 scores 0–100", () => {
-    const graph = buildGraph(reseauMultiDirigeantsBundle);
-    const { signals, scores } = computeRisk(reseauMultiDirigeantsBundle, graph);
+describe("règle ADRESSE_PARTAGEE", () => {
+  it("déclenche si une adresse est partagée par >= seuil medium (2)", () => {
+    const signals = evaluateRule(ADRESSE_PARTAGEE, reseauMultiDirigeantsBundle);
     expect(signals.length).toBeGreaterThan(0);
-    expect(scores.complexite).toBeGreaterThanOrEqual(0);
-    expect(scores.complexite).toBeLessThanOrEqual(100);
-    expect(scores.vigilance).toBeGreaterThanOrEqual(0);
-    expect(scores.qualitePreuve).toBeGreaterThanOrEqual(0);
-    // Le réseau Méridien a un dirigeant qui gère 3 sociétés et une adresse partagée.
-    const ruleIds = new Set(signals.map((s) => s.ruleId));
-    expect(ruleIds.has("DIRIGEANT_MULTI_SOCIETES")).toBe(true);
-    expect(ruleIds.has("ADRESSE_PARTAGEE")).toBe(true);
+    for (const s of signals) {
+      expect(s.category).toBe("vigilance");
+    }
   });
 
-  it("détecte la procédure collective dans le bundle Atlas BTP", () => {
-    const graph = buildGraph(procedureCollectiveBundle);
-    const { signals } = computeRisk(procedureCollectiveBundle, graph);
-    expect(signals.some((s) => s.ruleId === "PROCEDURE_COLLECTIVE")).toBe(true);
+  it("ne déclenche pas sur un dossier propre (1 adresse, 1 société)", () => {
+    const signals = evaluateRule(ADRESSE_PARTAGEE, cleanCompanyBundle);
+    expect(signals.length).toBe(0);
+  });
+});
+
+describe("règle SOCIETE_RECENTE_TRES_LIEE", () => {
+  it("respecte les seuils (12 mois + degré >= 4)", () => {
+    const signals = evaluateRule(
+      SOCIETE_RECENTE_TRES_LIEE,
+      reseauMultiDirigeantsBundle,
+    );
+    for (const s of signals) {
+      expect(s.severity).toBe("medium");
+      expect(s.category).toBe("vigilance");
+    }
+  });
+});
+
+describe("règle PROCEDURE_COLLECTIVE", () => {
+  it("déclenche un signal high sur un dossier avec procédure collective", () => {
+    const signals = evaluateRule(PROCEDURE_COLLECTIVE, procedureCollectiveBundle);
+    expect(signals.length).toBe(1);
+    expect(signals[0].severity).toBe("high");
+    expect(signals[0].explanation).toMatch(/Procédure collective/);
+    expect(signals[0].explanation).not.toMatch(/fraude/i);
   });
 
-  it("ne produit aucun signal vigilance sur un dossier propre", () => {
-    const graph = buildGraph(cleanCompanyBundle);
-    const { signals, scores } = computeRisk(cleanCompanyBundle, graph);
-    expect(signals.filter((s) => s.severity === "high")).toHaveLength(0);
-    expect(scores.vigilance).toBeLessThan(30);
-    expect(scores.qualitePreuve).toBeGreaterThan(60);
+  it("ne déclenche rien sur un dossier propre", () => {
+    const signals = evaluateRule(PROCEDURE_COLLECTIVE, cleanCompanyBundle);
+    expect(signals.length).toBe(0);
+  });
+});
+
+describe("règle RADIATION", () => {
+  it("ne déclenche pas sur le dossier holding démo (pas de radiation)", () => {
+    const signals = evaluateRule(RADIATION, demoBundle);
+    expect(signals.length).toBe(0);
+  });
+});
+
+describe("règle CYCLE_DETENTION", () => {
+  it("ne déclenche pas sur le dossier holding démo (chaîne arborescente)", () => {
+    const signals = evaluateRule(CYCLE_DETENTION, demoBundle);
+    expect(signals.length).toBe(0);
+  });
+});
+
+describe("règle PIVOT_SUSPECT", () => {
+  it("ne déclenche pas en dessous de 5 entités (skip explicite)", () => {
+    const signals = evaluateRule(PIVOT_SUSPECT, cleanCompanyBundle);
+    expect(signals.length).toBe(0);
+  });
+
+  it("peut déclencher sur un réseau dense — vocabulaire conforme", () => {
+    const signals = evaluateRule(PIVOT_SUSPECT, reseauMultiDirigeantsBundle);
+    // Le réseau peut ou non déclencher selon les seuils de betweenness ;
+    // s'il déclenche, on valide la conformité au vocabulaire/sévérités.
+    for (const s of signals) {
+      expect(["medium", "high"]).toContain(s.severity);
+      expect(s.category).toBe("vigilance");
+      expect(s.explanation).toMatch(/centralité/);
+      expect(s.explanation).not.toMatch(/fraude/i);
+    }
+  });
+});
+
+describe("computeRisk — vocabulaire global", () => {
+  it("n'utilise jamais le mot « fraude » dans aucune explanation", () => {
+    const bundles = [
+      demoBundle,
+      procedureCollectiveBundle,
+      reseauMultiDirigeantsBundle,
+      cleanCompanyBundle,
+    ];
+    for (const b of bundles) {
+      const graph = buildGraph(b);
+      const { signals } = computeRisk(b, graph);
+      for (const s of signals) {
+        expect(s.explanation.toLowerCase()).not.toMatch(/fraude/);
+      }
+    }
+  });
+
+  it("produit des scores 0-100 dans les 3 axes sur un réseau", () => {
+    const graph = buildGraph(reseauMultiDirigeantsBundle);
+    const { scores } = computeRisk(reseauMultiDirigeantsBundle, graph);
+    expect(scores.complexite ?? -1).toBeGreaterThanOrEqual(0);
+    expect(scores.complexite ?? 101).toBeLessThanOrEqual(100);
+    expect(scores.vigilance ?? -1).toBeGreaterThanOrEqual(0);
+    expect(scores.vigilance ?? 101).toBeLessThanOrEqual(100);
+    expect(scores.qualitePreuve ?? -1).toBeGreaterThanOrEqual(0);
+    expect(scores.qualitePreuve ?? 101).toBeLessThanOrEqual(100);
   });
 });

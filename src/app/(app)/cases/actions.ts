@@ -1,6 +1,7 @@
 "use server";
 
 import { getCasesRepository } from "@/lib/data/cases-repository";
+import { getGraphQueryRepository } from "@/lib/data/graph-query-repository";
 import { isValidSiren, normalizeSiren } from "@/lib/siren";
 import {
   validate,
@@ -30,4 +31,33 @@ export async function createCaseAction(
   }
   const summary = await getCasesRepository().createCaseFromSiren(clean);
   return { ok: true, id: summary.id };
+}
+
+/**
+ * Calcule le plus court chemin entre deux entités d'un dossier, pondéré par
+ * le niveau de preuve (`shortestEvidenceWeightedPath`). Renvoie la séquence
+ * de nœuds ou un message d'erreur.
+ */
+export async function findPathAction(
+  caseId: string,
+  sourceId: string,
+  targetId: string,
+): Promise<
+  | { ok: true; nodes: string[] }
+  | { ok: false; error: string }
+> {
+  if (sourceId === targetId) {
+    return { ok: false, error: "Source et cible identiques." };
+  }
+  const detail = await getCasesRepository().getCase(caseId);
+  if (!detail) return { ok: false, error: "Dossier introuvable." };
+  const nodes = await getGraphQueryRepository().shortestPath(
+    detail.bundle,
+    sourceId,
+    targetId,
+  );
+  if (!nodes || nodes.length === 0) {
+    return { ok: false, error: "Aucun chemin entre ces deux entités." };
+  }
+  return { ok: true, nodes };
 }

@@ -8,6 +8,7 @@ import GraphTooltip from "./GraphTooltip";
 import NodePanel from "./NodePanel";
 import EdgePanel from "./EdgePanel";
 import GraphTable from "./GraphTable";
+import PathBanner from "./PathBanner";
 import { useGraphStore } from "@/lib/store/graph-store";
 
 // Sigma est WebGL → chargé uniquement côté client (jamais de SSR).
@@ -51,6 +52,7 @@ export default function GraphCanvas({
       <GraphScene dto={dto} flaggedIds={flaggedIds} />
       {viewMode === "table" && <GraphTable dto={dto} bundle={bundle} />}
       <GraphToolbar />
+      {viewMode === "graph" && <PathBanner bundle={bundle} />}
       {viewMode === "graph" && <Legend />}
       {viewMode === "graph" && <GraphTooltip dto={dto} bundle={bundle} />}
       <NodePanel dto={dto} bundle={bundle} />
