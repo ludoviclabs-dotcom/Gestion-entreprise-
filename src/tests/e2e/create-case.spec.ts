@@ -5,12 +5,15 @@ import { test, expect } from "@playwright/test";
  *  - le dialog s'ouvre automatiquement,
  *  - la recherche par SIREN renvoie des candidats,
  *  - cliquer sur un candidat déclenche la Server Action `createCaseAction`
- *    et fait apparaître le toast de succès « Dossier créé ».
+ *    qui renvoie l'id du dossier, puis `window.location.assign` navigue vers
+ *    /cases/[id]/graphe.
  *
- * Note : on vérifie le toast plutôt que la navigation finale parce que le
- * store mémoire (`sessionStore`) peut être invalidé par le HMR dev entre la
- * Server Action et la requête de rendu de /cases/[id]/graphe. La navigation
- * elle-même est couverte par le smoke navigateur + les autres specs e2e.
+ * On asserte le changement d'URL (et non plus le toast « Dossier créé ») car
+ * la navigation est désormais un hard-redirect immédiat : le toast n'a pas le
+ * temps de s'afficher. L'URL `/cases/<uuid>/graphe` prouve à elle seule que la
+ * Server Action a abouti (elle fournit l'id) ET que la navigation s'est
+ * déclenchée — sans dépendre du rendu de la page de destination, que le
+ * sessionStore mémoire peut invalider sous le dev server.
  */
 test("création d'un dossier offline : recherche + succès Server Action", async ({
   page,
@@ -30,6 +33,8 @@ test("création d'un dossier offline : recherche + succès Server Action", async
   await expect(candidate.first()).toBeVisible({ timeout: 20_000 });
   await candidate.first().click();
 
-  // Toast Sonner de succès → preuve que la Server Action a abouti.
-  await expect(page.getByText(/Dossier créé/i)).toBeVisible({ timeout: 30_000 });
+  // Navigation dure vers le dossier créé → preuve que la Server Action a
+  // renvoyé un id et que le redirect s'est déclenché.
+  await page.waitForURL(/\/cases\/[0-9a-f-]+\/graphe/i, { timeout: 30_000 });
+  expect(page.url()).toMatch(/\/cases\/[0-9a-f-]+\/graphe/i);
 });
