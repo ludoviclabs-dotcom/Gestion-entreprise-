@@ -16,14 +16,12 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.81",
     "@neondatabase/serverless": "^1.1.0",
     "@react-pdf/renderer": "^4.5.1",
     "@react-sigma/core": "^5.0.6",
     "@sentry/nextjs": "^10.55.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "ai": "^6.0.193",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

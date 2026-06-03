@@ -93,4 +93,18 @@ export class FixtureCasesRepository implements CasesRepository {
     sessionStore.set(id, { bundle, sources, updatedAt });
     return toSummary(bundle, "draft", updatedAt);
   }
+
+  async saveSynthesis(caseId: string, content: string): Promise<void> {
+    // Les fixtures statiques sont immuables : seuls les dossiers en session
+    // peuvent recevoir une synthèse. Si l'id ne correspond à aucune entrée
+    // session-store on lève une erreur explicite (le repository fixtures sert
+    // de mode démo offline ; pour persister, basculer en `DbCasesRepository`
+    // via `DATABASE_URL`).
+    const ok = sessionStore.setSynthesis(caseId, content);
+    if (!ok) {
+      throw new Error(
+        "La synthèse manuelle n'est persistable que pour les dossiers créés en session — branche Neon (`DATABASE_URL`) pour persister sur les fixtures statiques.",
+      );
+    }
+  }
 }

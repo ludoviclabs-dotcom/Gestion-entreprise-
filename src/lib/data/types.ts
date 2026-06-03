@@ -41,4 +41,6 @@ export interface CasesRepository {
   getCase(id: string): Promise<CaseDetail | null>;
   searchCompanies(q: string): Promise<CompanyCandidate[]>;
   createCaseFromSiren(siren: string): Promise<CaseSummary>;
+  /** Enregistre la synthèse manuelle (workflow Claude Code) d'un dossier. */
+  saveSynthesis(caseId: string, content: string): Promise<void>;
 }

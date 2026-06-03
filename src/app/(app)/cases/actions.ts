@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { getGraphQueryRepository } from "@/lib/data/graph-query-repository";
 import { isValidSiren, normalizeSiren } from "@/lib/siren";
@@ -9,6 +10,13 @@ import {
   SirenSchema,
 } from "@/lib/server/validate";
 import type { CompanyCandidate } from "@/lib/data/types";
+
+// Synthèse manuelle : entre 20 et 5000 caractères, sans HTML brut.
+const SynthesisSchema = z
+  .string()
+  .trim()
+  .min(20, "Réponse trop courte (minimum 20 caractères).")
+  .max(5000, "Réponse trop longue (maximum 5000 caractères).");
 
 export async function searchCompaniesAction(
   q: string,
@@ -60,4 +68,28 @@ export async function findPathAction(
     return { ok: false, error: "Aucun chemin entre ces deux entités." };
   }
   return { ok: true, nodes };
+}
+
+/**
+ * Persiste la synthèse manuelle d'un dossier (workflow Claude Code copier-coller).
+ * Une seule version par dossier ; toute nouvelle sauvegarde écrase l'ancienne.
+ */
+export async function saveSynthesisAction(
+  caseId: string,
+  content: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = validate(content, SynthesisSchema);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  try {
+    await getCasesRepository().saveSynthesis(caseId, parsed.data);
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de l'enregistrement de la synthèse.",
+    };
+  }
 }

@@ -33,7 +33,7 @@
 | Auth (Étape 2.2) | Better-Auth + Drizzle | Idem, hébergé EU |
 | Sanctions/PEP | OpenSanctions (UE) | ✅ Déjà souverain |
 | Sirene / BODACC / INPI / DG Trésor | API gouv. françaises | ✅ Déjà souverain |
-| LLM (synthèse) | Anthropic Claude (US) | Mistral Large 2 hébergé via Scaleway AI Inference, ou OVHcloud AI Endpoints |
+| LLM (synthèse) | **Aucun appel API** — workflow manuel via Claude Code de l'utilisateur | Identique (souverain par construction). Si un jour passage à de l'auto-génération : Mistral Large 2 via Scaleway AI Inference, ou OVHcloud AI Endpoints. |
 
 ## Jalons de migration
 

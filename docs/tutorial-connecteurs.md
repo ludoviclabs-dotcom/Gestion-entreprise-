@@ -11,7 +11,7 @@ L'ordre suivant maximise l'impact visible à chaque étape :
 | 1 | **INSEE Sirene** | Recherche société live + identité réelle | ⭐ facile | gratuit |
 | 2 | **Neon Postgres** | Persistance des dossiers créés | ⭐⭐ moyenne | gratuit (free tier) |
 | 3 | **`db:migrate`** | Création des 11 tables | ⭐ facile | — |
-| 4 | **Anthropic Claude** | Synthèse IA des dossiers | ⭐ facile | ~$0.01/synthèse |
+| 4 | **Synthèse via Claude Code** | Aucune action requise — workflow copier-coller manuel | ⭐ facile | gratuit |
 | 5 | **`CRON_SECRET`** | Sécurisation du cron BODACC | ⭐ facile | — |
 | 6 | **DG Trésor gels** | Sanctions FR live (sans clé) | ⭐ facile | gratuit |
 | 7 | **OpenSanctions** | Sanctions/PEP UE (optionnel) | ⭐ facile | gratuit |
@@ -38,7 +38,6 @@ Crée le fichier `.env.local` à la racine de `C:\Users\Ludo\Gestion Entreprises
 ```dotenv
 INSEE_SIRENE_API_KEY=ta_cle_ici
 DATABASE_URL=postgres://...
-ANTHROPIC_API_KEY=sk-ant-...
 ```
 
 Vercel ignore `.env.local` (déjà dans `.gitignore`). Pour synchroniser depuis Vercel vers ta machine : `vercel env pull .env.local`.
@@ -167,38 +166,30 @@ Si tu veux que ta prod ne démarre pas vide, tu peux soit :
 
 ---
 
-## 4️⃣ Anthropic Claude — synthèse IA
+## 4️⃣ Synthèse via Claude Code — aucune action requise
 
-**Effet** : le bouton « Générer la synthèse » dans l'onglet **Risques** d'un dossier produit une lecture analytique du dossier (250 mots max, vocabulaire imposé, jamais « fraude »).
+**Effet** : le bouton « Préparer un briefing » dans l'onglet **Risques** d'un dossier ouvre une fenêtre avec un briefing Markdown (système prompt + données du dossier). Tu le colles dans ta session Claude Code, tu récupères la synthèse, tu la colles dans la zone prévue, tu enregistres. La synthèse est ensuite persistée dans Neon et s'affiche à chaque visite du dossier.
 
-### Étape par étape
-
-1. Crée un compte sur <https://console.anthropic.com>.
-2. Va dans **Settings** → **API Keys** → **Create Key** → nom `KYB Graph`.
-3. Copie la clé (commence par `sk-ant-...`).
-4. (Optionnel mais recommandé) Pose un **budget** dans **Plans & Billing** → **Set monthly limit** : par exemple 20 $ pour t'éviter une mauvaise surprise.
+> 🆓 **Pas de clé API, pas de frais** : tout passe par ton abonnement Claude Code existant. La route serveur `/api/cases/[caseId]/synthesis` a été supprimée (commit dans l'historique git si tu veux la restaurer un jour).
 
 ### Variable à poser
 
-```dotenv
-ANTHROPIC_API_KEY=sk-ant-api03-...
-```
+**Aucune.**
 
-### Vérification
+### Workflow utilisateur
 
-En prod : ouvre un dossier (par exemple `groupe-meridien`) → onglet **Risques** → clique **« Générer la synthèse »** → le texte doit apparaître en streaming en ~3 secondes.
+1. Ouvre un dossier → onglet **Risques** → clique **« Préparer un briefing »**.
+2. Dans la `Dialog`, clique **« Copier le briefing »** (toast de confirmation).
+3. Bascule sur ta session Claude Code, colle le briefing → Claude génère la synthèse (250 mots max, vocabulaire imposé, jamais « fraude »).
+4. Copie la réponse, retourne sur la `Dialog`, colle dans la zone du bas.
+5. Clique **Enregistrer** → la synthèse est persistée et affichée immédiatement.
+6. À la prochaine visite du dossier, elle s'affiche directement avec sa date. Bouton **Régénérer** pour l'écraser.
 
-Avant la clé : le bouton renvoie une erreur **503** avec le message « Synthèse IA non disponible — la variable ANTHROPIC_API_KEY n'est pas configurée. ».
+### Garde-fous
 
-### Coût
-
-- Modèle utilisé : **Claude 3.5 Sonnet** (réglable dans `src/app/(app)/cases/[caseId]/synthesis/route.ts:67`).
-- Prix : ~**$0.003 / 1 K tokens entrée** + **$0.015 / 1 K tokens sortie**.
-- Un dossier moyen consomme ~3 K tokens entrée + ~800 tokens sortie ≈ **$0.02** par synthèse. 1000 synthèses ≈ $20.
-
-### Gotcha
-
-- Le prompt système est **strict** : interdiction du mot « fraude », vocabulaire imposé. Ne modifie pas ce prompt sans relire `docs/regulatory.md` (présomption d'innocence + risque réputationnel).
+- Le briefing contient un **système prompt strict** (interdiction « fraude », vocabulaire imposé, structure en 3 parties, 250 mots max) — c'est ce qui garantit que Claude Code respecte les mêmes règles que l'auto-génération API aurait respectées.
+- Le prompt est défini dans `src/lib/synthesis/briefing.ts:SYNTHESIS_SYSTEM_PROMPT`. Ne le modifie pas sans relire `docs/regulatory.md`.
+- Validation Zod côté serveur : 20 < contenu < 5000 caractères.
 
 ---
 
@@ -470,9 +461,9 @@ curl -i -H "Authorization: Bearer $CRON_SECRET" \
 ### Drizzle migrate « Database does not exist »
 - Vérifie que `DATABASE_URL_UNPOOLED` pointe vers la **base** existante (le path après `/` dans l'URL). Si tu as nommé ta base `kyb-graph` mais l'URL contient `/neondb`, corrige.
 
-### Synthèse IA répond 503
-- La variable `ANTHROPIC_API_KEY` n'est pas posée OU n'est pas appliquée au scope Production.
-- Pose-la, redéploie (`vercel --prod --yes`), attends ~1 minute.
+### Synthèse — la zone réponse n'enregistre pas
+- Vérifie que la réponse fait au moins 20 caractères (validation Zod côté serveur).
+- En cas d'erreur réseau, ouvre Vercel → Logs → cherche `saveSynthesisAction` pour le détail.
 
 ### Cron BODACC 401 alors que tu as posé `CRON_SECRET`
 - La variable n'a pas le bon scope (Production/Preview/Development). Vérifie sur Vercel → Settings → Environment Variables.
@@ -498,7 +489,6 @@ curl -i -H "Authorization: Bearer $CRON_SECRET" \
 | `OPENSANCTIONS_API_KEY` | Quotas OpenSanctions | optionnel | opensanctions.org |
 | `DATABASE_URL` | Persistance Neon | Étape 2.1 | Vercel Marketplace ou neon.tech |
 | `DATABASE_URL_UNPOOLED` | Migrations + transactions | Étape 2.1 | idem |
-| `ANTHROPIC_API_KEY` | Synthèse IA | Étape 3.5 | console.anthropic.com |
 | `SENTRY_DSN` | Observabilité | Étape 1.5 | sentry.io |
 | `CRON_SECRET` | Cron BODACC sécurisé | Étape 3.7 | `openssl rand -hex 32` |
 | `NEXT_PUBLIC_DEMO_MODE=false` | Bascule live | obligatoire à la fin | flag |

@@ -84,7 +84,7 @@ Les bases de KYB Graph manipulent par construction des **données personnelles**
 | Trail SHA-256 de chaque source | AMLR : conservation auditable + RGPD : intégrité |
 | UBO derrière auth + log d'intérêt légitime | CJUE 2022 |
 | Export PDF sourcé et horodaté | AMLR : opposabilité des décisions |
-| Synthèse IA avec prompt « jamais fraude » + validation regex | Présomption + RGPD : limitation de la prise de décision automatisée |
+| Synthèse manuelle via Claude Code de l'utilisateur (zéro appel API tiers depuis la prod) — prompt strict « jamais fraude » embarqué dans le briefing | Présomption + RGPD : pas de transfert hors UE de données du dossier vers un service IA SaaS US |
 | Migration souveraine planifiée | Doctrine DINUM + qualification SecNumCloud + CLOUD Act |
 
 ## Liens utiles

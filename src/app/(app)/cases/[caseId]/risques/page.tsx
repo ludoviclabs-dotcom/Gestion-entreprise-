@@ -22,7 +22,7 @@ export default async function RisquesTab(props: {
         d&apos;analyse, jamais des accusations.
       </p>
       <div className="mt-6">
-        <AiSynthesis caseId={caseId} />
+        <AiSynthesis bundle={detail.bundle} />
       </div>
       <div className="mt-6">
         {signals.length === 0 ? (

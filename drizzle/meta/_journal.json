@@ -15,6 +15,13 @@
       "when": 1780498661868,
       "tag": "0001_dapper_ego",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780500262532,
+      "tag": "0002_yummy_bloodscream",
+      "breakpoints": true
     }
   ]
 }

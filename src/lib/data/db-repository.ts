@@ -216,6 +216,17 @@ export class DbCasesRepository implements CasesRepository {
           vigilance: caseRow.scoreVigilance ?? undefined,
           qualitePreuve: caseRow.scoreQualitePreuve ?? undefined,
         },
+        synthesis: caseRow.synthesisContent
+          ? {
+              content: caseRow.synthesisContent,
+              updatedAt:
+                caseRow.synthesisUpdatedAt instanceof Date
+                  ? caseRow.synthesisUpdatedAt.toISOString()
+                  : new Date(
+                      caseRow.synthesisUpdatedAt ?? Date.now(),
+                    ).toISOString(),
+            }
+          : undefined,
       },
       entities: bundleEntities,
       edges: bundleEdges,
@@ -413,5 +424,18 @@ export class DbCasesRepository implements CasesRepository {
         .where(eq(cases.id, caseId));
       throw error;
     }
+  }
+
+  async saveSynthesis(caseId: string, content: string): Promise<void> {
+    const db = getDb();
+    const now = new Date();
+    await db
+      .update(cases)
+      .set({
+        synthesisContent: content,
+        synthesisUpdatedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(cases.id, caseId));
   }
 }

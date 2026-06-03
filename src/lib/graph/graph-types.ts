@@ -62,8 +62,17 @@ export type CaseScores = {
   vigilance?: number;
   qualitePreuve?: number;
 };
+/** Synthèse manuelle rédigée via Claude Code (workflow copier-coller). */
+export type CaseSynthesis = { content: string; updatedAt: string };
+
 export type CaseBundle = {
-  case: { id: string; title: string; rootSiren: string; scores?: CaseScores };
+  case: {
+    id: string;
+    title: string;
+    rootSiren: string;
+    scores?: CaseScores;
+    synthesis?: CaseSynthesis;
+  };
   entities: CaseEntity[];
   edges: CaseEdge[];
   events: CaseEvent[];

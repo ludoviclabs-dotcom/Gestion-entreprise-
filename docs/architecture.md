@@ -36,7 +36,7 @@
 
 - **Frontend** : Next.js 16 (App Router, Turbopack, React Compiler) · React 19 · TypeScript strict · Tailwind v4 · shadcn/ui (17 primitives Radix vendorisées) · cmdk (⌘K) · motion (transitions) · next-themes (light/dark).
 - **Graphe** : Sigma.js v3 (WebGL) · Graphology + extensions (layout-forceatlas2, communities-louvain, components, metrics, shortest-path).
-- **Backend** : Server Actions + Route Handlers Node.js · Drizzle ORM · Neon serverless (HTTP) · Vercel AI SDK + Anthropic Claude (synthèse IA).
+- **Backend** : Server Actions + Route Handlers Node.js · Drizzle ORM · Neon serverless (HTTP). Synthèse IA : workflow manuel copier-coller via la session Claude Code de l'utilisateur (zéro appel API tiers, cf. `docs/regulatory.md`).
 - **Sécurité/Obs** : Zod (validation) · token-bucket in-memory (rate limit, prêt pour Upstash) · Sentry (scaffold, no-op sans DSN) · @vercel/analytics + speed-insights.
 - **Tests** : Vitest (29 tests unit) · Playwright (3 specs e2e) · GitHub Actions CI.
 
@@ -152,7 +152,6 @@ Interface Cypher-shaped : `shortestPath`, `metrics`, `expandSubgraph`.
 | `INPI_USERNAME`/`PASSWORD` | RNE live | Stub fixture |
 | `TRESOR_GELS_ENABLED` | DG Trésor live | Mock |
 | `OPENSANCTIONS_API_KEY` | Quota élevé | Free tier |
-| `ANTHROPIC_API_KEY` | Synthèse IA | Route 503 |
 | `SENTRY_DSN` | Sentry actif | No-op |
 | `CRON_SECRET` | Cron BODACC sécurisé | Cron public refusé 401 |
 | `GRAPH_QUERY_BACKEND=age` | AgeCypherRepository | Graphology in-memory |

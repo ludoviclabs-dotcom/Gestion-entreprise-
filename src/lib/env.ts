@@ -19,7 +19,6 @@ const serverSchema = z.object({
   OPENSANCTIONS_API_KEY: z.string().optional(),
   OPENSANCTIONS_BASE_URL: z.string().default("https://api.opensanctions.org"),
   OPENSANCTIONS_DATASET: z.string().default("sanctions"),
-  ANTHROPIC_API_KEY: z.string().optional(),
 });
 
 export const env = serverSchema.parse(process.env);
@@ -33,4 +32,3 @@ export const hasSireneKey = (): boolean => Boolean(env.INSEE_SIRENE_API_KEY);
 export const isTresorGelsEnabled = (): boolean => env.TRESOR_GELS_ENABLED === "true";
 export const hasOpenSanctionsKey = (): boolean =>
   Boolean(env.OPENSANCTIONS_API_KEY);
-export const hasAnthropicKey = (): boolean => Boolean(env.ANTHROPIC_API_KEY);

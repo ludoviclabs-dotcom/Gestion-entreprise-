@@ -20,4 +20,13 @@ export const sessionStore = {
   has(id: string): boolean {
     return store.has(id);
   },
+  /** Enregistre/met à jour la synthèse manuelle d'un dossier (Claude Code). */
+  setSynthesis(id: string, content: string): boolean {
+    const entry = store.get(id);
+    if (!entry) return false;
+    const updatedAt = new Date().toISOString();
+    entry.bundle.case.synthesis = { content, updatedAt };
+    entry.updatedAt = updatedAt;
+    return true;
+  },
 };
