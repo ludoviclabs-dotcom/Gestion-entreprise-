@@ -66,5 +66,5 @@ GRAPH_QUERY_BACKEND=age   # bascule le sélecteur de GraphQueryRepository
 
 ## Annexe — décisions hors scope explicite
 
-- **Sentry → GlitchTip** : pas urgent tant qu'aucune donnée personnelle réelle n'est traitée. Configurer `beforeSend` côté Sentry pour scrubber agressivement les payloads (déjà câblé dans `sentry.server.config.ts`).
+- **Sentry → GlitchTip** : pas urgent tant qu'aucune donnée personnelle réelle n'est traitée. Configurer `beforeSend` côté Sentry pour scrubber agressivement les payloads (déjà câblé dans `src/sentry.server.config.ts`).
 - **Hébergement frontend** : tant que le frontend ne contient pas de données utilisateur, Vercel reste pratique pour la vitesse de livraison. Toute donnée sensible ne doit JAMAIS atterrir sur Vercel.

@@ -344,11 +344,15 @@ INPI_PASSWORD=ton_password_inpi_api
 3. Donne un nom : `kyb-graph`.
 4. À l'étape « Install », Sentry te montre un **DSN** de la forme `https://abc123@o12345.ingest.de.sentry.io/67890`. Copie-le.
 
+> ⚠️ **N'exécute PAS le wizard** `npx @sentry/wizard` que Sentry propose sur l'écran d'onboarding. Le projet a déjà toute la config Sentry câblée à la main (instrumentation + `beforeSend` scrubber RGPD). Le wizard écraserait ces fichiers. Tu n'as **que le DSN** à récupérer. L'écran « Set up the Sentry SDK » est juste l'état vide ; il se transforme en feed d'issues dès le premier event reçu.
+
 ### Variable à poser
 
 ```dotenv
 SENTRY_DSN=https://abc123@o12345.ingest.de.sentry.io/67890
 ```
+
+Scope **Production uniquement**, **Sensitive ON**. Puis **redéploie** (`vercel --prod --yes`) — la variable n'est lue qu'au boot du runtime.
 
 ### Vérification
 
@@ -356,9 +360,29 @@ Une fois la variable posée et l'app redéployée :
 1. Déclenche une erreur volontaire (par exemple va sur une URL inexistante : `https://kyb-graph.vercel.app/cases/nimporte-quoi/graphe`).
 2. Va sur le dashboard Sentry → tu dois voir l'erreur sous 30 secondes.
 
+> 💡 Si le code gère proprement l'erreur (retourne 404/400 sans throw), Sentry ne capture rien — c'est normal. Pour un test garanti, crée temporairement une route `src/app/api/debug/sentry-test/route.ts` qui `throw new Error(...)`, déploie, `curl` la route, vérifie l'issue, puis **supprime la route**.
+
+### ⚠️ Piège #1 — `instrumentation.ts` doit être DANS `src/`
+
+**Symptôme** : `SENTRY_DSN` est bien posé, la route throw bien un 500, mais **aucune issue n'arrive dans Sentry**. Diagnostic : `Sentry.getClient()` renvoie `undefined` (`hasClient: false`) → `Sentry.init()` n'a jamais tourné → `captureException` est un no-op silencieux.
+
+**Cause** : ce projet utilise un dossier **`src/`**. Next.js n'exécute le hook `register()` de `instrumentation.ts` **que si le fichier est dans `src/`** (pas à la racine). À la racine, il est ignoré sans erreur.
+
+**Emplacement correct** (tous dans `src/`) :
+```
+src/instrumentation.ts          ← hook register() + onRequestError
+src/instrumentation-client.ts   ← Sentry.init côté navigateur
+src/sentry.server.config.ts     ← Sentry.init Node + beforeSend RGPD
+src/sentry.edge.config.ts       ← Sentry.init Edge
+```
+
+### ⚠️ Piège #2 — `next.config.ts` doit être wrappé
+
+`next.config.ts` doit exporter `withSentryConfig(config, {...})` depuis `@sentry/nextjs`, sinon l'auto-instrumentation (Server Actions, RSC) n'est pas câblée. Au build tu dois voir la ligne `[@sentry/nextjs - After Production Compile] Info: Sending telemetry...` — c'est la preuve que le wrap est actif.
+
 ### Garde-fou RGPD
 
-Le code `sentry.server.config.ts` contient un **`beforeSend`** qui retire le champ `payload` des `source_records` avant envoi → pas de données personnelles brutes envoyées à Sentry SaaS US.
+Le code `src/sentry.server.config.ts` contient un **`beforeSend`** qui retire le champ `payload` des `source_records` avant envoi → pas de données personnelles brutes envoyées à Sentry SaaS US.
 
 Pour une posture pleinement souveraine, voir `docs/sovereignty.md` (alternative GlitchTip self-hosted).
 
