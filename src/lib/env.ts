@@ -14,6 +14,15 @@ const serverSchema = z.object({
   BODACC_API_KEY: z.string().optional(),
   INPI_USERNAME: z.string().optional(),
   INPI_PASSWORD: z.string().optional(),
+  INPI_BASE_URL: z
+    .string()
+    .default("https://registre-national-entreprises.inpi.fr/api"),
+  // Garde-fou CJUE 22/11/2022 (C-37/20 & C-601/20) : l'accès aux bénéficiaires
+  // effectifs est conditionné à un intérêt légitime + log d'audit (Étape 2.2
+  // auth + 3.4 audit_logs). Tant que ce dispositif n'est pas en place, les UBO
+  // récupérés via INPI ne sont PAS rendus dans le graphe. Ne passer à "true"
+  // qu'une fois l'auth + le log d'intérêt légitime opérationnels.
+  INPI_EXPOSE_UBO: z.enum(["true", "false"]).default("false"),
   TRESOR_GELS_ENABLED: z.enum(["true", "false"]).default("false"),
   TRESOR_GELS_BASE_URL: z.string().default("https://gels-avoirs.dgtresor.gouv.fr/ApiPublic/api/v1"),
   OPENSANCTIONS_API_KEY: z.string().optional(),
@@ -32,3 +41,7 @@ export const hasSireneKey = (): boolean => Boolean(env.INSEE_SIRENE_API_KEY);
 export const isTresorGelsEnabled = (): boolean => env.TRESOR_GELS_ENABLED === "true";
 export const hasOpenSanctionsKey = (): boolean =>
   Boolean(env.OPENSANCTIONS_API_KEY);
+export const hasInpiCreds = (): boolean =>
+  Boolean(env.INPI_USERNAME && env.INPI_PASSWORD);
+/** Garde-fou CJUE : affichage des UBO réels uniquement si explicitement activé. */
+export const isInpiUboExposed = (): boolean => env.INPI_EXPOSE_UBO === "true";

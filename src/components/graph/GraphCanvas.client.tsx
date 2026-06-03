@@ -50,7 +50,7 @@ export default function GraphCanvas({
       className="bg-grid relative h-full w-full overflow-hidden"
     >
       <GraphScene dto={dto} flaggedIds={flaggedIds} />
-      {viewMode === "table" && <GraphTable dto={dto} bundle={bundle} />}
+      {viewMode === "table" && <GraphTable bundle={bundle} />}
       <GraphToolbar />
       {viewMode === "graph" && <PathBanner bundle={bundle} />}
       {viewMode === "graph" && <Legend />}

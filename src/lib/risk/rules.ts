@@ -7,7 +7,7 @@ import type {
   Severity,
 } from "@/lib/graph/graph-types";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
-import type { Rule, RuleContext } from "./types";
+import type { Rule } from "./types";
 
 // ── Utilitaires partagés ─────────────────────────────────────────────────
 

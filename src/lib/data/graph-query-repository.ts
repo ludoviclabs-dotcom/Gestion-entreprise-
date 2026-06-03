@@ -68,7 +68,7 @@ export class GraphologyQueryRepository implements GraphQueryRepository {
     for (let d = 0; d < depth; d += 1) {
       const next: string[] = [];
       for (const node of frontier) {
-        g.forEachNeighbor(node, (neighbor, _attrs) => {
+        g.forEachNeighbor(node, (neighbor) => {
           if (!seen.has(neighbor)) {
             seen.add(neighbor);
             next.push(neighbor);

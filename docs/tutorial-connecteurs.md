@@ -324,7 +324,18 @@ INPI_PASSWORD=ton_password_inpi_api
 
 ### État actuel du code
 
-> ⚠️ **L'implémentation live d'INPI est un stub** dans la version actuelle (`src/lib/connectors/inpi.ts` renvoie toujours la fixture). Le code complet (login → JWT → endpoints `/companies/{siren}`) est prévu dans l'**Étape 2.5** du plan. Tu peux poser les credentials maintenant ; ils seront consommés dès que la vraie implémentation arrive.
+> ✅ **L'implémentation live d'INPI est complète** (`src/lib/connectors/inpi.ts`) : login `POST /sso/login` → JWT (caché ~50 min) → `GET /companies/{siren}` → transformation de la réponse RNE imbriquée (`src/lib/connectors/inpi-transform.ts`) vers dirigeants (personnes physiques **et** morales) + bénéficiaires effectifs. Dès que `INPI_USERNAME` + `INPI_PASSWORD` sont posés **et** `NEXT_PUBLIC_DEMO_MODE=false`, le connecteur tape l'API réelle. Sans credentials → fixture. En cas d'erreur API → résultat vide + capture Sentry (jamais la fixture DANONE, qui serait fausse pour un autre SIREN).
+
+> ⚠️ **Le transform `inpi-transform.ts` est basé sur la structure documentée de l'API RNE** mais n'a pas encore été validé contre des réponses réelles (compte INPI en cours de validation). Il est ultra-défensif (ne lève jamais) et couvert par un test unitaire (`src/tests/unit/inpi-transform.spec.ts`). À confronter à de vraies réponses dès que les credentials sont actifs.
+
+### ⚠️ Bénéficiaires effectifs (UBO) — gating CJUE 2022
+
+Le connecteur **récupère** les UBO, mais `normalizeInpi` ne les **affiche dans le graphe que si** `INPI_EXPOSE_UBO=true`. Par défaut (`false`), les UBO réels ne sont **pas** rendus, conformément à l'arrêt CJUE du 22/11/2022 qui conditionne leur accès à un intérêt légitime documenté. **Ne passe `INPI_EXPOSE_UBO=true` qu'une fois l'auth (Étape 2.2) + le log d'intérêt légitime (Étape 3.4) en place.** Voir `docs/regulatory.md`.
+
+```dotenv
+# À n'activer qu'après mise en place de l'auth + log d'intérêt légitime :
+INPI_EXPOSE_UBO=false
+```
 
 ### Coût
 
@@ -508,7 +519,8 @@ curl -i -H "Authorization: Bearer $CRON_SECRET" \
 |---|---|---|---|
 | `INSEE_SIRENE_API_KEY` | Sirene live | Étape 1.2 | portail-api.insee.fr |
 | `BODACC_API_KEY` | Quotas BODACC élevés | optionnel | bodacc-datadila.opendatasoft.com |
-| `INPI_USERNAME`/`PASSWORD` | INPI/UBO | Étape 2.5 | data.inpi.fr |
+| `INPI_USERNAME`/`PASSWORD` | INPI dirigeants + UBO (live) | optionnel | data.inpi.fr |
+| `INPI_EXPOSE_UBO=true` | Affiche les UBO réels (après auth + log) | optionnel, défaut off | flag (CJUE) |
 | `TRESOR_GELS_ENABLED=true` | DG Trésor live | optionnel | flag |
 | `OPENSANCTIONS_API_KEY` | Quotas OpenSanctions | optionnel | opensanctions.org |
 | `DATABASE_URL` | Persistance Neon | Étape 2.1 | Vercel Marketplace ou neon.tech |

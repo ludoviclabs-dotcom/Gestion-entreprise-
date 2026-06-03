@@ -23,7 +23,7 @@ import {
   NODE_COLORS,
   NODE_LABELS,
 } from "@/lib/graph/graph-types";
-import type { CaseBundle, GraphDTO } from "@/lib/graph/graph-types";
+import type { CaseBundle } from "@/lib/graph/graph-types";
 import { useGraphStore } from "@/lib/store/graph-store";
 
 /**
@@ -36,10 +36,8 @@ import { useGraphStore } from "@/lib/store/graph-store";
  * - texte alternatif aux signaux visuels (couleur + style).
  */
 export default function GraphTable({
-  dto,
   bundle,
 }: {
-  dto: GraphDTO;
   bundle: CaseBundle;
 }) {
   const selectNode = useGraphStore((s) => s.selectNode);

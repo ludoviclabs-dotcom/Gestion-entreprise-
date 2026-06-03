@@ -39,8 +39,8 @@ Motif : ingérence non strictement nécessaire dans le droit à la vie privée (
 - Les États membres ont restreint ou suspendu l'accès public à leurs registres UBO.
 
 **Impact KYB Graph** :
-- L'affichage des UBO sera **gaté par auth** (Étape 2.2 Better-Auth).
-- Le rôle minimum requis sera `analyst` avec **enregistrement obligatoire** d'un intérêt légitime dans `audit_logs` (Étape 3.4).
+- Le connecteur INPI **récupère** les bénéficiaires effectifs, mais `normalizeInpi` ne les **rend dans le graphe que si `INPI_EXPOSE_UBO=true`** (défaut `false`). Ce flag matérialise techniquement le gating CJUE : tant qu'il reste à `false`, aucun UBO réel n'atteint le graphe ni l'export.
+- L'activation (`INPI_EXPOSE_UBO=true`) ne doit intervenir qu'**après** la mise en place de l'auth (Étape 2.2 Better-Auth, rôle minimum `analyst`) **et** de l'enregistrement obligatoire d'un intérêt légitime dans `audit_logs` (Étape 3.4).
 - En mode démo public, **aucun UBO réel** n'est affiché — fixtures anonymisées uniquement.
 
 ## Tracfin (cellule de renseignement financier française)

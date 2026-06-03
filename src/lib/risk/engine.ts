@@ -97,7 +97,6 @@ export function computeRisk(
     } catch (error) {
       // Une règle qui plante ne doit jamais casser l'ingestion d'un dossier.
       // On préfère un score sous-évalué à une erreur 500.
-      // eslint-disable-next-line no-console
       console.error(`[risk] rule ${rule.id} threw`, error);
     }
   }

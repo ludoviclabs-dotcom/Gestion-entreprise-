@@ -1,0 +1,60 @@
+{
+  "siren": "552032534",
+  "formality": {
+    "content": {
+      "personneMorale": {
+        "identite": {
+          "denomination": "DANONE",
+          "formeJuridique": "5499"
+        },
+        "composition": {
+          "pouvoirs": [
+            {
+              "typeDePersonne": "INDIVIDU",
+              "individu": {
+                "descriptionPersonne": {
+                  "nom": "RIBOUD",
+                  "prenoms": ["Antoine", "Marcel"],
+                  "genre": "1",
+                  "role": "5300"
+                }
+              }
+            },
+            {
+              "typeDePersonne": "INDIVIDU",
+              "individu": {
+                "descriptionPersonne": {
+                  "nom": "FABER",
+                  "prenoms": ["Emmanuel"],
+                  "role": "5400"
+                }
+              }
+            },
+            {
+              "typeDePersonne": "ENTREPRISE",
+              "entreprise": {
+                "denomination": "SOFINA HOLDING",
+                "siren": "999888777",
+                "roleEntreprise": "5100"
+              }
+            }
+          ]
+        },
+        "beneficiairesEffectifs": [
+          {
+            "beneficiaire": {
+              "descriptionPersonne": {
+                "nom": "DUPONT",
+                "prenoms": ["Marie", "Claire"]
+              },
+              "modaliteControle": {
+                "detentionPartTotale": false,
+                "pourcentageParts": "27%"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

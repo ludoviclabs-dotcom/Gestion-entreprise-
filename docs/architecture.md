@@ -124,7 +124,7 @@ Interface Cypher-shaped : `shortestPath`, `metrics`, `expandSubgraph`.
 
 1. Appel **Sirene** unité légale + établissement siège (mock fixture si pas de clé).
 2. Appel **BODACC** (annonces par SIREN, sans clé).
-3. Appel **INPI** RNE (stub fixture — vraie impl. Étape 2.5).
+3. Appel **INPI** RNE (live : login JWT → `/companies/{siren}` → transform dirigeants PP/PM + UBO ; fixture sans credentials). UBO gatés par `INPI_EXPOSE_UBO` (défaut off, CJUE 2022).
 4. Appel **DG Trésor** gels (registre national).
 5. Appel **OpenSanctions** match company (UE, listes agrégées).
 6. **Normalisation** : chaque payload → entités + edges + events + evidence (`normalize-*`).
@@ -149,7 +149,8 @@ Interface Cypher-shaped : `shortestPath`, `metrics`, `expandSubgraph`.
 | `NEXT_PUBLIC_DEMO_MODE` | Mode démo | Défaut `true` (mock) |
 | `INSEE_SIRENE_API_KEY` | Sirene live | Fixture |
 | `BODACC_API_KEY` | Quota BODACC élevé | Quota standard |
-| `INPI_USERNAME`/`PASSWORD` | RNE live | Stub fixture |
+| `INPI_USERNAME`/`PASSWORD` | RNE live (dirigeants + UBO) | Fixture |
+| `INPI_EXPOSE_UBO` | Affiche les UBO réels dans le graphe | Défaut `false` (gating CJUE 2022) |
 | `TRESOR_GELS_ENABLED` | DG Trésor live | Mock |
 | `OPENSANCTIONS_API_KEY` | Quota élevé | Free tier |
 | `SENTRY_DSN` | Sentry actif | No-op |
