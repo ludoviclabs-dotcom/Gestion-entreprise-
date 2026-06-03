@@ -28,6 +28,4 @@ export default withSentryConfig(composedConfig, {
   // Désactive le tunnel (utile uniquement si tu veux router les events via /monitoring
   // pour bypasser des adblockers — pas nécessaire pour un endpoint serveur).
   tunnelRoute: undefined,
-  // Évite les warnings sur les routes API qui throw.
-  disableLogger: false,
 });
