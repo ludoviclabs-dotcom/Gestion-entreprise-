@@ -256,13 +256,17 @@ export class DbCasesRepository implements CasesRepository {
     const db = getDb();
     const { bundle, sources } = await assembleCase(siren);
 
-    // 1. Case
+    // 1. Case — on persiste aussi les scores calculés par computeRisk dans
+    // assembleCase (sinon Complexité/Vigilance/Qualité de preuve restent '—').
     const [caseRow] = await db
       .insert(cases)
       .values({
         title: bundle.case.title,
         rootSiren: siren,
         status: "draft",
+        scoreComplexite: bundle.case.scores?.complexite ?? null,
+        scoreVigilance: bundle.case.scores?.vigilance ?? null,
+        scoreQualitePreuve: bundle.case.scores?.qualitePreuve ?? null,
       })
       .returning();
     const caseId = caseRow.id;
