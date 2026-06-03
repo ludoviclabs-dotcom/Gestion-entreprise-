@@ -8,12 +8,14 @@ import { test, expect } from "@playwright/test";
  *    qui renvoie l'id du dossier, puis `window.location.assign` navigue vers
  *    /cases/[id]/graphe.
  *
- * On asserte le changement d'URL (et non plus le toast « Dossier créé ») car
- * la navigation est désormais un hard-redirect immédiat : le toast n'a pas le
- * temps de s'afficher. L'URL `/cases/<uuid>/graphe` prouve à elle seule que la
- * Server Action a abouti (elle fournit l'id) ET que la navigation s'est
- * déclenchée — sans dépendre du rendu de la page de destination, que le
- * sessionStore mémoire peut invalider sous le dev server.
+ * On asserte la *requête de navigation* vers /cases/<uuid>/graphe (et non plus
+ * le toast « Dossier créé », ni l'URL committée). La navigation est un
+ * hard-redirect via window.location.assign : le toast n'a pas le temps de
+ * s'afficher, et attendre l'URL committée dépendrait du temps de compilation
+ * de la route lourde /graphe (Sigma + graphology) — lent et flaky sous le dev
+ * server CI à froid. La requête document, elle, part *immédiatement* après le
+ * succès de la Server Action : la capter prouve que l'action a renvoyé un id
+ * ET que le redirect s'est déclenché, sans attendre le rendu de la cible.
  */
 test("création d'un dossier offline : recherche + succès Server Action", async ({
   page,
@@ -31,10 +33,19 @@ test("création d'un dossier offline : recherche + succès Server Action", async
   // Candidat ciblé par son SIREN (sélecteur sans ambiguïté).
   const candidate = page.locator("button").filter({ hasText: "552032534" });
   await expect(candidate.first()).toBeVisible({ timeout: 20_000 });
+
+  // Armé AVANT le clic : capte la requête document émise par
+  // window.location.assign dès le succès de la Server Action, indépendamment
+  // du temps de compilation de la route cible.
+  const navRequest = page.waitForRequest(
+    (req) =>
+      req.isNavigationRequest() &&
+      /\/cases\/[0-9a-f-]+\/graphe/i.test(req.url()),
+    { timeout: 30_000 },
+  );
+
   await candidate.first().click();
 
-  // Navigation dure vers le dossier créé → preuve que la Server Action a
-  // renvoyé un id et que le redirect s'est déclenché.
-  await page.waitForURL(/\/cases\/[0-9a-f-]+\/graphe/i, { timeout: 30_000 });
-  expect(page.url()).toMatch(/\/cases\/[0-9a-f-]+\/graphe/i);
+  const req = await navRequest;
+  expect(req.url()).toMatch(/\/cases\/[0-9a-f-]+\/graphe/i);
 });
