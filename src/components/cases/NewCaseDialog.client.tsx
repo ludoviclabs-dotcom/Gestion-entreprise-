@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Building2, Loader2, Search } from "lucide-react";
 import {
   Dialog,
@@ -27,7 +26,6 @@ export default function NewCaseDialog({
   children?: React.ReactNode;
   defaultOpen?: boolean;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<CompanyCandidate[]>([]);

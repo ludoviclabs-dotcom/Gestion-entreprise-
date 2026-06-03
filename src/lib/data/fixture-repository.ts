@@ -60,7 +60,7 @@ export class FixtureCasesRepository implements CasesRepository {
   }
 
   async searchCompanies(q: string): Promise<CompanyCandidate[]> {
-    // Réutilise le connecteur Sirene (fixtures via useMock() en mode démo).
+    // Réutilise le connecteur Sirene (fixtures via shouldMock() en mode démo).
     const { sirene } = await import("@/lib/connectors/sirene");
     const result = await sirene.search(q);
     type SearchUL = {

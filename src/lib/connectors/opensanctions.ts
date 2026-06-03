@@ -21,7 +21,7 @@ export type OpenSanctionsQueryInput = {
   birthDate?: string;
 };
 
-function useMock(): boolean {
+function shouldMock(): boolean {
   return isDemoMode() || !hasOpenSanctionsKey();
 }
 
@@ -29,7 +29,7 @@ export const openSanctions = {
   async match(
     queries: Record<string, OpenSanctionsQueryInput>,
   ): Promise<ConnectorResult<unknown>> {
-    if (useMock()) {
+    if (shouldMock()) {
       return {
         raw: fixture,
         endpoint: "fixture:opensanctions",

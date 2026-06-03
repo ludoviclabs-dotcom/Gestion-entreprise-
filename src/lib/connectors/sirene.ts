@@ -9,7 +9,7 @@ import type { ConnectorResult } from "./types";
 const HEADER = "X-INSEE-Api-Key-Integration";
 const limiter = new RateLimiter(28, 60_000); // marge sous le quota de 30 req/min
 
-function useMock(): boolean {
+function shouldMock(): boolean {
   return isDemoMode() || !hasSireneKey();
 }
 
@@ -19,7 +19,7 @@ function authHeaders(): Record<string, string> {
 
 export const sirene = {
   async getUniteLegale(siren: string): Promise<ConnectorResult<unknown>> {
-    if (useMock()) {
+    if (shouldMock()) {
       return {
         raw: uniteLegaleFixture,
         endpoint: "fixture:sirene-unite-legale",
@@ -39,7 +39,7 @@ export const sirene = {
     siren: string,
     nic?: string | null,
   ): Promise<ConnectorResult<unknown>> {
-    if (useMock()) {
+    if (shouldMock()) {
       return {
         raw: etablissementFixture,
         endpoint: "fixture:sirene-etablissement",
@@ -60,7 +60,7 @@ export const sirene = {
   },
 
   async search(q: string): Promise<ConnectorResult<unknown>> {
-    if (useMock()) {
+    if (shouldMock()) {
       return {
         raw: searchFixture,
         endpoint: "fixture:sirene-search",
