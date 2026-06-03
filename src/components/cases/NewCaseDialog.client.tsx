@@ -51,12 +51,11 @@ export default function NewCaseDialog({
         toast.success("Dossier créé", {
           description: "Enrichissement effectué à partir des sources de démonstration.",
         });
-        // Important : déclencher la navigation AVANT de fermer le dialog.
-        // Avec React 19 + useTransition, si setOpen(false) démonte le composant
-        // hôte du useRouter() avant router.push, la navigation peut être perdue.
-        router.push(`/cases/${res.id}/graphe`);
-        router.refresh();
-        setOpen(false);
+        // Navigation dure plutôt que router.push : React 19 + useTransition +
+        // Radix Dialog peuvent interférer et annuler la navigation client-side
+        // quand le DialogContent est démonté pendant le push. window.location
+        // garantit que l'utilisateur arrive bien sur son workspace.
+        window.location.assign(`/cases/${res.id}/graphe`);
       } else {
         toast.error(res.error);
       }
