@@ -37,15 +37,16 @@ test("création d'un dossier offline : recherche + succès Server Action", async
   // Armé AVANT le clic : capte la requête document émise par
   // window.location.assign dès le succès de la Server Action, indépendamment
   // du temps de compilation de la route cible.
+  // Id accepté large : UUID en mode DB (hex) OU slug fixture `s-<siren>-<n>`
+  // en mode démo. `[^/]+` couvre les deux sans présumer du format.
   const navRequest = page.waitForRequest(
     (req) =>
-      req.isNavigationRequest() &&
-      /\/cases\/[0-9a-f-]+\/graphe/i.test(req.url()),
+      req.isNavigationRequest() && /\/cases\/[^/]+\/graphe/i.test(req.url()),
     { timeout: 30_000 },
   );
 
   await candidate.first().click();
 
   const req = await navRequest;
-  expect(req.url()).toMatch(/\/cases\/[0-9a-f-]+\/graphe/i);
+  expect(req.url()).toMatch(/\/cases\/[^/]+\/graphe/i);
 });
