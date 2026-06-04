@@ -69,9 +69,12 @@ export const sirene = {
       };
     }
     const digits = q.replace(/\s/g, "");
+    // Recherche par nom : le champ `raisonSociale` (et non `denominationUniteLegale`,
+    // qui renvoie HTTP 400 dans la syntaxe `q` de l'API V3.11) ; dénominations
+    // stockées en majuscules → on met le terme en capitales.
     const query = /^\d{9}$/.test(digits)
       ? `siren:${digits}`
-      : `denominationUniteLegale:"${q}"`;
+      : `raisonSociale:"${q.trim().toUpperCase()}"`;
     const endpoint = `${env.INSEE_SIRENE_BASE_URL}/siren?q=${encodeURIComponent(
       query,
     )}&nombre=20`;
