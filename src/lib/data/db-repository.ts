@@ -13,6 +13,7 @@ import {
   sourceRecords,
 } from "@/lib/db/schema";
 import { assembleCase } from "@/lib/ingestion/assemble-case";
+import { fixtureCasesById } from "@/lib/fixtures/cases";
 import type {
   CaseBundle,
   CaseEdge,
@@ -140,7 +141,13 @@ export class DbCasesRepository implements CasesRepository {
   async getCase(id: string): Promise<CaseDetail | null> {
     const db = getDb();
     const [caseRow] = await db.select().from(cases).where(eq(cases.id, id));
-    if (!caseRow) return null;
+    if (!caseRow) {
+      // Fallback lecture seule : les dossiers de démonstration (fixtures) ne sont
+      // jamais écrits en base mais restent accessibles par lien direct, même en
+      // mode DB. Ils sont marqués « Démonstration » (sources isFixture) côté UI.
+      const fx = fixtureCasesById.get(id);
+      return fx ? { bundle: fx.bundle, sources: fx.sources } : null;
+    }
 
     const [entRows, edgeRows, evtRows, sigRows, srcRows] = await Promise.all([
       db.select().from(entities).where(eq(entities.caseId, id)),

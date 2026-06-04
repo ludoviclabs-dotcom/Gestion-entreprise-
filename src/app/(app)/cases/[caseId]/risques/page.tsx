@@ -17,8 +17,12 @@ export default async function RisquesTab(props: {
 
   // Bénéficiaires effectifs recalculés depuis le capital (pur, sans clé).
   const ubo = computeUbo(detail.bundle);
-  // Garde-fou CJUE 2022 : nominatif en démo OU si les UBO sont exposés.
-  const showUboNames = isDemoMode() || isInpiUboExposed();
+  // Garde-fou CJUE 2022 : nominatif si données de démonstration anonymisées
+  // (toutes les sources sont des fixtures), en mode démo, ou si UBO exposés ;
+  // sinon (vraies personnes en live) → anonymisé.
+  const allFixtureSources =
+    detail.sources.length > 0 && detail.sources.every((s) => s.isFixture);
+  const showUboNames = allFixtureSources || isDemoMode() || isInpiUboExposed();
   const ecartSignal = signals.find((s) => s.ruleId === "ECART_UBO_DECLARE");
 
   return (
