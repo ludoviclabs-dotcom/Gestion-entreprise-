@@ -14,6 +14,10 @@ import {
 } from "@/lib/db/schema";
 import { assembleCase } from "@/lib/ingestion/assemble-case";
 import { fixtureCasesById } from "@/lib/fixtures/cases";
+
+/** Format UUID (les ids de dossiers réels) — un id non-UUID est une fixture. */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import type {
   CaseBundle,
   CaseEdge,
@@ -139,12 +143,17 @@ export class DbCasesRepository implements CasesRepository {
   }
 
   async getCase(id: string): Promise<CaseDetail | null> {
+    // Les dossiers réels portent un UUID ; un id non-UUID ne peut être qu'une
+    // fixture de démonstration (slug). On court-circuite alors la requête DB —
+    // ce qui évite l'erreur Postgres « invalid input syntax for type uuid » et
+    // sert le dossier de démo en lecture seule (marqué « Démonstration » côté UI).
+    if (!UUID_RE.test(id)) {
+      const fx = fixtureCasesById.get(id);
+      return fx ? { bundle: fx.bundle, sources: fx.sources } : null;
+    }
     const db = getDb();
     const [caseRow] = await db.select().from(cases).where(eq(cases.id, id));
     if (!caseRow) {
-      // Fallback lecture seule : les dossiers de démonstration (fixtures) ne sont
-      // jamais écrits en base mais restent accessibles par lien direct, même en
-      // mode DB. Ils sont marqués « Démonstration » (sources isFixture) côté UI.
       const fx = fixtureCasesById.get(id);
       return fx ? { bundle: fx.bundle, sources: fx.sources } : null;
     }
