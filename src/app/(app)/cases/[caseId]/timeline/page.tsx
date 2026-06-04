@@ -3,6 +3,8 @@ import { Clock } from "lucide-react";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import EvidenceBadge from "@/components/graph/EvidenceBadge";
 import EmptyState from "@/components/empty/EmptyState";
+import GraphEvolution from "@/components/cases/GraphEvolution";
+import { diffBundles } from "@/lib/graph/diff";
 
 export default async function TimelineTab(props: {
   params: Promise<{ caseId: string }>;
@@ -11,8 +13,18 @@ export default async function TimelineTab(props: {
   const detail = await getCasesRepository().getCase(caseId);
   if (!detail) notFound();
 
-  const events = [...detail.bundle.events].sort((a, b) =>
+  const { bundle } = detail;
+  const events = [...bundle.events].sort((a, b) =>
     (b.occurredOn ?? "").localeCompare(a.occurredOn ?? ""),
+  );
+
+  // Diff d'évolution T0 → T1 si un état antérieur est disponible.
+  const previous = bundle.previous;
+  const diff = previous
+    ? diffBundles(previous, { entities: bundle.entities, edges: bundle.edges })
+    : null;
+  const evolutionLabels: Record<string, string> = Object.fromEntries(
+    [...(previous?.entities ?? []), ...bundle.entities].map((e) => [e.id, e.label]),
   );
 
   return (
@@ -23,6 +35,16 @@ export default async function TimelineTab(props: {
       <p className="mt-1 text-sm text-muted-foreground">
         Événements officiels rattachés au dossier, du plus récent au plus ancien.
       </p>
+
+      {diff && previous ? (
+        <div className="mt-6">
+          <GraphEvolution
+            diff={diff}
+            fromLabel={previous.label}
+            labels={evolutionLabels}
+          />
+        </div>
+      ) : null}
 
       {events.length === 0 ? (
         <div className="mt-8">

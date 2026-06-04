@@ -50,6 +50,19 @@ export default function EdgePanel({
           {EDGE_LABELS[edge.type]}
           {edge.weight ? ` · ${edge.weight}` : ""}
         </p>
+        {bundleEdge?.validFrom || bundleEdge?.validTo ? (
+          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+            Valide{" "}
+            {bundleEdge.validFrom
+              ? `du ${new Date(bundleEdge.validFrom).toLocaleDateString("fr-FR")}`
+              : "jusqu'au"}
+            {bundleEdge.validTo
+              ? ` au ${new Date(bundleEdge.validTo).toLocaleDateString("fr-FR")}`
+              : bundleEdge.validFrom
+                ? " à aujourd'hui"
+                : ""}
+          </p>
+        ) : null}
         <div className="mt-3">
           <EvidenceBadge level={edge.evidenceLevel} />
         </div>

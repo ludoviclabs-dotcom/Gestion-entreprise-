@@ -39,6 +39,9 @@ export type CaseEdge = {
   evidenceLevel: EvidenceLevel;
   sourceLabel?: string;
   excerpt?: string;
+  /** Validité temporelle du lien (ISO date) — « qui contrôlait au moment T ». */
+  validFrom?: string;
+  validTo?: string;
 };
 export type CaseEvent = {
   id: string;
@@ -89,6 +92,8 @@ export type CaseBundle = {
   riskSignals: CaseRiskSignal[];
   /** Bénéficiaires effectifs déclarés (INPI/RBE ou fixture) — pour l'écart UBO. */
   declaredUbo?: DeclaredUbo[];
+  /** État antérieur du dossier (T0) pour le diff d'évolution T0 → T1. */
+  previous?: { label: string; entities: CaseEntity[]; edges: CaseEdge[] };
 };
 
 // ── DTO de rendu (graphe pré-layouté envoyé au client) ──

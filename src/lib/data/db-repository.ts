@@ -190,6 +190,8 @@ export class DbCasesRepository implements CasesRepository {
         weight: e.weight ?? undefined,
         evidenceLevel: e.evidenceLevel as EvidenceLevel,
         excerpt: attrs.excerpt,
+        validFrom: e.validFrom ?? undefined,
+        validTo: e.validTo ?? undefined,
       };
     });
 
