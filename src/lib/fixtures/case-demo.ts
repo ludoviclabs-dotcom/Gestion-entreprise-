@@ -266,5 +266,14 @@ export const demoBundle: CaseBundle = {
       explanation:
         "Correspondance simulée avec le registre national des gels — à vérifier manuellement.",
     },
+    {
+      id: "r6",
+      ruleId: "PROXIMITE_SANCTION",
+      subjectId: "c1",
+      severity: "high",
+      category: "vigilance",
+      explanation:
+        "MARTIN HOLDING SAS est directement reliée à une entité signalée (sanction/PEP) : Correspondance « MARTIN HOLDING LTD ».",
+    },
   ],
 };

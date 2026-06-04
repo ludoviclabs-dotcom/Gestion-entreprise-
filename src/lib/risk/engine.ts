@@ -10,12 +10,53 @@ import { DEFAULT_THRESHOLDS } from "./types";
 import type { Rule, Thresholds } from "./types";
 
 /** Poids appliqué à chaque sévérité dans le score de vigilance. */
-const SEVERITY_WEIGHT: Record<Severity, number> = {
+export const SEVERITY_WEIGHT: Record<Severity, number> = {
   info: 1,
   low: 3,
   medium: 7,
   high: 15,
 };
+
+/** Dénominateur de normalisation : 40 pondéré → 100 (cap doux). */
+const VIGILANCE_DENOMINATOR = 40;
+
+export type VigilanceContribution = {
+  ruleId: string;
+  severity: Severity;
+  /** Points apportés au score de vigilance (avant cap à 100). */
+  points: number;
+};
+export type VigilanceExplanation = {
+  score: number;
+  contributions: VigilanceContribution[];
+  capped: boolean;
+};
+
+/**
+ * Décompose le score de vigilance : contribution de chaque signal en points,
+ * triée par poids décroissant. Rend le score auditable (exigence de motivation
+ * des décisions de vigilance) plutôt qu'un chiffre opaque.
+ */
+export function explainVigilance(
+  signals: CaseRiskSignal[],
+): VigilanceExplanation {
+  const contributions = signals
+    .map((s) => ({
+      ruleId: s.ruleId,
+      severity: s.severity,
+      points:
+        Math.round(
+          (SEVERITY_WEIGHT[s.severity] / VIGILANCE_DENOMINATOR) * 100 * 10,
+        ) / 10,
+    }))
+    .sort((a, b) => b.points - a.points);
+  const raw = contributions.reduce((acc, c) => acc + c.points, 0);
+  return {
+    score: clamp(raw),
+    contributions,
+    capped: raw > 100,
+  };
+}
 
 function clamp(value: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, Math.round(value)));
@@ -27,11 +68,8 @@ function clamp(value: number, min = 0, max = 100): number {
  * sain reste largement sous 30).
  */
 function computeVigilance(signals: CaseRiskSignal[]): number {
-  const weighted = signals.reduce(
-    (acc, s) => acc + SEVERITY_WEIGHT[s.severity],
-    0,
-  );
-  return clamp((weighted / 40) * 100);
+  // Même base que la décomposition affichée → score ↔ détail cohérents.
+  return explainVigilance(signals).score;
 }
 
 /**

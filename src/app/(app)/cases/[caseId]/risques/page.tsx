@@ -3,7 +3,9 @@ import { getCasesRepository } from "@/lib/data/cases-repository";
 import RisksList from "@/components/cases/RisksList.client";
 import AiSynthesis from "@/components/cases/AiSynthesis.client";
 import UboPanel from "@/components/cases/UboPanel";
+import VigilanceBreakdown from "@/components/cases/VigilanceBreakdown";
 import { computeUbo } from "@/lib/graph/ubo";
+import { explainVigilance } from "@/lib/risk/engine";
 import { isDemoMode, isInpiUboExposed } from "@/lib/env";
 
 export default async function RisquesTab(props: {
@@ -24,6 +26,7 @@ export default async function RisquesTab(props: {
     detail.sources.length > 0 && detail.sources.every((s) => s.isFixture);
   const showUboNames = allFixtureSources || isDemoMode() || isInpiUboExposed();
   const ecartSignal = signals.find((s) => s.ruleId === "ECART_UBO_DECLARE");
+  const vigilance = explainVigilance(signals);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
@@ -34,6 +37,11 @@ export default async function RisquesTab(props: {
         Indicateurs de complexité et de vigilance. Ce sont des signaux
         d&apos;analyse, jamais des accusations.
       </p>
+      {signals.length > 0 ? (
+        <div className="mt-6">
+          <VigilanceBreakdown explanation={vigilance} />
+        </div>
+      ) : null}
       {ubo.length > 0 ? (
         <div className="mt-6">
           <UboPanel

@@ -364,6 +364,86 @@ export const ECART_UBO_DECLARE: Rule = {
   },
 };
 
+// ── 9. PROXIMITE_SANCTION (plus court chemin vers un nœud sanction/PEP) ───
+
+/**
+ * Mesure la proximité réseau de chaque société/personne à une entité signalée
+ * (sanction / PEP) par parcours en largeur (BFS) non dirigé. C'est l'angle
+ * que le screening par liste ne donne pas : « cette société est à 2 sauts d'une
+ * entité sanctionnée via une adresse partagée ».
+ *
+ * Seuil : ≤ 2 sauts. Direct (1 saut) → high ; indirect (2 sauts) → medium.
+ */
+export const PROXIMITE_SANCTION: Rule = {
+  id: "PROXIMITE_SANCTION",
+  label: "Proximité d'une entité signalée",
+  category: "vigilance",
+  evaluate(ctx) {
+    const MAX_HOPS = 2;
+    const sanctions = ctx.bundle.entities.filter((e) => e.type === "sanction");
+    if (sanctions.length === 0) return [];
+
+    // Adjacence non dirigée + libellé de l'arête (pour décrire le chemin).
+    const adj = new Map<string, { node: string; via: string }[]>();
+    const link = (a: string, b: string, label: string) => {
+      const list = adj.get(a) ?? [];
+      list.push({ node: b, via: label });
+      adj.set(a, list);
+    };
+    for (const e of ctx.bundle.edges) {
+      const label = e.label ?? e.type;
+      link(e.source, e.target, label);
+      link(e.target, e.source, label);
+    }
+
+    // BFS multi-source depuis tous les nœuds sanction.
+    const dist = new Map<string, number>();
+    const pred = new Map<string, { from: string; via: string }>();
+    const queue: string[] = [];
+    for (const s of sanctions) {
+      dist.set(s.id, 0);
+      queue.push(s.id);
+    }
+    for (let head = 0; head < queue.length; head += 1) {
+      const node = queue[head];
+      const d = dist.get(node) ?? 0;
+      if (d >= MAX_HOPS) continue;
+      for (const { node: next, via } of adj.get(node) ?? []) {
+        if (dist.has(next)) continue;
+        dist.set(next, d + 1);
+        pred.set(next, { from: node, via });
+        queue.push(next);
+      }
+    }
+
+    const labelOf = (id: string) =>
+      ctx.bundle.entities.find((e) => e.id === id)?.label ?? id;
+
+    const signals: CaseRiskSignal[] = [];
+    for (const entity of ctx.bundle.entities) {
+      if (entity.type !== "company" && entity.type !== "person") continue;
+      const d = dist.get(entity.id);
+      if (d === undefined || d < 1 || d > MAX_HOPS) continue;
+      const step = pred.get(entity.id);
+      const targetLabel = step ? labelOf(step.from) : "une entité signalée";
+      const explanation =
+        d === 1
+          ? `${entity.label} est directement reliée à une entité signalée (sanction/PEP) : ${targetLabel}.`
+          : `${entity.label} est à ${d} sauts d'une entité signalée (sanction/PEP), via ${targetLabel}${step ? ` (${step.via})` : ""}.`;
+      signals.push(
+        makeSignal(
+          this.id,
+          entity.id,
+          d === 1 ? "high" : "medium",
+          this.category,
+          explanation,
+        ),
+      );
+    }
+    return signals;
+  },
+};
+
 /** Catalogue par défaut, dans l'ordre d'évaluation. */
 export const DEFAULT_RULES: Rule[] = [
   DIRIGEANT_MULTI_SOCIETES,
@@ -374,4 +454,5 @@ export const DEFAULT_RULES: Rule[] = [
   CYCLE_DETENTION,
   PIVOT_SUSPECT,
   ECART_UBO_DECLARE,
+  PROXIMITE_SANCTION,
 ];
