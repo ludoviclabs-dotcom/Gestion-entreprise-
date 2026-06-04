@@ -7,6 +7,8 @@ import type {
   Severity,
 } from "@/lib/graph/graph-types";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
+import { computeUbo } from "@/lib/graph/ubo";
+import { slugify } from "@/lib/text";
 import type { Rule } from "./types";
 
 // ── Utilitaires partagés ─────────────────────────────────────────────────
@@ -310,6 +312,58 @@ export const PIVOT_SUSPECT: Rule = {
   },
 };
 
+// ── 8. ECART_UBO_DECLARE (divergence registre vs capital recalculé) ───────
+
+/**
+ * Compare les bénéficiaires effectifs DÉCLARÉS au registre (INPI/RBE, via
+ * `bundle.declaredUbo`) avec ceux RECALCULÉS depuis les chaînes de capital
+ * (`computeUbo`, seuil 25 % / contrôle majoritaire). Une divergence est un
+ * signal de vigilance : l'AMLR (Règlement (UE) 2024/1624) impose justement le
+ * signalement des écarts de registre.
+ *
+ * Le signal reste volontairement AGRÉGÉ (comptes, sans nommer) → conforme au
+ * garde-fou CJUE 2022 ; le détail nominatif est réservé au panneau UBO gaté.
+ * Ne se déclenche que si une liste déclarée est disponible.
+ */
+export const ECART_UBO_DECLARE: Rule = {
+  id: "ECART_UBO_DECLARE",
+  label: "Écart bénéficiaire effectif déclaré / recalculé",
+  category: "vigilance",
+  evaluate(ctx) {
+    const declared = ctx.bundle.declaredUbo ?? [];
+    if (declared.length === 0) return [];
+
+    const nameKey = (s: string) => slugify(s);
+    const declaredKeys = new Set(
+      declared.map((d) =>
+        nameKey(d.label || [d.prenoms, d.nom].filter(Boolean).join(" ")),
+      ),
+    );
+    const computedOwners = computeUbo(ctx.bundle).filter(
+      (u) => u.isBeneficialOwner,
+    );
+    const computedKeys = new Set(computedOwners.map((u) => nameKey(u.label)));
+
+    let declaredNotComputed = 0;
+    for (const k of declaredKeys) if (!computedKeys.has(k)) declaredNotComputed += 1;
+    let computedNotDeclared = 0;
+    for (const k of computedKeys) if (!declaredKeys.has(k)) computedNotDeclared += 1;
+
+    const divergences = declaredNotComputed + computedNotDeclared;
+    if (divergences === 0) return [];
+
+    return [
+      makeSignal(
+        this.id,
+        undefined,
+        "high",
+        this.category,
+        `Écart de bénéficiaire effectif : ${declared.length} déclaré(s) au registre, ${computedOwners.length} recalculé(s) ≥ 25 % depuis le capital, ${divergences} divergence(s). Signalement de divergence de registre attendu (AMLR).`,
+      ),
+    ];
+  },
+};
+
 /** Catalogue par défaut, dans l'ordre d'évaluation. */
 export const DEFAULT_RULES: Rule[] = [
   DIRIGEANT_MULTI_SOCIETES,
@@ -319,4 +373,5 @@ export const DEFAULT_RULES: Rule[] = [
   RADIATION,
   CYCLE_DETENTION,
   PIVOT_SUSPECT,
+  ECART_UBO_DECLARE,
 ];

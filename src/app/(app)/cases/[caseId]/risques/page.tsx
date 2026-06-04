@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import RisksList from "@/components/cases/RisksList.client";
 import AiSynthesis from "@/components/cases/AiSynthesis.client";
+import UboPanel from "@/components/cases/UboPanel";
+import { computeUbo } from "@/lib/graph/ubo";
+import { isDemoMode, isInpiUboExposed } from "@/lib/env";
 
 export default async function RisquesTab(props: {
   params: Promise<{ caseId: string }>;
@@ -12,6 +15,12 @@ export default async function RisquesTab(props: {
 
   const signals = detail.bundle.riskSignals;
 
+  // Bénéficiaires effectifs recalculés depuis le capital (pur, sans clé).
+  const ubo = computeUbo(detail.bundle);
+  // Garde-fou CJUE 2022 : nominatif en démo OU si les UBO sont exposés.
+  const showUboNames = isDemoMode() || isInpiUboExposed();
+  const ecartSignal = signals.find((s) => s.ruleId === "ECART_UBO_DECLARE");
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
       <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
@@ -21,6 +30,15 @@ export default async function RisquesTab(props: {
         Indicateurs de complexité et de vigilance. Ce sont des signaux
         d&apos;analyse, jamais des accusations.
       </p>
+      {ubo.length > 0 ? (
+        <div className="mt-6">
+          <UboPanel
+            owners={ubo}
+            showNames={showUboNames}
+            ecartExplanation={ecartSignal?.explanation}
+          />
+        </div>
+      ) : null}
       <div className="mt-6">
         <AiSynthesis bundle={detail.bundle} />
       </div>

@@ -4,6 +4,7 @@ import { demoBundle } from "@/lib/fixtures/case-demo";
 import { cleanCompanyBundle } from "./clean-company";
 import { procedureCollectiveBundle } from "./procedure-collective";
 import { reseauMultiDirigeantsBundle } from "./reseau-multi-dirigeants";
+import { holdingUboBundle } from "./holding-ubo";
 import { brouillonBundle } from "./brouillon";
 
 export type FixtureCase = {
@@ -36,6 +37,12 @@ export const fixtureCases: FixtureCase[] = [
     status: "ready",
     updatedAt: "2026-05-30T16:42:00.000Z",
     sources: demoSources("sirene", "inpi", "bodacc"),
+  },
+  {
+    bundle: holdingUboBundle,
+    status: "ready",
+    updatedAt: "2026-06-02T11:20:00.000Z",
+    sources: demoSources("sirene", "inpi"),
   },
   {
     bundle: procedureCollectiveBundle,

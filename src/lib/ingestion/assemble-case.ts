@@ -62,6 +62,25 @@ export async function assembleCase(
   const inpiRes = await inpi.getRne(siren);
   sources.push(toSource("inpi", inpiRes));
   const inpiNorm = normalizeInpi(inpiRes.raw, companyId);
+  // Bénéficiaires effectifs DÉCLARÉS (pour l'écart UBO) — toujours extraits pour
+  // le calcul ; l'affichage nominatif reste gaté (CJUE) côté panneau/règle.
+  const declaredUboRaw = (
+    inpiRes.raw as {
+      beneficiairesEffectifs?: {
+        nom?: string;
+        prenoms?: string;
+        modaliteControle?: string;
+      }[];
+    }
+  ).beneficiairesEffectifs;
+  const declaredUbo = (declaredUboRaw ?? [])
+    .map((b) => ({
+      label: [b.prenoms, b.nom].filter(Boolean).join(" ").trim(),
+      nom: b.nom,
+      prenoms: b.prenoms,
+      modaliteControle: b.modaliteControle,
+    }))
+    .filter((b) => b.label.length > 0);
 
   const gelsRes = await tresorGels.match({
     siren,
@@ -108,6 +127,7 @@ export async function assembleCase(
     edges,
     events,
     riskSignals: [],
+    ...(declaredUbo.length > 0 ? { declaredUbo } : {}),
   };
 
   // Étape 1.1 — moteur de risque computé : signaux + scores dérivés du graphe.
