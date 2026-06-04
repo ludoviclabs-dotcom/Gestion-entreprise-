@@ -17,9 +17,16 @@ export default async function CaseWorkspaceLayout(props: {
 
   const { bundle } = detail;
   const summary = await getCasesRepository().listCases();
-  const status =
-    summary.find((c) => c.id === caseId)?.status ??
-    (bundle.case.scores ? "ready" : "draft");
+  const summaryEntry = summary.find((c) => c.id === caseId);
+  const status = summaryEntry?.status ?? (bundle.case.scores ? "ready" : "draft");
+
+  // Provenance honnête, dérivée des sources réellement consultées.
+  const liveSources = detail.sources.filter((s) => !s.isFixture).length;
+  const totalSources = detail.sources.length;
+  const isLive = liveSources > 0;
+  const updatedLabel = summaryEntry?.updatedAt
+    ? new Intl.DateTimeFormat("fr-FR").format(new Date(summaryEntry.updatedAt))
+    : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -39,9 +46,28 @@ export default async function CaseWorkspaceLayout(props: {
               </h1>
               <CaseStatusBadge status={status} />
             </div>
-            <p className="text-xs text-muted-foreground">
-              SIREN {bundle.case.rootSiren} · {bundle.entities.length} entités ·{" "}
-              {bundle.edges.length} liens
+            <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+              <span>
+                SIREN {bundle.case.rootSiren} · {bundle.entities.length} entités
+                · {bundle.edges.length} liens
+              </span>
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5"
+                title={
+                  isLive
+                    ? `${liveSources}/${totalSources} sources interrogées en temps réel`
+                    : "Dossier de démonstration (données fictives)"
+                }
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: isLive ? "#10b981" : "#f59e0b" }}
+                />
+                {isLive
+                  ? `Données réelles · ${liveSources}/${totalSources} sources live`
+                  : "Démonstration"}
+                {updatedLabel ? ` · maj ${updatedLabel}` : ""}
+              </span>
             </p>
           </div>
         </div>

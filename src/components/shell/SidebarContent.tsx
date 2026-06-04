@@ -61,14 +61,15 @@ export default function SidebarContent({
         })}
       </nav>
 
-      {demoMode && (
-        <div className="px-5 py-4">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
-            Mode démo
-          </span>
-        </div>
-      )}
+      <div className="px-5 py-4">
+        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted-foreground">
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ backgroundColor: demoMode ? "#f59e0b" : "#10b981" }}
+          />
+          {demoMode ? "Mode démo" : "Mode live"}
+        </span>
+      </div>
     </div>
   );
 }
