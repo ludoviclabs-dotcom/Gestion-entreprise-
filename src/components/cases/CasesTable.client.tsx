@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import CaseStatusBadge from "./CaseStatusBadge";
 import ScorePills from "./ScorePills";
+import CaseQualityBadges from "./CaseQualityBadges";
 import EmptyState from "@/components/empty/EmptyState";
 import type { CaseSummary } from "@/lib/data/types";
 
@@ -106,6 +107,7 @@ export default function CasesTable({ cases }: { cases: CaseSummary[] }) {
               </TableHead>
               <TableHead>SIREN</TableHead>
               <TableHead>Statut</TableHead>
+              <TableHead>Fiabilite</TableHead>
               <TableHead>
                 <button
                   type="button"
@@ -139,6 +141,14 @@ export default function CasesTable({ cases }: { cases: CaseSummary[] }) {
                 </TableCell>
                 <TableCell>
                   <CaseStatusBadge status={c.status} />
+                </TableCell>
+                <TableCell>
+                  <CaseQualityBadges
+                    origin={c.origin}
+                    scoreStatus={c.scoreStatus}
+                    sourceHealth={c.sourceHealth}
+                    compact
+                  />
                 </TableCell>
                 <TableCell>
                   <ScorePills scores={c.scores} size="sm" />

@@ -14,7 +14,12 @@ import type {
   EvidenceLevel,
   Severity,
 } from "@/lib/graph/graph-types";
-import type { SourceRow } from "@/lib/data/types";
+import type {
+  EvidenceRow,
+  ScoreStatus,
+  SourceHealth,
+  SourceRow,
+} from "@/lib/data/types";
 
 // Palette PDF — version contrastée pour impression (les tokens UI sombres
 // sont remplacés par des nuances claires lisibles sur fond blanc).
@@ -216,11 +221,24 @@ function shortHash(input?: string): string {
 interface CaseReportProps {
   bundle: CaseBundle;
   sources: SourceRow[];
+  evidence?: EvidenceRow[];
+  sourceHealth?: SourceHealth;
+  scoreStatus?: ScoreStatus;
+  scoreModelVersion?: string;
   generatedAt: string;
   payloadHash: string;
 }
 
-export function CaseReport({ bundle, sources, generatedAt, payloadHash }: CaseReportProps) {
+export function CaseReport({
+  bundle,
+  sources,
+  evidence = [],
+  sourceHealth,
+  scoreStatus,
+  scoreModelVersion,
+  generatedAt,
+  payloadHash,
+}: CaseReportProps) {
   const { case: c, entities, edges, events, riskSignals } = bundle;
 
   // Regroupements affichables par type d'entité.
@@ -249,6 +267,9 @@ export function CaseReport({ bundle, sources, generatedAt, payloadHash }: CaseRe
           <View style={styles.metaCol}>
             <Text style={styles.metaLine}>Édité le {formatDate(generatedAt)}</Text>
             <Text style={styles.metaLine}>Signature : {shortHash(payloadHash)}</Text>
+            {scoreModelVersion ? (
+              <Text style={styles.metaLine}>Modele : {scoreModelVersion}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -263,6 +284,13 @@ export function CaseReport({ bundle, sources, generatedAt, payloadHash }: CaseRe
           <ScorePill label="Vigilance" value={c.scores?.vigilance} tone="risk" />
           <ScorePill label="Qualité de preuve" value={c.scores?.qualitePreuve} tone="good" />
         </View>
+
+        <Text style={styles.sectionHint}>
+          Fiabilite dossier : {sourceHealth?.origin ?? "unknown"} · score{" "}
+          {scoreStatus ?? "unknown"} · {sourceHealth?.live ?? 0} source(s) live ·{" "}
+          {sourceHealth?.fixture ?? 0} source(s) demo · {sourceHealth?.failed ?? 0}{" "}
+          echec(s) · {evidence.length} preuve(s) rattachee(s).
+        </Text>
 
         {/* Entités */}
         <Text style={styles.sectionTitle}>1. Entités cartographiées</Text>

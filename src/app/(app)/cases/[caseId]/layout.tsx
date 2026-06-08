@@ -3,9 +3,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import ScorePills from "@/components/cases/ScorePills";
 import CaseStatusBadge from "@/components/cases/CaseStatusBadge";
+import CaseQualityBadges from "@/components/cases/CaseQualityBadges";
 import WorkspaceTabs from "@/components/cases/WorkspaceTabs";
 import ExportMenu from "@/components/cases/ExportMenu.client";
 import { getCasesRepository } from "@/lib/data/cases-repository";
+import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
 
 export default async function CaseWorkspaceLayout(props: {
   children: React.ReactNode;
@@ -19,11 +21,11 @@ export default async function CaseWorkspaceLayout(props: {
   const summary = await getCasesRepository().listCases();
   const summaryEntry = summary.find((c) => c.id === caseId);
   const status = summaryEntry?.status ?? (bundle.case.scores ? "ready" : "draft");
+  const sourceHealth = summaryEntry?.sourceHealth ?? getSourceHealth(detail.sources);
+  const scoreStatus =
+    summaryEntry?.scoreStatus ?? getScoreStatus(bundle.case.scores ?? {}, status);
 
   // Provenance honnête, dérivée des sources réellement consultées.
-  const liveSources = detail.sources.filter((s) => !s.isFixture).length;
-  const totalSources = detail.sources.length;
-  const isLive = liveSources > 0;
   const updatedLabel = summaryEntry?.updatedAt
     ? new Intl.DateTimeFormat("fr-FR").format(new Date(summaryEntry.updatedAt))
     : null;
@@ -51,23 +53,13 @@ export default async function CaseWorkspaceLayout(props: {
                 SIREN {bundle.case.rootSiren} · {bundle.entities.length} entités
                 · {bundle.edges.length} liens
               </span>
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5"
-                title={
-                  isLive
-                    ? `${liveSources}/${totalSources} sources interrogées en temps réel`
-                    : "Dossier de démonstration (données fictives)"
-                }
-              >
-                <span
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: isLive ? "#10b981" : "#f59e0b" }}
-                />
-                {isLive
-                  ? `Données réelles · ${liveSources}/${totalSources} sources live`
-                  : "Démonstration"}
-                {updatedLabel ? ` · maj ${updatedLabel}` : ""}
-              </span>
+              <CaseQualityBadges
+                origin={sourceHealth.origin}
+                scoreStatus={scoreStatus}
+                sourceHealth={sourceHealth}
+                compact
+              />
+              {updatedLabel ? <span>maj {updatedLabel}</span> : null}
             </p>
           </div>
         </div>

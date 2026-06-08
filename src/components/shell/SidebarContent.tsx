@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Settings, Network } from "lucide-react";
+import {
+  LayoutDashboard,
+  FolderOpen,
+  Settings,
+  Network,
+  BriefcaseBusiness,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/cases", label: "Dossiers", icon: FolderOpen },
+  { href: "/secteurs", label: "Secteurs 2026", icon: BriefcaseBusiness },
   { href: "/reglages", label: "Réglages", icon: Settings },
 ];
 

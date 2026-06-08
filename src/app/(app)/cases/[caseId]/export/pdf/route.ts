@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getCasesRepository } from "@/lib/data/cases-repository";
+import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
 import { CaseReport } from "@/components/reports/CaseReport";
+import { SCORE_MODEL_VERSION } from "@/lib/risk/engine";
 
 export const runtime = "nodejs";
 
@@ -16,14 +18,26 @@ export async function GET(
   }
 
   const generatedAt = new Date().toISOString();
+  const sourceHealth = getSourceHealth(detail.sources);
+  const scoreStatus = getScoreStatus(detail.bundle.case.scores ?? {});
   const payloadHash = createHash("sha256")
-    .update(JSON.stringify({ bundle: detail.bundle, generatedAt }))
+    .update(
+      JSON.stringify({
+        bundle: detail.bundle,
+        evidence: detail.evidence,
+        generatedAt,
+      }),
+    )
     .digest("hex");
 
   const buffer = await renderToBuffer(
     CaseReport({
       bundle: detail.bundle,
       sources: detail.sources,
+      evidence: detail.evidence,
+      sourceHealth,
+      scoreStatus,
+      scoreModelVersion: SCORE_MODEL_VERSION,
       generatedAt,
       payloadHash,
     }),

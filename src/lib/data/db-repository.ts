@@ -9,11 +9,22 @@ import {
   addresses,
   edges,
   events,
+  evidence,
   riskSignals,
   sourceRecords,
 } from "@/lib/db/schema";
 import { assembleCase } from "@/lib/ingestion/assemble-case";
 import { fixtureCasesById } from "@/lib/fixtures/cases";
+import {
+  buildBundleEvidence,
+  inferEdgeSource,
+  inferEntitySource,
+  inferEventSource,
+  inferSignalSource,
+  getScoreStatus,
+  getSourceHealth,
+} from "./case-quality";
+import { SCORE_MODEL_VERSION } from "@/lib/risk/engine";
 
 /** Format UUID (les ids de dossiers réels) — un id non-UUID est une fixture. */
 const UUID_RE =
@@ -36,8 +47,11 @@ import type {
   CaseStatus,
   CaseSummary,
   CompanyCandidate,
+  EvidenceRow,
   SourceRow,
 } from "./types";
+import type { SourceKind } from "@/lib/graph/source";
+import type { SourceRecordInput } from "@/lib/connectors/types";
 
 // SHA-256 d'un payload (intégrité + dédup dans source_records).
 function sha256(input: unknown): string {
@@ -46,6 +60,22 @@ function sha256(input: unknown): string {
 }
 
 type EntityAttrs = Record<string, string>;
+
+function toSourceRows(sources: SourceRecordInput[]): SourceRow[] {
+  return sources.map((source) => ({
+    source: source.source,
+    endpoint: source.endpoint,
+    httpStatus: source.httpStatus,
+    isFixture: source.isFixture,
+  }));
+}
+
+function sourceRecordIdFor(
+  source: SourceKind | null,
+  sourceRecordBySource: Map<SourceKind, string>,
+): string | null {
+  return source ? (sourceRecordBySource.get(source) ?? null) : null;
+}
 
 /** Sépare les attributs « réservés » (source, excerpt) du reste du jsonb. */
 function splitAttrs(attrs: unknown): {
@@ -99,7 +129,14 @@ export class DbCasesRepository implements CasesRepository {
         (SELECT COUNT(*)::int FROM entities WHERE case_id = c.id) AS entities_count,
         (SELECT COUNT(*)::int FROM edges    WHERE case_id = c.id) AS edges_count,
         (SELECT COUNT(*)::int FROM risk_signals
-           WHERE case_id = c.id AND severity = 'high')            AS high_count
+           WHERE case_id = c.id AND severity = 'high')            AS high_count,
+        (SELECT COUNT(*)::int FROM source_records
+           WHERE case_id = c.id)                                  AS sources_count,
+        (SELECT COUNT(*)::int FROM source_records
+           WHERE case_id = c.id AND is_fixture = 'true')          AS fixture_sources_count,
+        (SELECT COUNT(*)::int FROM source_records
+           WHERE case_id = c.id
+             AND NULLIF(http_status, '')::int >= 400)             AS failed_sources_count
       FROM cases c
       ORDER BY c.updated_at DESC
     `);
@@ -116,30 +153,54 @@ export class DbCasesRepository implements CasesRepository {
       entities_count: number | null;
       edges_count: number | null;
       high_count: number | null;
+      sources_count: number | null;
+      fixture_sources_count: number | null;
+      failed_sources_count: number | null;
     };
     const list =
       (rows as unknown as { rows?: Row[] }).rows ?? (rows as unknown as Row[]);
 
-    return list.map((r) => ({
-      id: r.id,
-      title: r.title,
-      rootSiren: r.root_siren,
-      status: r.status,
-      scores: {
+    return list.map((r) => {
+      const scores = {
         complexite: r.score_complexite ?? undefined,
         vigilance: r.score_vigilance ?? undefined,
         qualitePreuve: r.score_qualite_preuve ?? undefined,
-      },
-      counts: {
-        entities: r.entities_count ?? 0,
-        edges: r.edges_count ?? 0,
-        signalsHigh: r.high_count ?? 0,
-      },
-      updatedAt:
+      };
+      const total = r.sources_count ?? 0;
+      const fixture = r.fixture_sources_count ?? 0;
+      const sourceHealth = getSourceHealth(
+        Array.from({ length: total }, (_, index) => {
+          const isFixture = index < fixture;
+          return {
+            source: isFixture ? ("fixture" as const) : ("manual" as const),
+            endpoint: "",
+            httpStatus: index < (r.failed_sources_count ?? 0) ? 500 : isFixture ? 0 : 200,
+            isFixture,
+          };
+        }),
+      );
+      const updatedAt =
         r.updated_at instanceof Date
           ? r.updated_at.toISOString()
-          : new Date(r.updated_at).toISOString(),
-    }));
+          : new Date(r.updated_at).toISOString();
+      return {
+        id: r.id,
+        title: r.title,
+        rootSiren: r.root_siren,
+        status: r.status,
+        origin: sourceHealth.origin,
+        scoreStatus: getScoreStatus(scores, r.status),
+        sourceHealth,
+        scores,
+        counts: {
+          entities: r.entities_count ?? 0,
+          edges: r.edges_count ?? 0,
+          signalsHigh: r.high_count ?? 0,
+        },
+        lastRunAt: updatedAt,
+        updatedAt,
+      };
+    });
   }
 
   async getCase(id: string): Promise<CaseDetail | null> {
@@ -149,21 +210,47 @@ export class DbCasesRepository implements CasesRepository {
     // sert le dossier de démo en lecture seule (marqué « Démonstration » côté UI).
     if (!UUID_RE.test(id)) {
       const fx = fixtureCasesById.get(id);
-      return fx ? { bundle: fx.bundle, sources: fx.sources } : null;
+      return fx
+        ? {
+            bundle: fx.bundle,
+            sources: fx.sources,
+            evidence: buildBundleEvidence(fx.bundle, fx.sources),
+          }
+        : null;
     }
     const db = getDb();
     const [caseRow] = await db.select().from(cases).where(eq(cases.id, id));
     if (!caseRow) {
       const fx = fixtureCasesById.get(id);
-      return fx ? { bundle: fx.bundle, sources: fx.sources } : null;
+      return fx
+        ? {
+            bundle: fx.bundle,
+            sources: fx.sources,
+            evidence: buildBundleEvidence(fx.bundle, fx.sources),
+          }
+        : null;
     }
 
-    const [entRows, edgeRows, evtRows, sigRows, srcRows] = await Promise.all([
+    const [entRows, edgeRows, evtRows, sigRows, srcRows, evdRowsRaw] =
+      await Promise.all([
       db.select().from(entities).where(eq(entities.caseId, id)),
       db.select().from(edges).where(eq(edges.caseId, id)),
       db.select().from(events).where(eq(events.caseId, id)),
       db.select().from(riskSignals).where(eq(riskSignals.caseId, id)),
       db.select().from(sourceRecords).where(eq(sourceRecords.caseId, id)),
+      db.execute(sql`
+        SELECT
+          e.subject_type,
+          e.subject_id::text,
+          e.source_record_id::text,
+          e.level,
+          e.excerpt,
+          e.pointer,
+          sr.source
+        FROM evidence e
+        LEFT JOIN source_records sr ON sr.id = e.source_record_id
+        WHERE e.case_id = ${id}
+      `),
     ]);
 
     const bundleEntities: CaseEntity[] = entRows.map((e) => {
@@ -218,10 +305,32 @@ export class DbCasesRepository implements CasesRepository {
     }));
 
     const sources: SourceRow[] = srcRows.map((s) => ({
-      source: s.source,
+      source: s.source as SourceRow["source"],
       endpoint: s.endpoint,
       httpStatus: Number(s.httpStatus ?? 0),
       isFixture: s.isFixture === "true",
+    }));
+
+    type EvidenceDbRow = {
+      subject_type: EvidenceRow["subjectType"];
+      subject_id: string;
+      source_record_id: string | null;
+      level: EvidenceLevel;
+      excerpt: string | null;
+      pointer: Record<string, unknown> | null;
+      source: SourceRow["source"] | null;
+    };
+    const evidenceList =
+      (evdRowsRaw as unknown as { rows?: EvidenceDbRow[] }).rows ??
+      (evdRowsRaw as unknown as EvidenceDbRow[]);
+    const evidenceRows: EvidenceRow[] = evidenceList.map((e) => ({
+      subjectType: e.subject_type,
+      subjectId: e.subject_id,
+      source: e.source,
+      sourceRecordId: e.source_record_id ?? undefined,
+      level: e.level,
+      excerpt: e.excerpt ?? undefined,
+      pointer: e.pointer ?? undefined,
     }));
 
     const bundle: CaseBundle = {
@@ -252,7 +361,14 @@ export class DbCasesRepository implements CasesRepository {
       riskSignals: bundleSignals,
     };
 
-    return { bundle, sources };
+    return {
+      bundle,
+      sources,
+      evidence:
+        evidenceRows.length > 0
+          ? evidenceRows
+          : buildBundleEvidence(bundle, sources),
+    };
   }
 
   async searchCompanies(q: string): Promise<CompanyCandidate[]> {
@@ -284,6 +400,9 @@ export class DbCasesRepository implements CasesRepository {
   async createCaseFromSiren(siren: string): Promise<CaseSummary> {
     const db = getDb();
     const { bundle, sources } = await assembleCase(siren);
+    const sourceRows = toSourceRows(sources);
+    const sourceHealth = getSourceHealth(sourceRows);
+    const scores = bundle.case.scores ?? {};
 
     // 1. Case — on persiste aussi les scores calculés par computeRisk dans
     // assembleCase (sinon Complexité/Vigilance/Qualité de preuve restent '—').
@@ -296,11 +415,36 @@ export class DbCasesRepository implements CasesRepository {
         scoreComplexite: bundle.case.scores?.complexite ?? null,
         scoreVigilance: bundle.case.scores?.vigilance ?? null,
         scoreQualitePreuve: bundle.case.scores?.qualitePreuve ?? null,
+        metadata: {
+          scoreModelVersion: SCORE_MODEL_VERSION,
+          origin: sourceHealth.origin,
+          sourceHealth,
+          scoreStatus: getScoreStatus(scores, "draft"),
+        },
       })
       .returning();
     const caseId = caseRow.id;
 
     try {
+      const sourceRecordBySource = new Map<SourceKind, string>();
+      for (const src of sources) {
+        const [row] = await db
+          .insert(sourceRecords)
+          .values({
+            caseId,
+            source: src.source,
+            endpoint: src.endpoint,
+            httpStatus: String(src.httpStatus),
+            payload: src.raw,
+            payloadHash: sha256(src.raw),
+            isFixture: src.isFixture ? "true" : "false",
+          })
+          .returning();
+        if (!sourceRecordBySource.has(src.source)) {
+          sourceRecordBySource.set(src.source, row.id);
+        }
+      }
+
       // 2. Entities + sous-tables (map fixture-id → uuid pour edges/events/signaux)
       const idMap = new Map<string, string>();
       for (const ent of bundle.entities) {
@@ -320,6 +464,19 @@ export class DbCasesRepository implements CasesRepository {
           })
           .returning();
         idMap.set(ent.id, row.id);
+
+        await db.insert(evidence).values({
+          caseId,
+          subjectType: "entity",
+          subjectId: row.id,
+          sourceRecordId: sourceRecordIdFor(
+            inferEntitySource(ent),
+            sourceRecordBySource,
+          ),
+          level: ent.evidenceLevel,
+          excerpt: ent.excerpt ?? ent.source ?? null,
+          pointer: { naturalKey: ent.id, type: ent.type },
+        });
 
         if (ent.type === "company") {
           const a = ent.attributes ?? {};
@@ -360,14 +517,36 @@ export class DbCasesRepository implements CasesRepository {
         const src = idMap.get(edge.source);
         const tgt = idMap.get(edge.target);
         if (!src || !tgt) continue;
-        await db.insert(edges).values({
+        const [edgeRow] = await db
+          .insert(edges)
+          .values({
+            caseId,
+            type: edge.type,
+            sourceId: src,
+            targetId: tgt,
+            evidenceLevel: edge.evidenceLevel,
+            weight: edge.weight ?? null,
+            validFrom: edge.validFrom ?? null,
+            validTo: edge.validTo ?? null,
+            attributes: { label: edge.label, excerpt: edge.excerpt },
+          })
+          .returning();
+        await db.insert(evidence).values({
           caseId,
-          type: edge.type,
-          sourceId: src,
-          targetId: tgt,
-          evidenceLevel: edge.evidenceLevel,
-          weight: edge.weight ?? null,
-          attributes: { label: edge.label, excerpt: edge.excerpt },
+          subjectType: "edge",
+          subjectId: edgeRow.id,
+          sourceRecordId: sourceRecordIdFor(
+            inferEdgeSource(edge, bundle),
+            sourceRecordBySource,
+          ),
+          level: edge.evidenceLevel,
+          excerpt: edge.excerpt ?? edge.label ?? null,
+          pointer: {
+            naturalKey: edge.id,
+            edgeType: edge.type,
+            sourceNaturalKey: edge.source,
+            targetNaturalKey: edge.target,
+          },
         });
       }
 
@@ -375,49 +554,76 @@ export class DbCasesRepository implements CasesRepository {
       for (const ev of bundle.events) {
         const subj = idMap.get(ev.entityId);
         if (!subj) continue;
-        await db.insert(events).values({
+        const eventSource = inferEventSource(ev) ?? "bodacc";
+        const [eventRow] = await db
+          .insert(events)
+          .values({
+            caseId,
+            entityId: subj,
+            kind: ev.kind,
+            source: eventSource,
+            occurredOn: ev.occurredOn ?? null,
+            title: ev.title,
+            evidenceLevel: ev.evidenceLevel,
+            payload: { source: ev.source },
+          })
+          .returning();
+        await db.insert(evidence).values({
           caseId,
-          entityId: subj,
-          kind: ev.kind,
-          source: "bodacc",
-          occurredOn: ev.occurredOn ?? null,
-          title: ev.title,
-          evidenceLevel: ev.evidenceLevel,
-          payload: { source: ev.source },
+          subjectType: "event",
+          subjectId: eventRow.id,
+          sourceRecordId: sourceRecordIdFor(eventSource, sourceRecordBySource),
+          level: ev.evidenceLevel,
+          excerpt: ev.title,
+          pointer: { naturalKey: ev.id, kind: ev.kind },
         });
       }
 
       // 5. Risk signals
       for (const sig of bundle.riskSignals) {
         const subj = sig.subjectId ? (idMap.get(sig.subjectId) ?? null) : null;
-        await db.insert(riskSignals).values({
+        const [signalRow] = await db
+          .insert(riskSignals)
+          .values({
+            caseId,
+            ruleId: sig.ruleId,
+            subjectType: "entity",
+            subjectId: subj,
+            severity: sig.severity,
+            category: sig.category,
+            explanation: sig.explanation,
+          })
+          .returning();
+        await db.insert(evidence).values({
           caseId,
-          ruleId: sig.ruleId,
-          subjectType: "entity",
-          subjectId: subj,
-          severity: sig.severity,
-          category: sig.category,
-          explanation: sig.explanation,
+          subjectType: "risk_signal",
+          subjectId: signalRow.id,
+          sourceRecordId: sourceRecordIdFor(
+            inferSignalSource(sig, bundle),
+            sourceRecordBySource,
+          ),
+          level: "inferred",
+          excerpt: sig.explanation,
+          pointer: { naturalKey: sig.id, ruleId: sig.ruleId },
         });
       }
 
       // 6. Source records (chaîne de preuve)
-      for (const src of sources) {
-        await db.insert(sourceRecords).values({
-          caseId,
-          source: src.source,
-          endpoint: src.endpoint,
-          httpStatus: String(src.httpStatus),
-          payload: src.raw,
-          payloadHash: sha256(src.raw),
-          isFixture: src.isFixture ? "true" : "false",
-        });
-      }
-
       // 7. Tag « prêt »
+      const completedAt = new Date();
       await db
         .update(cases)
-        .set({ status: "ready", updatedAt: new Date() })
+        .set({
+          status: "ready",
+          updatedAt: completedAt,
+          metadata: {
+            scoreModelVersion: SCORE_MODEL_VERSION,
+            origin: sourceHealth.origin,
+            sourceHealth,
+            scoreStatus: getScoreStatus(scores, "ready"),
+            lastRunAt: completedAt.toISOString(),
+          },
+        })
         .where(eq(cases.id, caseId));
 
       return {
@@ -425,14 +631,18 @@ export class DbCasesRepository implements CasesRepository {
         title: bundle.case.title,
         rootSiren: siren,
         status: "ready",
-        scores: bundle.case.scores ?? {},
+        origin: sourceHealth.origin,
+        scoreStatus: getScoreStatus(scores, "ready"),
+        sourceHealth,
+        scores,
         counts: {
           entities: bundle.entities.length,
           edges: bundle.edges.length,
           signalsHigh: bundle.riskSignals.filter((s) => s.severity === "high")
             .length,
         },
-        updatedAt: new Date().toISOString(),
+        lastRunAt: completedAt.toISOString(),
+        updatedAt: completedAt.toISOString(),
       };
     } catch (error) {
       // Marque le dossier en erreur, ne masque pas l'exception.

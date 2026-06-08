@@ -9,6 +9,9 @@ import { DEFAULT_RULES } from "./rules";
 import { DEFAULT_THRESHOLDS } from "./types";
 import type { Rule, Thresholds } from "./types";
 
+/** Version publique du modèle de scoring utilisé dans les dossiers et exports. */
+export const SCORE_MODEL_VERSION = "kyb-risk-2026.1";
+
 /** Poids appliqué à chaque sévérité dans le score de vigilance. */
 export const SEVERITY_WEIGHT: Record<Severity, number> = {
   info: 1,
