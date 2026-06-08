@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { getCasesRepository } from "@/lib/data/cases-repository";
+import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
+import { SCORE_MODEL_VERSION } from "@/lib/risk/engine";
 
 export const runtime = "nodejs";
 
@@ -18,16 +20,29 @@ export async function GET(
   }
 
   const generatedAt = new Date().toISOString();
+  const sourceHealth = getSourceHealth(detail.sources);
+  const scoreStatus = getScoreStatus(detail.bundle.case.scores ?? {});
   const payloadHash = createHash("sha256")
-    .update(JSON.stringify({ bundle: detail.bundle, generatedAt }))
+    .update(
+      JSON.stringify({
+        bundle: detail.bundle,
+        evidence: detail.evidence,
+        generatedAt,
+      }),
+    )
     .digest("hex");
 
   const manifest = {
     generator: "KYB Graph",
+    scoreModelVersion: SCORE_MODEL_VERSION,
     generatedAt,
     payloadHash,
+    origin: sourceHealth.origin,
+    scoreStatus,
+    sourceHealth,
     bundle: detail.bundle,
     sources: detail.sources,
+    evidence: detail.evidence,
   };
 
   const filename = `dossier-${detail.bundle.case.rootSiren}-${generatedAt.slice(0, 10)}.json`;

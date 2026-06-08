@@ -1,7 +1,22 @@
-import type { CaseBundle, CaseScores } from "@/lib/graph/graph-types";
+import type {
+  CaseBundle,
+  CaseScores,
+  EvidenceLevel,
+} from "@/lib/graph/graph-types";
+import type { SourceKind } from "@/lib/graph/source";
 
 /** Statut d'un dossier (miroir de l'enum Drizzle case_status). */
 export type CaseStatus = "draft" | "enriching" | "ready" | "error";
+export type CaseOrigin = "live" | "mixed" | "fixture" | "unknown";
+export type ScoreStatus = "computed" | "partial" | "missing" | "error";
+
+export type SourceHealth = {
+  origin: CaseOrigin;
+  total: number;
+  live: number;
+  fixture: number;
+  failed: number;
+};
 
 /** Ligne légère pour dashboard/liste (pas le bundle complet). */
 export type CaseSummary = {
@@ -9,8 +24,12 @@ export type CaseSummary = {
   title: string;
   rootSiren: string;
   status: CaseStatus;
+  origin: CaseOrigin;
+  scoreStatus: ScoreStatus;
+  sourceHealth: SourceHealth;
   scores: CaseScores;
   counts: { entities: number; edges: number; signalsHigh: number };
+  lastRunAt: string;
   updatedAt: string; // ISO
 };
 
@@ -24,13 +43,27 @@ export type CompanyCandidate = {
 
 /** Ligne du trail de provenance (source_records). */
 export type SourceRow = {
-  source: string;
+  source: SourceKind;
   endpoint: string;
   httpStatus: number;
   isFixture: boolean;
 };
 
-export type CaseDetail = { bundle: CaseBundle; sources: SourceRow[] };
+export type EvidenceRow = {
+  subjectType: "entity" | "edge" | "event" | "risk_signal";
+  subjectId: string;
+  source: SourceKind | null;
+  sourceRecordId?: string;
+  level: EvidenceLevel;
+  excerpt?: string;
+  pointer?: Record<string, unknown>;
+};
+
+export type CaseDetail = {
+  bundle: CaseBundle;
+  sources: SourceRow[];
+  evidence: EvidenceRow[];
+};
 
 /**
  * Contrat d'accès aux données. L'UI ne dépend QUE de cette interface.

@@ -5,12 +5,16 @@ import { Button } from "@/components/ui/button";
 import KpiCard from "@/components/cases/KpiCard";
 import CaseStatusBadge from "@/components/cases/CaseStatusBadge";
 import ScorePills from "@/components/cases/ScorePills";
+import CaseQualityBadges from "@/components/cases/CaseQualityBadges";
 import { getCasesRepository } from "@/lib/data/cases-repository";
+import { curateCaseSummaries } from "@/lib/data/case-curation";
 
 export const metadata = { title: "Tableau de bord — KYB Graph" };
 
 export default async function DashboardPage() {
-  const cases = await getCasesRepository().listCases();
+  const allCases = await getCasesRepository().listCases();
+  const curated = curateCaseSummaries(allCases);
+  const cases = curated.visible;
 
   const totalCompanies = cases.reduce((n, c) => n + c.counts.entities, 0);
   const totalHigh = cases.reduce((n, c) => n + c.counts.signalsHigh, 0);
@@ -33,6 +37,9 @@ export default async function DashboardPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Vue d&apos;ensemble de vos dossiers de cartographie.
+            {curated.hidden.length > 0
+              ? ` ${curated.hidden.length} dossier(s) masque(s): doublons ou erreurs.`
+              : ""}
           </p>
         </div>
         <Button asChild>
@@ -91,6 +98,12 @@ export default async function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <ScorePills scores={c.scores} size="sm" />
+                  <CaseQualityBadges
+                    origin={c.origin}
+                    scoreStatus={c.scoreStatus}
+                    sourceHealth={c.sourceHealth}
+                    compact
+                  />
                   <CaseStatusBadge status={c.status} />
                 </div>
               </Card>

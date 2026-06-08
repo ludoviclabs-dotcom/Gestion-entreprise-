@@ -2,12 +2,18 @@ import type { CaseBundle } from "@/lib/graph/graph-types";
 import { assembleCase } from "@/lib/ingestion/assemble-case";
 import { fixtureCases, fixtureCasesById } from "@/lib/fixtures/cases";
 import { sessionStore } from "./in-memory-store";
+import {
+  buildBundleEvidence,
+  getScoreStatus,
+  getSourceHealth,
+} from "./case-quality";
 import type {
   CasesRepository,
   CaseSummary,
   CaseDetail,
   CompanyCandidate,
   CaseStatus,
+  SourceRow,
 } from "./types";
 
 function countHighSignals(bundle: CaseBundle): number {
@@ -18,18 +24,24 @@ function toSummary(
   bundle: CaseBundle,
   status: CaseStatus,
   updatedAt: string,
+  sources: SourceRow[] = [],
 ): CaseSummary {
+  const sourceHealth = getSourceHealth(sources);
   return {
     id: bundle.case.id,
     title: bundle.case.title,
     rootSiren: bundle.case.rootSiren,
     status,
+    origin: sourceHealth.origin,
+    scoreStatus: getScoreStatus(bundle.case.scores ?? {}, status),
+    sourceHealth,
     scores: bundle.case.scores ?? {},
     counts: {
       entities: bundle.entities.length,
       edges: bundle.edges.length,
       signalsHigh: countHighSignals(bundle),
     },
+    lastRunAt: updatedAt,
     updatedAt,
   };
 }
@@ -41,11 +53,13 @@ function toSummary(
 export class FixtureCasesRepository implements CasesRepository {
   async listCases(): Promise<CaseSummary[]> {
     const fromFixtures = fixtureCases.map((fc) =>
-      toSummary(fc.bundle, fc.status, fc.updatedAt),
+      toSummary(fc.bundle, fc.status, fc.updatedAt, fc.sources),
     );
     const fromSession = sessionStore
       .all()
-      .map(([, detail]) => toSummary(detail.bundle, "draft", detail.updatedAt));
+      .map(([, detail]) =>
+        toSummary(detail.bundle, "draft", detail.updatedAt, detail.sources),
+      );
     return [...fromSession, ...fromFixtures].sort((a, b) =>
       b.updatedAt.localeCompare(a.updatedAt),
     );
@@ -53,9 +67,21 @@ export class FixtureCasesRepository implements CasesRepository {
 
   async getCase(id: string): Promise<CaseDetail | null> {
     const fixture = fixtureCasesById.get(id);
-    if (fixture) return { bundle: fixture.bundle, sources: fixture.sources };
+    if (fixture) {
+      return {
+        bundle: fixture.bundle,
+        sources: fixture.sources,
+        evidence: buildBundleEvidence(fixture.bundle, fixture.sources),
+      };
+    }
     const session = sessionStore.get(id);
-    if (session) return { bundle: session.bundle, sources: session.sources };
+    if (session) {
+      return {
+        bundle: session.bundle,
+        sources: session.sources,
+        evidence: buildBundleEvidence(session.bundle, session.sources),
+      };
+    }
     return null;
   }
 
@@ -90,8 +116,13 @@ export class FixtureCasesRepository implements CasesRepository {
     const id = `s-${siren}-${sessionStore.all().length + 1}`;
     bundle.case.id = id;
     const updatedAt = new Date().toISOString();
-    sessionStore.set(id, { bundle, sources, updatedAt });
-    return toSummary(bundle, "draft", updatedAt);
+    sessionStore.set(id, {
+      bundle,
+      sources,
+      evidence: buildBundleEvidence(bundle, sources),
+      updatedAt,
+    });
+    return toSummary(bundle, "draft", updatedAt, sources);
   }
 
   async saveSynthesis(caseId: string, content: string): Promise<void> {

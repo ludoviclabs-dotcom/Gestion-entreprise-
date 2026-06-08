@@ -1,5 +1,6 @@
 import type { CaseBundle } from "@/lib/graph/graph-types";
 import type { CaseStatus, SourceRow } from "@/lib/data/types";
+import type { SourceKind } from "@/lib/graph/source";
 import { demoBundle } from "@/lib/fixtures/case-demo";
 import { cleanCompanyBundle } from "./clean-company";
 import { procedureCollectiveBundle } from "./procedure-collective";
@@ -15,7 +16,7 @@ export type FixtureCase = {
 };
 
 // Trail de provenance type pour un dossier de démonstration (déclaré comme fixture).
-function demoSources(...kinds: string[]): SourceRow[] {
+function demoSources(...kinds: SourceKind[]): SourceRow[] {
   return kinds.map((source) => ({
     source,
     endpoint: `fixture:${source}`,

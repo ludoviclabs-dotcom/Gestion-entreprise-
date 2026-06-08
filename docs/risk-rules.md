@@ -79,9 +79,31 @@ Code : `src/lib/risk/{types,rules,engine}.ts` · Tests : `src/tests/unit/risk-ru
 
 Les entités de type `address` et `event` sont exclues (rôle structurel par nature).
 
+### 8. `ECART_UBO_DECLARE`
+| | |
+|---|---|
+| Catégorie | vigilance |
+| Déclencheur | bénéficiaires effectifs déclarés disponibles ET divergence avec l'UBO recalculé depuis le capital |
+| Sévérité | high |
+| Justification | L'AMLR impose une vigilance renforcée sur les écarts de registre. KYB Graph compare le déclaratif RNE/INPI au contrôle indirect recalculé. |
+| Format FR | « Écart de bénéficiaire effectif : {n} déclaré(s), {m} recalculé(s) ≥ 25 %, {d} divergence(s). » |
+
+Le signal reste agrégé: l'exposition nominative de vrais UBO doit rester derrière authentification, rôles et journal d'intérêt légitime.
+
+### 9. `PROXIMITE_SANCTION`
+| | |
+|---|---|
+| Catégorie | vigilance |
+| Déclencheur | société ou personne à ≤ 2 sauts d'une entité sanction/PEP dans le graphe |
+| Sévérité | high si 1 saut, medium si 2 sauts |
+| Justification | Le screening par liste ne suffit pas toujours: une proximité de réseau peut signaler une revue renforcée, sans établir un fait juridique. |
+| Format FR | « {label} est à {d} sauts d'une entité signalée (sanction/PEP), via {label} ({lien}). » |
+
+Les homonymies et chemins de proximité sont des signaux à confirmer. Un chemin de graphe ne vaut pas qualification juridique.
+
 ## Scoring (3 axes)
 
-Calculé dans `engine.ts:computeRisk`.
+Calculé dans `engine.ts:computeRisk`. Version publique persistée dans les métadonnées et exports: `SCORE_MODEL_VERSION = "kyb-risk-2026.1"`.
 
 ### Complexité (0–100)
 Score structurel : `clamp(densité × 22 + log2(n+1) × 8 + log2(maxDegree+1) × 8)`.
