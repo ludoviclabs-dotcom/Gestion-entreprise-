@@ -1,56 +1,16 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Bell,
-  DatabaseZap,
-  Download,
-  ExternalLink,
-  FileText,
-  FolderOpen,
-  Grid2X2,
-  Layers,
-  LayoutDashboard,
-  LockKeyhole,
-  Maximize2,
-  Network,
-  Scale,
-  Search,
-  Settings,
-  ShieldCheck,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, ExternalLink, Network } from "lucide-react";
+import AmbientGraph from "@/components/landing/AmbientGraph.client";
+import ProductPanel from "@/components/landing/ProductPanel.client";
+import FeatureGrid from "@/components/landing/FeatureGrid.client";
+import ProofBadge from "@/components/landing/ProofBadge";
 
 const NAV_ITEMS = ["Produit", "Fonctionnalités", "Cas d'usage", "Ressources", "Tarifs"];
 
 const PROOF_MARKERS = [
-  { label: "Preuve", icon: FileText, className: "text-sky-300" },
-  { label: "Sources", icon: DatabaseZap, className: "text-emerald" },
-  { label: "Scores", icon: ShieldCheck, className: "text-amber" },
-];
-
-const TRUST_POINTS = [
-  {
-    title: "Traçabilité complète",
-    text: "Chaîne de preuve horodatée",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Cadre réglementaire",
-    text: "Aligné LCB-FT, RGPD et normes internes",
-    icon: Scale,
-  },
-  {
-    title: "Analyse approfondie",
-    text: "Graphes relationnels et signaux contextuels",
-    icon: Network,
-  },
-  {
-    title: "Contrôle et confidentialité",
-    text: "Données sécurisées, accès maîtrisés",
-    icon: LockKeyhole,
-  },
+  { label: "Preuve", color: "var(--kyb-green)" },
+  { label: "Sources", color: "var(--kyb-violet-soft)" },
+  { label: "Scores", color: "var(--kyb-amber)", pulse: true },
 ];
 
 const THREAT_ROWS = [
@@ -108,202 +68,6 @@ function RiskDot({ tone }: { tone: RiskTone }) {
   );
 }
 
-function AppMockup() {
-  const navItems = [
-    { label: "Tableau de bord", icon: LayoutDashboard },
-    { label: "Dossiers", icon: FolderOpen, active: true },
-    { label: "Analyses", icon: Network },
-    { label: "Alertes", icon: Bell },
-    { label: "Sources", icon: FileText },
-    { label: "Paramètres", icon: Settings },
-  ];
-
-  return (
-    <div
-      data-qa="app-mockup"
-      className="relative h-[552px] overflow-hidden rounded-md border border-white/10 bg-[#0a1227]/95 shadow-[0_26px_90px_rgba(0,0,0,0.34)]"
-    >
-      <div className="absolute inset-0 bg-grid opacity-70" />
-      <div className="relative grid h-full grid-cols-[158px_1fr]">
-        <aside className="border-r border-white/10 bg-[#071026]/72 px-3 py-4">
-          <div className="flex items-center gap-2 px-1 text-sm font-semibold text-white">
-            <BrandMark className="h-6 w-6" />
-            KYB Graph
-          </div>
-          <nav className="mt-6 space-y-1">
-            {navItems.map(({ label, icon: Icon, active }) => (
-              <div
-                key={label}
-                className={`flex items-center gap-2 rounded-md px-2 py-2 text-xs font-medium ${
-                  active
-                    ? "bg-white/8 text-white"
-                    : "text-slate-400"
-                }`}
-              >
-                <Icon size={15} />
-                <span>{label}</span>
-              </div>
-            ))}
-          </nav>
-          <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
-            Mode live
-          </div>
-        </aside>
-
-        <section className="relative min-w-0 px-4 py-3">
-          <div className="flex items-center justify-between border-b border-white/8 pb-3">
-            <div className="flex h-7 w-[260px] items-center gap-2 rounded-md border border-white/10 bg-[#071026]/70 px-3 text-xs text-slate-500">
-              <Search size={14} />
-              Rechercher...
-              <span className="ml-auto rounded border border-white/10 px-1 text-[10px] text-slate-500">
-                ⌘K
-              </span>
-            </div>
-            <Settings size={16} className="text-slate-400" />
-          </div>
-
-          <div className="mt-4 flex items-start justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-white/6 text-slate-300">
-                  <ArrowRight size={15} className="rotate-180" />
-                </span>
-                <div>
-                  <h2 className="text-base font-semibold leading-tight text-white">
-                    Holding Patrimoniale — démonstration
-                  </h2>
-                  <p className="mt-1 text-xs text-slate-400">
-                    SIREN 900111222 · 7 entités · 9 liens
-                  </p>
-                </div>
-                <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-emerald">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald" />
-                  Prêt
-                </span>
-              </div>
-              <div className="mt-4 flex gap-5 text-xs font-medium text-slate-400">
-                <span className="border-b-2 border-violet pb-2 text-white">Graphe</span>
-                <span>Preuve</span>
-                <span>Sources</span>
-                <span>Scores</span>
-                <span>Analyse</span>
-              </div>
-            </div>
-            <Link
-              href="/cases/demo"
-              className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/6 hover:text-white"
-            >
-              <Download size={14} />
-              Exporter
-            </Link>
-          </div>
-
-          <div className="relative mt-2 h-[288px] overflow-hidden">
-            <svg
-              aria-hidden
-              className="absolute inset-0 h-full w-full text-slate-500/70"
-              viewBox="0 0 660 318"
-              fill="none"
-            >
-              <path d="M120 218L238 136L342 58L456 120L565 149" stroke="currentColor" />
-              <path d="M238 136L455 120L445 30" stroke="currentColor" />
-              <path d="M238 136L120 205M238 136L180 56M455 120L570 198" stroke="currentColor" />
-              <path d="M455 120L525 170" stroke="#f59e0b" />
-            </svg>
-            <GraphNode className="left-[14%] top-[58%]" dotClassName="bg-slate-300" label="Jugement judiciaire (BODACC)" muted />
-            <GraphNode className="left-[15%] top-[31%]" dotClassName="bg-slate-400" label="8 avenue du Parc, 69006 Lyon" muted />
-            <GraphNode className="left-[31%] top-[43%]" dotClassName="bg-blue-300" label="SCI DU PARC" strong />
-            <GraphNode className="left-[43%] top-[18%]" dotClassName="bg-pink-300" label="Jean MARTIN" strong />
-            <GraphNode className="left-[56%] top-[5%]" dotClassName="bg-blue-300" label="SCI LES TILLEULS" strong />
-            <GraphNode className="left-[58%] top-[39%]" dotClassName="bg-blue-300" label="HOLDING PATRIMONIALE SAS" strong />
-            <GraphNode className="left-[80%] top-[39%]" dotClassName="bg-yellow-400" label="Immatriculation RCS" />
-            <GraphNode className="left-[66%] top-[58%]" dotClassName="bg-orange-400" label="Correspondance « MARTIN HOLDING LTD »" />
-            <GraphNode className="left-[37%] top-[74%]" dotClassName="bg-yellow-400" label="Immatriculation RCS" />
-            <div className="absolute right-1 top-8 space-y-2">
-              {[ZoomIn, ZoomOut, Maximize2, Grid2X2, Layers].map((Icon, index) => (
-                <span
-                  key={index}
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-[#071026]/70 text-slate-400"
-                >
-                  <Icon size={15} />
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid min-h-[102px] grid-cols-[1fr_132px_1fr] overflow-hidden rounded-md border border-white/10 bg-[#0c1730]/92">
-            <div className="p-3">
-              <h3 className="text-xs font-semibold text-white">
-                HOLDING PATRIMONIALE SAS
-              </h3>
-              <div className="mt-3 grid grid-cols-4 gap-3 text-xs">
-                {[
-                  ["Type", "Société"],
-                  ["SIREN", "900 111 222"],
-                  ["Statut", "Active"],
-                  ["Pays", "France"],
-                ].map(([label, value]) => (
-                  <div key={label}>
-                    <p className="text-slate-500">{label}</p>
-                    <p className="mt-1 font-medium text-white">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="border-x border-white/10 p-3">
-              <p className="whitespace-nowrap text-xs text-slate-400">Score de conformité</p>
-              <p className="mt-1 text-3xl font-semibold text-emerald">
-                78
-                <span className="text-sm font-normal text-slate-400"> /100</span>
-              </p>
-              <p className="mt-1 text-xs text-amber">• Moyen</p>
-            </div>
-            <div className="p-3">
-              <p className="text-xs text-slate-400">Résumé</p>
-              <p className="mt-2 text-xs leading-5 text-slate-300">
-                Structure complexe avec liens personnes et correspondances.
-                Vérifications complémentaires recommandées.
-              </p>
-            </div>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function GraphNode({
-  className,
-  dotClassName,
-  label,
-  strong = false,
-  muted = false,
-}: {
-  className: string;
-  dotClassName: string;
-  label: string;
-  strong?: boolean;
-  muted?: boolean;
-}) {
-  return (
-    <span className={`absolute flex items-center gap-2 ${className}`}>
-      <span
-        className={`h-4 w-4 rounded-full ${dotClassName} ${
-          strong ? "ring-4 ring-white/10" : ""
-        }`}
-      />
-      <span
-        className={`whitespace-nowrap text-[10px] font-medium ${
-          muted ? "text-slate-300" : "text-white"
-        }`}
-      >
-        {label}
-      </span>
-    </span>
-  );
-}
-
 function ThreatMatrix() {
   return (
     <div className="overflow-hidden rounded-md border border-white/10 bg-[#0a1227]/72">
@@ -350,7 +114,7 @@ function ThreatMatrix() {
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#070f20] text-slate-100">
+    <main className="landing-scope min-h-screen bg-[var(--kyb-bg0)] text-[var(--kyb-text-hi)]">
       <header className="relative z-20 border-b border-white/8 bg-[#070f20]/95 px-6 sm:px-8">
         <div className="mx-auto flex h-[74px] max-w-[1800px] items-center justify-between gap-5">
           <Link href="/" className="flex items-center gap-3 whitespace-nowrap text-xl font-bold text-white sm:text-2xl">
@@ -383,12 +147,23 @@ export default function Home() {
 
       <section className="relative overflow-hidden border-b border-white/8 px-6 sm:px-8">
         <div className="absolute inset-0 bg-grid opacity-85" aria-hidden />
+        <AmbientGraph />
         <div
           aria-hidden
           className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-[#071024] to-transparent"
         />
         <div className="relative z-10 mx-auto grid min-h-[626px] max-w-[1800px] items-center gap-8 py-8 lg:grid-cols-[0.72fr_1.28fr]">
           <div className="pt-2">
+            <span
+              className="mb-7 inline-flex items-center gap-2 rounded-full border border-[var(--kyb-line)] px-3 py-[5px] text-xs text-[var(--kyb-violet-soft)]"
+              style={{ background: "color-mix(in srgb, var(--kyb-violet) 6%, transparent)" }}
+            >
+              <span
+                className="kyb-pulse h-1.5 w-1.5 rounded-full"
+                style={{ color: "var(--kyb-green)", backgroundColor: "var(--kyb-green)" }}
+              />
+              Conforme LCB-FT · AMLR 2024/1624 · RGPD
+            </span>
             <h1 className="font-[family-name:var(--font-display)] text-6xl font-bold leading-none text-white md:text-7xl lg:text-[76px]">
               KYB Graph
             </h1>
@@ -396,18 +171,18 @@ export default function Home() {
               Cartographie de conformité KYB
             </p>
             <p className="mt-3 max-w-[580px] text-xl leading-8 text-slate-400">
-              Prouver ce que l'on sait. Signaler ce qui reste à vérifier.
+              <strong className="text-white">Prouver ce que l'on sait.</strong>{" "}
+              Signaler ce qui reste à vérifier.
             </p>
 
-            <div className="mt-10 flex flex-wrap gap-x-12 gap-y-4">
-              {PROOF_MARKERS.map(({ label, icon: Icon, className }) => (
-                <span
-                  key={label}
-                  className={`inline-flex items-center gap-3 text-lg font-semibold ${className}`}
-                >
-                  <Icon size={25} strokeWidth={2} />
-                  {label}
-                </span>
+            <div className="mt-8 flex flex-wrap gap-3">
+              {PROOF_MARKERS.map((marker) => (
+                <ProofBadge
+                  key={marker.label}
+                  label={marker.label}
+                  color={marker.color}
+                  pulse={marker.pulse}
+                />
               ))}
             </div>
 
@@ -425,22 +200,14 @@ export default function Home() {
                 Voir la démo <ExternalLink size={18} />
               </Link>
             </div>
-
-            <div className="mt-10 grid max-w-[620px] grid-cols-2 gap-5 sm:grid-cols-4">
-              {TRUST_POINTS.map(({ title, text, icon: Icon }) => (
-                <div key={title} className="min-w-0">
-                  <Icon size={25} className="text-slate-400" />
-                  <h2 className="mt-4 text-sm font-semibold leading-5 text-white">{title}</h2>
-                  <p className="mt-1 text-xs leading-5 text-slate-400">{text}</p>
-                </div>
-              ))}
-            </div>
           </div>
 
-          <div className="hidden lg:block">
-            <AppMockup />
-          </div>
+          <ProductPanel />
         </div>
+      </section>
+
+      <section className="border-b border-white/8 px-6 py-14 sm:px-8">
+        <FeatureGrid />
       </section>
 
       <section className="border-b border-white/8 bg-[#091327] px-6 py-10 sm:px-8">

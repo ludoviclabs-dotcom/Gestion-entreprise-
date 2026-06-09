@@ -144,3 +144,56 @@ body {
     linear-gradient(to bottom, rgba(124, 58, 237, 0.06) 1px, transparent 1px);
   background-size: 32px 32px;
 }
+
+/*
+ * ── Landing (aperçu v2) ──
+ * Pastille « live » qui pulse : on anime l'opacité + un halo (currentColor) ;
+ * il faut donc poser `color` sur le point en plus de `background`.
+ */
+@keyframes kybPulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+    opacity: 0.7;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    opacity: 1;
+  }
+}
+
+/* Helper de pulse réutilisable, neutralisé sous prefers-reduced-motion. */
+.kyb-pulse {
+  animation: kybPulse 2s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kyb-pulse {
+    animation: none;
+  }
+}
+
+/*
+ * Palette locale de la landing — légèrement plus profonde / violet plus doux
+ * que les tokens globaux. Scopée à `.landing-scope` pour n'avoir AUCUN impact
+ * sur le reste de l'app (dashboard, graphe, composants shadcn).
+ * Consommée via Tailwind (`bg-[var(--kyb-bg2)]`) ou `style` inline (SVG/canvas).
+ */
+.landing-scope {
+  --kyb-bg0: #0a0b14;
+  --kyb-bg1: #0e1020;
+  --kyb-bg2: #14172b;
+  --kyb-line: #1e2238;
+  --kyb-violet: #7c5cff;
+  --kyb-violet-soft: #9d85ff;
+  --kyb-amber: #f5b544;
+  --kyb-green: #4ade9b;
+  --kyb-red: #f26d6d;
+  --kyb-orange: #ff9248;
+  --kyb-text-hi: #f4f5fb;
+  --kyb-text-mid: #a4a9c4;
+  --kyb-text-low: #6b7095;
+}
