@@ -37,7 +37,7 @@ export default function SectorsPage() {
             </p>
           </div>
           <Link
-            href="/cases/demo"
+            href="/cases/demo-holding/graphe"
             className="inline-flex items-center gap-2 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
           >
             Ouvrir la demo
