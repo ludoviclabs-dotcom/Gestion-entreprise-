@@ -1,3 +1,7 @@
+// Co-localisation avec Neon (eu-central-1) pour toutes les pages du shell —
+// elles lisent le repository à chaque rendu (cf. docs/sovereignty.md).
+export const preferredRegion = "fra1";
+
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import AppSidebar from "@/components/shell/AppSidebar";

@@ -7,8 +7,7 @@ import type {
   Severity,
 } from "@/lib/graph/graph-types";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
-import { computeUbo } from "@/lib/graph/ubo";
-import { slugify } from "@/lib/text";
+import { compareDeclaredUbo } from "@/lib/graph/ubo";
 import type { Rule } from "./types";
 
 // ── Utilitaires partagés ─────────────────────────────────────────────────
@@ -330,27 +329,10 @@ export const ECART_UBO_DECLARE: Rule = {
   label: "Écart bénéficiaire effectif déclaré / recalculé",
   category: "vigilance",
   evaluate(ctx) {
-    const declared = ctx.bundle.declaredUbo ?? [];
-    if (declared.length === 0) return [];
-
-    const nameKey = (s: string) => slugify(s);
-    const declaredKeys = new Set(
-      declared.map((d) =>
-        nameKey(d.label || [d.prenoms, d.nom].filter(Boolean).join(" ")),
-      ),
-    );
-    const computedOwners = computeUbo(ctx.bundle).filter(
-      (u) => u.isBeneficialOwner,
-    );
-    const computedKeys = new Set(computedOwners.map((u) => nameKey(u.label)));
-
-    let declaredNotComputed = 0;
-    for (const k of declaredKeys) if (!computedKeys.has(k)) declaredNotComputed += 1;
-    let computedNotDeclared = 0;
-    for (const k of computedKeys) if (!declaredKeys.has(k)) computedNotDeclared += 1;
-
-    const divergences = declaredNotComputed + computedNotDeclared;
-    if (divergences === 0) return [];
+    // Comparaison factorisée dans le moteur UBO (réutilisée par le journal
+    // de preuve pour l'événement `ecart_ubo_detecte`).
+    const comparison = compareDeclaredUbo(ctx.bundle);
+    if (!comparison || comparison.divergences === 0) return [];
 
     return [
       makeSignal(
@@ -358,7 +340,7 @@ export const ECART_UBO_DECLARE: Rule = {
         undefined,
         "high",
         this.category,
-        `Écart de bénéficiaire effectif : ${declared.length} déclaré(s) au registre, ${computedOwners.length} recalculé(s) ≥ 25 % depuis le capital, ${divergences} divergence(s). Signalement de divergence de registre attendu (AMLR).`,
+        `Écart de bénéficiaire effectif : ${comparison.declares} déclaré(s) au registre, ${comparison.recalcules} recalculé(s) ≥ 25 % depuis le capital, ${comparison.divergences} divergence(s). Signalement de divergence de registre attendu (AMLR).`,
       ),
     ];
   },

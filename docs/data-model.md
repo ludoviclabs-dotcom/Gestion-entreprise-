@@ -97,7 +97,28 @@ L'export `/cases/[id]/export/json` produit un **manifeste d'audit** :
 }
 ```
 
-Le `payloadHash` permet de vérifier qu'un dossier exporté n'a pas été altéré entre deux exports (signature non chiffrée à ce stade, prévu pour Étape 3.4 audit_logs Merkle).
+Le `payloadHash` permet de vérifier qu'un dossier exporté n'a pas été altéré entre deux exports. L'export `/cases/[id]/export/pack` produit en plus un **Evidence Pack ZIP** (rapport PDF + `report-data.json` + `audit-trail.json` + `verify.mjs`) vérifiable hors-ligne. Les deux acceptent `?redact=persons` (personnes masquées « Personne #N »).
+
+## Journal de preuve (`audit_logs`, Étape 3.4)
+
+Chaque action significative sur un dossier est journalisée en **append-only
+hash-chaîné** (`src/lib/audit/`) : `dossier_cree`, `source_consultee` (avec
+`payloadHash` corroborant `source_records.payload_hash`), `risque_calcule`,
+`ecart_ubo_detecte` (comptes AMLR agrégés, jamais nominatifs — CJUE),
+`synthese_enregistree` (empreinte + règles citées), `export_genere`.
+
+Chaque entrée embarque le hash de la précédente (`prev_hash` → `entry_hash`,
+genèse `0×64`) : altérer ou supprimer une entrée passée casse la chaîne —
+`verifyChain` (et le `verify.mjs` embarqué dans l'Evidence Pack) le détecte.
+En mode démo zéro-clé, le jumeau mémoire (`journalStore` + seeds
+déterministes des fixtures) offre le même comportement sans BDD.
+
+> **Deux sérialisations de hash coexistent volontairement** :
+> - `source_records.payload_hash` et le `payloadHash` des exports utilisent la
+>   convention historique `sha256(JSON.stringify(...))` (ordre d'insertion) —
+>   inchangée pour ne pas invalider les empreintes déjà émises ;
+> - la **chaîne du journal** hache une sérialisation **canonique** (clés triées
+>   récursivement, `canonicalJson`) — indispensable au rejeu hors-ligne.
 
 ## Règles d'usage
 
@@ -111,5 +132,5 @@ Le `payloadHash` permet de vérifier qu'un dossier exporté n'a pas été altér
 
 ## Évolutions prévues
 
-- **Étape 3.4** : signature Merkle chaînée sur `audit_logs` pour rendre la piste d'audit immuable et opposable.
+- **Étape 3.4 (réalisé)** : journal `audit_logs` append-only hash-chaîné (cf. section ci-dessus). Restent : les **annotations** (besoin d'`actorId` → après l'auth Étape 2.2) et la **signature Ed25519** du manifeste d'export (gestion de clés à l'étape souveraineté — champ `signature: null` réservé dans le pack).
 - **Étape 3** : Apache AGE → requêtes Cypher sur la chaîne de provenance (« quelle source a produit ce nœud ? », « tous les dossiers utilisant ce SIREN »).

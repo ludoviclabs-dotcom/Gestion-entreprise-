@@ -12,8 +12,22 @@ export default async function RisquesTab(props: {
   params: Promise<{ caseId: string }>;
 }) {
   const { caseId } = await props.params;
-  const detail = await getCasesRepository().getCase(caseId);
+  const repository = getCasesRepository();
+  const detail = await repository.getCase(caseId);
   if (!detail) notFound();
+  // Historique horodaté des écarts UBO (journal de preuve, agrégats CJUE).
+  const ecartHistory = (await repository.listProofEvents(caseId)).filter(
+    (e) => e.kind === "ecart_ubo_detecte",
+  );
+  // Provenance résumée pour le briefing de synthèse (endpoint + empreinte —
+  // jamais le payload brut côté client).
+  const briefingSources = (await repository.getSourceRecords(caseId)).map(
+    (r) => ({
+      source: r.source,
+      endpoint: r.endpoint,
+      payloadHash: r.payloadHash,
+    }),
+  );
 
   const signals = detail.bundle.riskSignals;
 
@@ -48,11 +62,12 @@ export default async function RisquesTab(props: {
             owners={ubo}
             showNames={showUboNames}
             ecartExplanation={ecartSignal?.explanation}
+            ecartHistory={ecartHistory}
           />
         </div>
       ) : null}
       <div className="mt-6">
-        <AiSynthesis bundle={detail.bundle} />
+        <AiSynthesis bundle={detail.bundle} sources={briefingSources} />
       </div>
       <div className="mt-6">
         {signals.length === 0 ? (

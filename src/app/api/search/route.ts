@@ -5,6 +5,8 @@ import { rateLimit, ipKey } from "@/lib/server/rate-limit";
 import { validate } from "@/lib/server/validate";
 
 export const runtime = "nodejs";
+// Co-localisation avec Neon (eu-central-1) : évite l'aller-retour US↔EU par requête.
+export const preferredRegion = "fra1";
 
 type SearchPeriode = {
   denominationUniteLegale?: string | null;

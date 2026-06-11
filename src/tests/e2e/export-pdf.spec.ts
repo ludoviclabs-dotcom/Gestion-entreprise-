@@ -25,4 +25,20 @@ test("export JSON du dossier de démonstration", async ({ request }) => {
   expect(body.payloadHash).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex
   expect(body.bundle.case.rootSiren).toBeDefined();
   expect(Array.isArray(body.sources)).toBe(true);
+  expect(body.redaction).toBe("none");
+});
+
+test("export JSON anonymisé (?redact=persons) : aucun nom de personne", async ({
+  request,
+}) => {
+  const res = await request.get(
+    "/cases/demo-holding/export/json?redact=persons",
+  );
+  expect(res.status()).toBe(200);
+  const body = await res.json();
+  expect(body.redaction).toBe("persons");
+  const json = JSON.stringify(body.bundle);
+  // « Jean MARTIN » est la personne du dossier de démonstration.
+  expect(json).not.toContain("MARTIN");
+  expect(json).toContain("Personne #1");
 });

@@ -1,4 +1,5 @@
 import type { CaseBundle } from "./graph-types";
+import { slugify } from "@/lib/text";
 
 /**
  * Moteur de résolution du bénéficiaire effectif (UBO).
@@ -146,4 +147,42 @@ export function computeUbo(bundle: CaseBundle, rootId?: string): ComputedUbo[] {
   // Tri décroissant par détention effective (les UBO majeurs en tête).
   result.sort((a, b) => b.effectivePct - a.effectivePct);
   return result;
+}
+
+/** Résultat agrégé (jamais nominatif) de la comparaison déclaré / recalculé. */
+export type UboComparison = {
+  declares: number;
+  recalcules: number;
+  divergences: number;
+};
+
+/**
+ * Compare les bénéficiaires effectifs DÉCLARÉS au registre
+ * (`bundle.declaredUbo`) avec ceux RECALCULÉS depuis le capital
+ * (`computeUbo`). Renvoie des COMPTES uniquement (CJUE 2022) — utilisé par la
+ * règle ECART_UBO_DECLARE et par le journal de preuve (`ecart_ubo_detecte`).
+ * `null` si aucune liste déclarée n'est disponible.
+ */
+export function compareDeclaredUbo(bundle: CaseBundle): UboComparison | null {
+  const declared = bundle.declaredUbo ?? [];
+  if (declared.length === 0) return null;
+
+  const nameKey = (s: string) => slugify(s);
+  const declaredKeys = new Set(
+    declared.map((d) =>
+      nameKey(d.label || [d.prenoms, d.nom].filter(Boolean).join(" ")),
+    ),
+  );
+  const computedOwners = computeUbo(bundle).filter((u) => u.isBeneficialOwner);
+  const computedKeys = new Set(computedOwners.map((u) => nameKey(u.label)));
+
+  let divergences = 0;
+  for (const key of declaredKeys) if (!computedKeys.has(key)) divergences += 1;
+  for (const key of computedKeys) if (!declaredKeys.has(key)) divergences += 1;
+
+  return {
+    declares: declared.length,
+    recalcules: computedOwners.length,
+    divergences,
+  };
 }

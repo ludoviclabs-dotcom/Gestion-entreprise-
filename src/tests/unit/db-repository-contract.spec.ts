@@ -12,4 +12,14 @@ describe("DbCasesRepository persistence contract", () => {
     expect(source).toContain("sourceRecordIdFor(");
     expect(source).toContain("scoreModelVersion: SCORE_MODEL_VERSION");
   });
+
+  it("journalise la création et les synthèses dans audit_logs (chaîne de hash)", () => {
+    const source = readFileSync("src/lib/data/db-repository.ts", "utf8");
+
+    expect(source).toContain(".insert(auditLogs)");
+    expect(source).toContain("buildCreationProofEvents");
+    expect(source).toContain("prevHash: entry.prevHash");
+    expect(source).toContain("entryHash: entry.entryHash");
+    expect(source).toContain('"synthese_enregistree"');
+  });
 });

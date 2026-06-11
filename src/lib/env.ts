@@ -28,6 +28,11 @@ const serverSchema = z.object({
   OPENSANCTIONS_API_KEY: z.string().optional(),
   OPENSANCTIONS_BASE_URL: z.string().default("https://api.opensanctions.org"),
   OPENSANCTIONS_DATASET: z.string().default("sanctions"),
+  // Gate optionnelle des routes d'export (même esprit que CRON_SECRET) :
+  // si défini, les exports exigent ?token=<valeur>. Non défini → public
+  // (garde-fou « mode démo zéro-clé » intact). L'auth utilisateur réelle
+  // arrive à l'Étape 2.2 (Better-Auth).
+  EXPORT_TOKEN: z.string().optional(),
 });
 
 export const env = serverSchema.parse(process.env);

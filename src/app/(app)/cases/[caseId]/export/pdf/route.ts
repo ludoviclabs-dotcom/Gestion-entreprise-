@@ -1,50 +1,39 @@
-import { createHash } from "node:crypto";
-import { renderToBuffer } from "@react-pdf/renderer";
 import { getCasesRepository } from "@/lib/data/cases-repository";
-import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
-import { CaseReport } from "@/components/reports/CaseReport";
-import { SCORE_MODEL_VERSION } from "@/lib/risk/engine";
+import {
+  buildExportMeta,
+  exportFilename,
+  exportGate,
+  renderCasePdf,
+  resolveExportDetail,
+} from "@/lib/export/case-export";
 
 export const runtime = "nodejs";
+// Co-localisation avec Neon (eu-central-1) : évite l'aller-retour US↔EU par requête.
+export const preferredRegion = "fra1";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ caseId: string }> },
 ) {
+  const denied = exportGate(request);
+  if (denied) return denied;
+
   const { caseId } = await params;
-  const detail = await getCasesRepository().getCase(caseId);
-  if (!detail) {
+  const repository = getCasesRepository();
+  const raw = await repository.getCase(caseId);
+  if (!raw) {
     return new Response("Dossier introuvable", { status: 404 });
   }
 
-  const generatedAt = new Date().toISOString();
-  const sourceHealth = getSourceHealth(detail.sources);
-  const scoreStatus = getScoreStatus(detail.bundle.case.scores ?? {});
-  const payloadHash = createHash("sha256")
-    .update(
-      JSON.stringify({
-        bundle: detail.bundle,
-        evidence: detail.evidence,
-        generatedAt,
-      }),
-    )
-    .digest("hex");
+  const { detail, redaction } = resolveExportDetail(raw, request);
+  const meta = buildExportMeta(detail);
+  const buffer = await renderCasePdf(detail, meta, redaction);
 
-  const buffer = await renderToBuffer(
-    CaseReport({
-      bundle: detail.bundle,
-      sources: detail.sources,
-      evidence: detail.evidence,
-      sourceHealth,
-      scoreStatus,
-      scoreModelVersion: SCORE_MODEL_VERSION,
-      generatedAt,
-      payloadHash,
-    }),
-  );
-
-  const isoDate = generatedAt.slice(0, 10);
-  const filename = `dossier-${detail.bundle.case.rootSiren}-${isoDate}.pdf`;
+  await repository.appendProofEvent(caseId, "export_genere", {
+    format: "pdf",
+    redaction,
+    payloadHash: meta.payloadHash,
+  });
 
   // Node Buffer → Uint8Array : Response n'accepte pas Buffer directement
   // dans BodyInit (mismatch de typage côté TS), mais accepte Uint8Array.
@@ -53,7 +42,7 @@ export async function GET(
   return new Response(body, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${exportFilename(detail, meta, "pdf")}"`,
       "Cache-Control": "no-store",
     },
   });

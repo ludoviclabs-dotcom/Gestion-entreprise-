@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { saveSynthesisAction } from "@/app/(app)/cases/actions";
-import { buildBriefing } from "@/lib/synthesis/briefing";
+import { buildBriefing, type BriefingSource } from "@/lib/synthesis/briefing";
 import type { CaseBundle } from "@/lib/graph/graph-types";
 
 /**
@@ -28,15 +28,22 @@ import type { CaseBundle } from "@/lib/graph/graph-types";
  *  - Si une synthèse est déjà persistée → affichage + bouton « Régénérer ».
  *  - Sinon → bouton « Préparer un briefing » qui ouvre la Dialog copier-coller.
  *  - La Dialog contient : briefing Markdown copiable + zone réponse + bouton
- *    Enregistrer (Server Action saveSynthesisAction).
+ *    Enregistrer (Server Action saveSynthesisAction — qui vérifie que la
+ *    réponse cite au moins une règle déclenchée).
  */
-export default function AiSynthesis({ bundle }: { bundle: CaseBundle }) {
+export default function AiSynthesis({
+  bundle,
+  sources = [],
+}: {
+  bundle: CaseBundle;
+  sources?: BriefingSource[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [response, setResponse] = useState("");
   const [pending, startTransition] = useTransition();
 
-  const briefing = buildBriefing(bundle);
+  const briefing = buildBriefing(bundle, sources);
   const existing = bundle.case.synthesis;
 
   const handleCopy = async () => {
@@ -157,7 +164,9 @@ export default function AiSynthesis({ bundle }: { bundle: CaseBundle }) {
               <p className="text-[11px] text-muted-foreground">
                 {response.trim().length} caractère
                 {response.trim().length > 1 ? "s" : ""} — minimum 20 pour
-                enregistrer.
+                enregistrer. La réponse doit citer les identifiants des règles
+                déclenchées (ex. ECART_UBO_DECLARE), sinon l&apos;enregistrement
+                est refusé.
               </p>
             </div>
           </div>

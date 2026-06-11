@@ -5,3 +5,4 @@ export * from "./relations";
 export * from "./evidence";
 export * from "./risk";
 export * from "./snapshots";
+export * from "./audit";

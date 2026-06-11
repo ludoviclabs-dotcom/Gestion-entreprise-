@@ -3,6 +3,8 @@ import { bodacc } from "@/lib/connectors/bodacc";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Co-localisation avec Neon (eu-central-1) : évite l'aller-retour US↔EU par requête.
+export const preferredRegion = "fra1";
 
 /**
  * Cron Vercel — exécuté chaque jour à 07h00 UTC.

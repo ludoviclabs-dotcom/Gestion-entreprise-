@@ -1,6 +1,7 @@
 "use client";
 
-import { X } from "lucide-react";
+import Link from "next/link";
+import { FileSearch, X } from "lucide-react";
 import { useGraphStore } from "@/lib/store/graph-store";
 import type { CaseBundle, GraphDTO } from "@/lib/graph/graph-types";
 import { EDGE_LABELS, isHypothesis } from "@/lib/graph/graph-types";
@@ -63,8 +64,15 @@ export default function EdgePanel({
                 : ""}
           </p>
         ) : null}
-        <div className="mt-3">
+        <div className="mt-3 flex items-center justify-between gap-2">
           <EvidenceBadge level={edge.evidenceLevel} />
+          <Link
+            href={`/cases/${bundle.case.id}/sources?subject=${encodeURIComponent(selectedEdge)}`}
+            className="flex items-center gap-1 text-xs text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
+          >
+            <FileSearch size={13} />
+            Voir la preuve
+          </Link>
         </div>
 
         {isHypothesis(edge.evidenceLevel) && (

@@ -118,9 +118,9 @@ export const holdingUboBundle: CaseBundle = {
     },
   ],
   declaredUbo: [
-    { label: "Hélène MOREAU", nom: "MOREAU", prenoms: "Hélène", modaliteControle: "Détention directe ≥ 25 %" },
-    { label: "Sofia HADDAD", nom: "HADDAD", prenoms: "Sofia", modaliteControle: "Contrôle" },
-    { label: "Vincent LEROY", nom: "LEROY", prenoms: "Vincent", modaliteControle: "Déclaré" },
+    { label: "Hélène MOREAU", nom: "MOREAU", prenoms: "Hélène", modaliteControle: "Détention directe ≥ 25 %", sourceEndpoint: "fixture:inpi" },
+    { label: "Sofia HADDAD", nom: "HADDAD", prenoms: "Sofia", modaliteControle: "Contrôle", sourceEndpoint: "fixture:inpi" },
+    { label: "Vincent LEROY", nom: "LEROY", prenoms: "Vincent", modaliteControle: "Déclaré", sourceEndpoint: "fixture:inpi" },
   ],
   previous: { label: "État au 1ᵉʳ janvier 2024", entities, edges: previousEdges },
 };

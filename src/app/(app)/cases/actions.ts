@@ -9,6 +9,7 @@ import {
   SearchQuerySchema,
   SirenSchema,
 } from "@/lib/server/validate";
+import { validateSynthesisReferences } from "@/lib/synthesis/validate";
 import type { CompanyCandidate } from "@/lib/data/types";
 
 // Synthèse manuelle : entre 20 et 5000 caractères, sans HTML brut.
@@ -73,6 +74,8 @@ export async function findPathAction(
 /**
  * Persiste la synthèse manuelle d'un dossier (workflow Claude Code copier-coller).
  * Une seule version par dossier ; toute nouvelle sauvegarde écrase l'ancienne.
+ * Garde-fou : la réponse doit citer au moins une règle déclenchée du dossier
+ * (consigne 3 du briefing) — les identifiants cités sont journalisés.
  */
 export async function saveSynthesisAction(
   caseId: string,
@@ -81,7 +84,18 @@ export async function saveSynthesisAction(
   const parsed = validate(content, SynthesisSchema);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   try {
-    await getCasesRepository().saveSynthesis(caseId, parsed.data);
+    const repository = getCasesRepository();
+    const detail = await repository.getCase(caseId);
+    if (!detail) return { ok: false, error: "Dossier introuvable." };
+
+    const references = validateSynthesisReferences(parsed.data, detail.bundle);
+    if (!references.ok) return { ok: false, error: references.error };
+
+    await repository.saveSynthesis(
+      caseId,
+      parsed.data,
+      references.referencedRuleIds,
+    );
     return { ok: true };
   } catch (error) {
     return {

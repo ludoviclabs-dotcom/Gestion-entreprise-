@@ -38,7 +38,7 @@
 - **Graphe** : Sigma.js v3 (WebGL) · Graphology + extensions (layout-forceatlas2, communities-louvain, components, metrics, shortest-path).
 - **Backend** : Server Actions + Route Handlers Node.js · Drizzle ORM · Neon serverless (HTTP). Synthèse IA : workflow manuel copier-coller via la session Claude Code de l'utilisateur (zéro appel API tiers, cf. `docs/regulatory.md`).
 - **Sécurité/Obs** : Zod (validation) · token-bucket in-memory (rate limit, prêt pour Upstash) · Sentry (scaffold, no-op sans DSN) · @vercel/analytics + speed-insights.
-- **Tests** : Vitest (29 tests unit) · Playwright (3 specs e2e) · GitHub Actions CI.
+- **Tests** : Vitest (22 fichiers, 102 tests unit) · Playwright (6 specs e2e) · GitHub Actions CI.
 
 ## Arborescence
 
@@ -65,8 +65,9 @@ src/
 │     │     ├─ risques/              Signaux de vigilance + Synthèse IA
 │     │     ├─ sources/              Trail de provenance
 │     │     ├─ analyse/              Métriques structurelles
-│     │     ├─ export/{pdf,json}/    Routes export
-│     │     └─ synthesis/route.ts    Streaming Claude
+│     │     └─ export/{pdf,json,pack}/ Routes export (pack = Evidence Pack ZIP
+│     │                              vérifiable hors-ligne ; synthèse IA : workflow
+│     │                              manuel copier-coller, aucune route — cf. § Stack)
 │     └─ reglages/                   Page Réglages
 ├─ components/
 │  ├─ ui/                            shadcn primitives
@@ -78,18 +79,22 @@ src/
 └─ lib/
    ├─ env.ts                         Validation Zod des env vars (toutes optionnelles)
    ├─ siren.ts                       Validation SIREN/SIRET Luhn
+   ├─ audit/                         Journal de preuve hash-chaîné (Étape 3.4) :
+   │                                 hash-chain, journal, seeds fixtures
+   ├─ export/                        Export partagé : manifeste, PDF, pack ZIP,
+   │                                 redaction, script verify.mjs embarqué
    ├─ data/                          Repository seam (Fixture ↔ Db) + GraphQueryRepository
-   ├─ db/                            Drizzle client + 11 tables schéma
+   ├─ db/                            Drizzle client + 12 tables schéma
    ├─ connectors/                    Sirene, BODACC, INPI, Trésor, OpenSanctions
    ├─ ingestion/                     normalize-* + assemble-case
    ├─ graph/                         build-graph, layout, serialize, algorithms (metrics + path)
-   ├─ risk/                          types, rules (7), engine + scoring 3 axes
+   ├─ risk/                          types, rules (9), engine + scoring 3 axes
    ├─ store/                         Zustand graph store
    ├─ server/                        validate (Zod helper), rate-limit (token-bucket)
    └─ fixtures/                      5 dossiers démo + payloads bruts par connecteur
 ```
 
-## Schéma de données (11 tables Drizzle)
+## Schéma de données (12 tables Drizzle)
 
 | Table | Rôle |
 |---|---|
@@ -104,6 +109,7 @@ src/
 | `source_records` | Payload API brut + SHA-256 (chaîne de preuve) |
 | `risk_signals` | Signaux calculés par règles (ruleId, sévérité, catégorie, explication) |
 | `graph_snapshots` | Versionnage du graphe avec coords ForceAtlas2 + clusters |
+| `audit_logs` | Journal de preuve append-only hash-chaîné (Étape 3.4) — prev_hash → entry_hash par dossier |
 
 Voir `drizzle/0000_sleepy_silver_surfer.sql` pour les colonnes exactes.
 
@@ -130,7 +136,7 @@ Interface Cypher-shaped : `shortestPath`, `metrics`, `expandSubgraph`.
 6. **Normalisation** : chaque payload → entités + edges + events + evidence (`normalize-*`).
 7. **Déduplication** par `natural_key`.
 8. **Construction du graphe** Graphology (`buildGraph`).
-9. **Risk engine** (`computeRisk`) : 7 règles + scoring 3 axes (complexité / vigilance / qualité de preuve).
+9. **Risk engine** (`computeRisk`) : 9 règles + scoring 3 axes (complexité / vigilance / qualité de preuve).
 10. Retour `{ bundle: CaseBundle, sources: SourceRecordInput[] }`.
 
 ## Garde-fous produit (non négociables)
@@ -155,6 +161,7 @@ Interface Cypher-shaped : `shortestPath`, `metrics`, `expandSubgraph`.
 | `OPENSANCTIONS_API_KEY` | Quota élevé | Free tier |
 | `SENTRY_DSN` | Sentry actif | No-op |
 | `CRON_SECRET` | Cron BODACC sécurisé | Cron public refusé 401 |
+| `EXPORT_TOKEN` | Gate des routes d'export (`?token=`) | Exports publics (zéro-clé) |
 | `GRAPH_QUERY_BACKEND=age` | AgeCypherRepository | Graphology in-memory |
 
 Voir `.env.example` pour la liste exhaustive.
