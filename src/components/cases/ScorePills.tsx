@@ -1,8 +1,9 @@
 import type { CaseScores } from "@/lib/graph/graph-types";
 
-type Tone = "risk" | "good";
+export type Tone = "risk" | "good";
 
-function scoreColor(value: number | undefined, tone: Tone): string {
+/** Couleur produit d'un score (seuils 34/67) — réutilisée par la démo guidée. */
+export function scoreColor(value: number | undefined, tone: Tone): string {
   if (value === undefined) return "#64748b";
   const high = "#ef4444";
   const mid = "#f59e0b";
