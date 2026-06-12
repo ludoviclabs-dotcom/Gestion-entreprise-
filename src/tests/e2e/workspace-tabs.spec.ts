@@ -27,6 +27,13 @@ test("navigation entre les 4 onglets d'un dossier", async ({ page }) => {
   await page.waitForURL(`**/cases/${caseId}/sources`);
   await expect(page.getByRole("heading", { name: /Sources/i })).toBeVisible();
 
+  // Journal de preuve (Étape 3.4) : seedé en démo, chaîne intègre.
+  await expect(
+    page.getByRole("heading", { name: "Journal de preuve" }),
+  ).toBeVisible();
+  await expect(page.getByText("Chaîne vérifiée")).toBeVisible();
+  await expect(page.getByText("Dossier créé").first()).toBeVisible();
+
   // Retour à Graphe.
   await page.getByRole("link", { name: "Graphe" }).click();
   await page.waitForURL(`**/cases/${caseId}/graphe`);

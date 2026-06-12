@@ -1,5 +1,4 @@
-import { createHash } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   cases,
@@ -12,9 +11,20 @@ import {
   evidence,
   riskSignals,
   sourceRecords,
+  auditLogs,
 } from "@/lib/db/schema";
 import { assembleCase } from "@/lib/ingestion/assemble-case";
 import { fixtureCasesById } from "@/lib/fixtures/cases";
+import { seedJournalFor } from "@/lib/audit/fixture-journal";
+import {
+  buildCreationProofEvents,
+  chainNext,
+  type ProofEvent,
+  type ProofEventKind,
+} from "@/lib/audit/journal";
+import { payloadHash, sha256 } from "@/lib/audit/hash-chain";
+import { fixtureSourceRecordDetails } from "./source-records";
+import { journalStore } from "./in-memory-store";
 import {
   buildBundleEvidence,
   inferEdgeSource,
@@ -48,16 +58,11 @@ import type {
   CaseSummary,
   CompanyCandidate,
   EvidenceRow,
+  SourceRecordDetail,
   SourceRow,
 } from "./types";
 import type { SourceKind } from "@/lib/graph/source";
 import type { SourceRecordInput } from "@/lib/connectors/types";
-
-// SHA-256 d'un payload (intégrité + dédup dans source_records).
-function sha256(input: unknown): string {
-  const buf = typeof input === "string" ? input : JSON.stringify(input);
-  return createHash("sha256").update(buf).digest("hex");
-}
 
 type EntityAttrs = Record<string, string>;
 
@@ -436,7 +441,8 @@ export class DbCasesRepository implements CasesRepository {
             endpoint: src.endpoint,
             httpStatus: String(src.httpStatus),
             payload: src.raw,
-            payloadHash: sha256(src.raw),
+            // Convention historique source_records (JSON.stringify verbatim).
+            payloadHash: payloadHash(src.raw),
             isFixture: src.isFixture ? "true" : "false",
           })
           .returning();
@@ -626,6 +632,25 @@ export class DbCasesRepository implements CasesRepository {
         })
         .where(eq(cases.id, caseId));
 
+      // 8. Journal de preuve (audit_logs) : la séquence de création chaînée.
+      const proofEvents = buildCreationProofEvents({
+        caseId,
+        bundle,
+        sources,
+        occurredAt: completedAt.toISOString(),
+      });
+      await db.insert(auditLogs).values(
+        proofEvents.map((event) => ({
+          caseId,
+          seq: event.seq,
+          kind: event.kind,
+          payload: event.payload,
+          occurredAt: event.occurredAt,
+          prevHash: event.prevHash,
+          entryHash: event.entryHash,
+        })),
+      );
+
       return {
         id: caseId,
         title: bundle.case.title,
@@ -654,7 +679,11 @@ export class DbCasesRepository implements CasesRepository {
     }
   }
 
-  async saveSynthesis(caseId: string, content: string): Promise<void> {
+  async saveSynthesis(
+    caseId: string,
+    content: string,
+    referencedRuleIds?: string[],
+  ): Promise<void> {
     const db = getDb();
     const now = new Date();
     await db
@@ -665,5 +694,115 @@ export class DbCasesRepository implements CasesRepository {
         updatedAt: now,
       })
       .where(eq(cases.id, caseId));
+    await this.appendProofEvent(caseId, "synthese_enregistree", {
+      longueur: content.length,
+      // Empreinte du texte, pas le texte (déjà dans cases.synthesis_content).
+      contenuHash: sha256(content),
+      referencedRuleIds: referencedRuleIds ?? [],
+    });
   }
+
+  async appendProofEvent(
+    caseId: string,
+    kind: ProofEventKind,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    // Fixture servie en mode BDD (id non-UUID) → jumeau mémoire, comme getCase.
+    if (!UUID_RE.test(caseId)) {
+      const seeded = seedJournalFor(caseId);
+      const head =
+        journalStore.head(caseId) ?? seeded[seeded.length - 1] ?? null;
+      journalStore.append(
+        caseId,
+        chainNext(head, {
+          caseId,
+          kind,
+          occurredAt: new Date().toISOString(),
+          payload,
+        }),
+      );
+      return;
+    }
+
+    const db = getDb();
+    // Deux tentatives : en cas de course sur seq (pas de transaction
+    // interactive avec neon-http), l'index unique (case_id, seq) rejette le
+    // doublon et on rechaîne depuis la nouvelle tête. Mono-tenant : suffisant.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const [head] = await db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.caseId, caseId))
+        .orderBy(desc(auditLogs.seq))
+        .limit(1);
+      const entry = chainNext(head ? rowToProofEvent(head) : null, {
+        caseId,
+        kind,
+        occurredAt: new Date().toISOString(),
+        payload,
+      });
+      try {
+        await db.insert(auditLogs).values({
+          caseId,
+          seq: entry.seq,
+          kind: entry.kind,
+          payload: entry.payload,
+          occurredAt: entry.occurredAt,
+          prevHash: entry.prevHash,
+          entryHash: entry.entryHash,
+        });
+        return;
+      } catch (error) {
+        if (attempt === 1) throw error;
+      }
+    }
+  }
+
+  async listProofEvents(caseId: string): Promise<ProofEvent[]> {
+    if (!UUID_RE.test(caseId)) {
+      return [...seedJournalFor(caseId), ...journalStore.list(caseId)];
+    }
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.caseId, caseId))
+      .orderBy(asc(auditLogs.seq));
+    return rows.map(rowToProofEvent);
+  }
+
+  async getSourceRecords(caseId: string): Promise<SourceRecordDetail[]> {
+    // Fixture servie en mode BDD (id non-UUID) → payloads d'exemple.
+    if (!UUID_RE.test(caseId)) return fixtureSourceRecordDetails(caseId);
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(sourceRecords)
+      .where(eq(sourceRecords.caseId, caseId))
+      .orderBy(asc(sourceRecords.requestedAt));
+    return rows.map((r) => ({
+      id: r.id,
+      source: r.source as SourceRow["source"],
+      endpoint: r.endpoint,
+      httpStatus: Number(r.httpStatus ?? 0),
+      isFixture: r.isFixture === "true",
+      payload: r.payload,
+      payloadHash: r.payloadHash,
+      requestedAt: r.requestedAt.toISOString(),
+    }));
+  }
+}
+
+/** Ligne audit_logs → ProofEvent (occurred_at est déjà l'ISO haché verbatim). */
+function rowToProofEvent(row: typeof auditLogs.$inferSelect): ProofEvent {
+  return {
+    id: row.id,
+    caseId: row.caseId,
+    seq: row.seq,
+    kind: row.kind as ProofEventKind,
+    occurredAt: row.occurredAt,
+    payload: row.payload ?? {},
+    prevHash: row.prevHash,
+    entryHash: row.entryHash,
+  };
 }

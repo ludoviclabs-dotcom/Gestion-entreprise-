@@ -1,4 +1,5 @@
 import type { ComputedUbo } from "@/lib/graph/ubo";
+import type { ProofEvent } from "@/lib/audit/journal";
 
 /** Tronque à un décimal SANS arrondir au-dessus (24,99 % → 24,9 %, pas 25,0 %). */
 function fmtPct(fraction: number): string {
@@ -10,15 +11,19 @@ function fmtPct(fraction: number): string {
  * capital (détention effective + contrôle majoritaire, seuil 25 % AMLR).
  * `showNames` (gating CJUE 2022) : nominatif en démo / si UBO exposés, sinon
  * anonymisé. Composant serveur (le calcul est fait par la page).
+ * `ecartHistory` : événements `ecart_ubo_detecte` du journal de preuve —
+ * l'historique horodaté soutient le signalement AMLR (divergences sous 14 j).
  */
 export default function UboPanel({
   owners,
   showNames,
   ecartExplanation,
+  ecartHistory = [],
 }: {
   owners: ComputedUbo[];
   showNames: boolean;
   ecartExplanation?: string;
+  ecartHistory?: ProofEvent[];
 }) {
   if (owners.length === 0) return null;
 
@@ -90,6 +95,37 @@ export default function UboPanel({
           <p className="mt-1 text-xs text-muted-foreground">
             {ecartExplanation}
           </p>
+        </div>
+      ) : null}
+
+      {ecartHistory.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Historique des écarts registre / capital
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {ecartHistory.map((event) => {
+              const p = event.payload;
+              const counts =
+                p.declares !== undefined
+                  ? `${String(p.declares)} déclaré(s) · ${String(p.recalcules)} recalculé(s) · ${String(p.divergences)} divergence(s)`
+                  : String(p.explication ?? "Écart détecté");
+              return (
+                <li
+                  key={`${event.caseId}-${event.seq}`}
+                  className="flex items-center justify-between gap-3 text-xs text-muted-foreground"
+                >
+                  <span>
+                    {event.occurredAt.slice(0, 16).replace("T", " ")} UTC —{" "}
+                    {counts}
+                  </span>
+                  <span className="shrink-0 font-mono">
+                    {event.entryHash.slice(0, 12)}…
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       ) : null}
     </section>

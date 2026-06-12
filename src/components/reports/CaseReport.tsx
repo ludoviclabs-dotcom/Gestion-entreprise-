@@ -227,6 +227,8 @@ interface CaseReportProps {
   scoreModelVersion?: string;
   generatedAt: string;
   payloadHash: string;
+  /** Mode de redaction appliqué à l'export (« persons » : personnes masquées). */
+  redaction?: "persons" | "none";
 }
 
 export function CaseReport({
@@ -238,6 +240,7 @@ export function CaseReport({
   scoreModelVersion,
   generatedAt,
   payloadHash,
+  redaction = "none",
 }: CaseReportProps) {
   const { case: c, entities, edges, events, riskSignals } = bundle;
 
@@ -272,6 +275,43 @@ export function CaseReport({
             ) : null}
           </View>
         </View>
+
+        {/* Bandeaux d'avertissement : données de démonstration / export anonymisé. */}
+        {sourceHealth?.origin === "fixture" ? (
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: PALETTE.amber,
+              backgroundColor: "#Fef3C7",
+              borderRadius: 4,
+              paddingVertical: 5,
+              paddingHorizontal: 8,
+              marginBottom: 8,
+            }}
+          >
+            <Text style={{ fontSize: 9, fontWeight: 700, color: PALETTE.amber }}>
+              DONNÉES DE DÉMONSTRATION — fixtures anonymisées, aucun fait réel.
+            </Text>
+          </View>
+        ) : null}
+        {redaction === "persons" ? (
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: PALETTE.blue,
+              backgroundColor: "#DBEAFE",
+              borderRadius: 4,
+              paddingVertical: 5,
+              paddingHorizontal: 8,
+              marginBottom: 8,
+            }}
+          >
+            <Text style={{ fontSize: 9, fontWeight: 700, color: PALETTE.blue }}>
+              EXPORT ANONYMISÉ — les personnes physiques sont masquées
+              (« Personne #N »).
+            </Text>
+          </View>
+        ) : null}
 
         <Text style={styles.title}>{c.title}</Text>
         <Text style={styles.subtitle}>

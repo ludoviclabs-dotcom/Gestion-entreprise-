@@ -12,36 +12,35 @@ import { Badge } from "@/components/ui/badge";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
 import CaseQualityBadges from "@/components/cases/CaseQualityBadges";
+import EvidenceExplorer from "@/components/cases/EvidenceExplorer.client";
+import ProofJournal from "@/components/cases/ProofJournal";
 import EmptyState from "@/components/empty/EmptyState";
-import type { SourceKind } from "@/lib/graph/source";
-
-const SOURCE_LABELS: Record<SourceKind, string> = {
-  sirene: "INSEE Sirene",
-  bodacc: "BODACC",
-  inpi: "INPI / RNE",
-  tresor_gels: "DG Tresor - gels",
-  opensanctions: "OpenSanctions",
-  manual: "Manuel",
-  fixture: "Fixture",
-};
-
-const SUBJECT_LABELS = {
-  entity: "Entite",
-  edge: "Lien",
-  event: "Evenement",
-  risk_signal: "Signal",
-};
+import { SOURCE_LABELS } from "@/components/cases/source-labels";
 
 export default async function SourcesTab(props: {
   params: Promise<{ caseId: string }>;
+  searchParams: Promise<{ subject?: string }>;
 }) {
   const { caseId } = await props.params;
-  const detail = await getCasesRepository().getCase(caseId);
+  const { subject } = await props.searchParams;
+  const repository = getCasesRepository();
+  const detail = await repository.getCase(caseId);
   if (!detail) notFound();
+  const [journal, sourceRecords] = await Promise.all([
+    repository.listProofEvents(caseId),
+    repository.getSourceRecords(caseId),
+  ]);
 
   const { sources, evidence } = detail;
   const sourceHealth = getSourceHealth(sources);
   const scoreStatus = getScoreStatus(detail.bundle.case.scores ?? {});
+
+  // Libellés des sujets pour l'inspecteur (id → label lisible).
+  const subjectLabels: Record<string, string> = {};
+  for (const entity of detail.bundle.entities) subjectLabels[entity.id] = entity.label;
+  for (const edge of detail.bundle.edges) subjectLabels[edge.id] = edge.label ?? edge.type;
+  for (const event of detail.bundle.events) subjectLabels[event.id] = event.title;
+  for (const signal of detail.bundle.riskSignals) subjectLabels[signal.id] = signal.ruleId;
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
@@ -50,7 +49,7 @@ export default async function SourcesTab(props: {
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Traçabilité des données : chaque source consultée pour construire ce
-        dossier.
+        dossier. Clique une preuve pour inspecter son enregistrement source.
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
@@ -109,45 +108,15 @@ export default async function SourcesTab(props: {
       )}
 
       {evidence.length > 0 ? (
-        <div className="mt-8 overflow-hidden rounded-xl border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Sujet</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Niveau</TableHead>
-                <TableHead>Extrait</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {evidence.slice(0, 60).map((item, index) => (
-                <TableRow
-                  key={`${item.subjectType}-${item.subjectId}-${index}`}
-                  className="hover:bg-transparent"
-                >
-                  <TableCell className="text-muted-foreground">
-                    {SUBJECT_LABELS[item.subjectType]}
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {item.source ? SOURCE_LABELS[item.source] : "Non liee"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className="border-border text-muted-foreground"
-                    >
-                      {item.level}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-sm truncate text-xs text-muted-foreground">
-                    {item.excerpt ?? item.sourceRecordId ?? "Pointeur conserve"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <EvidenceExplorer
+          evidence={evidence}
+          records={sourceRecords}
+          subjectLabels={subjectLabels}
+          initialSubjectId={subject}
+        />
       ) : null}
+
+      <ProofJournal events={journal} />
     </div>
   );
 }

@@ -19,8 +19,10 @@ RÈGLES IMPÉRATIVES, sans aucune exception :
 2. Tu rappelles le niveau de preuve des éléments cités quand pertinent :
    confirmé / déclaré / inféré / simulé. Les éléments inférés ou simulés
    sont des HYPOTHÈSES d'analyse, jamais des preuves.
-3. Tu cites EXPLICITEMENT les règles déclenchées (ex. PROCEDURE_COLLECTIVE,
-   ADRESSE_PARTAGEE) qui justifient ta lecture.
+3. Tu cites les identifiants EXACTS des règles déclenchées, tels quels
+   (ex. PROCEDURE_COLLECTIVE, ADRESSE_PARTAGEE, ECART_UBO_DECLARE) — la
+   synthèse sera REJETÉE à l'enregistrement si aucun identifiant de règle
+   déclenchée n'y figure.
 4. Tu structures la réponse en 3 parties courtes :
    a) « Synthèse » (2 phrases max)
    b) « Éléments de vigilance » (liste à puces)
@@ -28,12 +30,22 @@ RÈGLES IMPÉRATIVES, sans aucune exception :
 5. Tu ne dépasses pas 250 mots au total.
 6. Tu écris en français professionnel, neutre.`;
 
+/** Source consultée, pré-résolue côté serveur (le briefing reste pur). */
+export type BriefingSource = {
+  source: string;
+  endpoint: string;
+  payloadHash?: string;
+};
+
 /**
  * Construit un briefing Markdown autonome (prompt + données) que l'utilisateur
  * colle dans sa session Claude Code pour obtenir la synthèse. Pur : ne fait
  * aucun I/O, exécutable côté serveur comme côté client.
  */
-export function buildBriefing(bundle: CaseBundle): string {
+export function buildBriefing(
+  bundle: CaseBundle,
+  sources: BriefingSource[] = [],
+): string {
   const { case: c, entities, edges, events, riskSignals } = bundle;
 
   const lines: string[] = [];
@@ -88,11 +100,23 @@ export function buildBriefing(bundle: CaseBundle): string {
     lines.push("");
   }
 
-  // 5. Demande explicite
+  // 5. Sources consultées (provenance + empreinte — ancre la synthèse dans
+  // la chaîne de preuve du dossier).
+  if (sources.length > 0) {
+    lines.push("## Sources consultées");
+    lines.push("");
+    for (const s of sources) {
+      const hash = s.payloadHash ? ` · empreinte ${s.payloadHash.slice(0, 12)}…` : "";
+      lines.push(`- **${s.source}** — ${s.endpoint}${hash}`);
+    }
+    lines.push("");
+  }
+
+  // 6. Demande explicite
   lines.push("---");
   lines.push("");
   lines.push(
-    "**Demande** : Rédige la synthèse en suivant scrupuleusement les règles ci-dessus (3 parties, 250 mots max, jamais « fraude », citation explicite des règles déclenchées).",
+    "**Demande** : Rédige la synthèse en suivant scrupuleusement les règles ci-dessus (3 parties, 250 mots max, jamais « fraude », identifiants exacts des règles déclenchées — l'enregistrement les vérifie).",
   );
 
   return lines.join("\n");

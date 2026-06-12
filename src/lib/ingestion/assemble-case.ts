@@ -13,6 +13,7 @@ import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
 import { buildGraph } from "@/lib/graph/build-graph";
 import { computeRisk } from "@/lib/risk/engine";
+import { payloadHash } from "@/lib/audit/hash-chain";
 
 function toSource(source: SourceKind, r: ConnectorResult<unknown>): SourceRecordInput {
   return {
@@ -73,12 +74,19 @@ export async function assembleCase(
       }[];
     }
   ).beneficiairesEffectifs;
+  // Trace de provenance commune : endpoint INPI + empreinte du payload brut
+  // (corrobore source_records.payload_hash et le journal de preuve).
+  const inpiTrace = {
+    sourceEndpoint: inpiRes.endpoint,
+    sourcePayloadHash: payloadHash(inpiRes.raw),
+  };
   const declaredUbo = (declaredUboRaw ?? [])
     .map((b) => ({
       label: [b.prenoms, b.nom].filter(Boolean).join(" ").trim(),
       nom: b.nom,
       prenoms: b.prenoms,
       modaliteControle: b.modaliteControle,
+      ...inpiTrace,
     }))
     .filter((b) => b.label.length > 0);
 

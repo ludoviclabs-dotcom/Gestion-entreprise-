@@ -70,12 +70,15 @@ export type CaseSynthesis = { content: string; updatedAt: string };
 
 /** Bénéficiaire effectif DÉCLARÉ au registre (INPI/RBE). Sert au calcul d'écart
  *  avec l'UBO recalculé depuis le capital. Transient (non persisté tel quel —
- *  l'écart est persisté via un risk signal). */
+ *  l'écart est persisté via un risk signal + le journal `ecart_ubo_detecte`). */
 export type DeclaredUbo = {
   label: string;
   nom?: string;
   prenoms?: string;
   modaliteControle?: string;
+  /** Trace de provenance : endpoint INPI consulté + empreinte du payload brut. */
+  sourceEndpoint?: string;
+  sourcePayloadHash?: string;
 };
 
 export type CaseBundle = {

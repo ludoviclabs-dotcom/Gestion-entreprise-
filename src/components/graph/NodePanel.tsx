@@ -1,7 +1,8 @@
 "use client";
 
 import { useTransition } from "react";
-import { X, GitBranch, Crosshair, Eraser, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { X, GitBranch, Crosshair, Eraser, FileSearch, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useGraphStore } from "@/lib/store/graph-store";
 import type { CaseBundle, GraphDTO } from "@/lib/graph/graph-types";
@@ -85,8 +86,15 @@ export default function NodePanel({
         <h2 className="font-[family-name:var(--font-display)] text-base font-semibold">
           {node.label}
         </h2>
-        <div className="mt-2">
+        <div className="mt-2 flex items-center justify-between gap-2">
           <EvidenceBadge level={node.evidenceLevel} />
+          <Link
+            href={`/cases/${bundle.case.id}/sources?subject=${encodeURIComponent(selectedNode)}`}
+            className="flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground"
+          >
+            <FileSearch size={13} />
+            Voir la preuve
+          </Link>
         </div>
 
         {/* Actions path-finding (nœuds société/personne uniquement). */}
