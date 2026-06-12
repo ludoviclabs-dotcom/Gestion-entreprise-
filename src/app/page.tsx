@@ -194,7 +194,7 @@ export default function Home() {
                 Ouvrir l'application <ArrowRight size={20} />
               </Link>
               <Link
-                href="/cases/demo"
+                href="/demo"
                 className="inline-flex min-w-[200px] items-center justify-center gap-4 rounded-md border border-white/14 bg-[#0a1227]/70 px-6 py-4 text-base font-semibold text-white transition hover:bg-white/6"
               >
                 Voir la démo <ExternalLink size={18} />
