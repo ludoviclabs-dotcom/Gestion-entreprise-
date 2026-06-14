@@ -11,7 +11,8 @@ export const metadata = {
 
 export default function RessourcesPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <>
+      <main className="min-h-screen bg-background text-foreground">
       <SitePageHeader
         eyebrow="Ressources"
         title="Ancrages réglementaires"
@@ -38,7 +39,8 @@ export default function RessourcesPage() {
         </div>
       </section>
 
+      </main>
       <PublicFooter />
-    </main>
+    </>
   );
 }

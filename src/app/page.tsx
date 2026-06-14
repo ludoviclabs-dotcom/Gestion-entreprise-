@@ -114,7 +114,8 @@ function ThreatMatrix() {
 
 export default function Home() {
   return (
-    <main className="landing-scope min-h-screen bg-[var(--kyb-bg0)] text-[var(--kyb-text-hi)]">
+    <>
+      <main className="landing-scope min-h-screen bg-[var(--kyb-bg0)] text-[var(--kyb-text-hi)]">
       <header className="relative z-20 border-b border-white/8 bg-[#070f20]/95 px-6 sm:px-8">
         <div className="mx-auto flex h-[74px] max-w-[1800px] items-center justify-between gap-5">
           <Link href="/" className="flex items-center gap-3 whitespace-nowrap text-xl font-bold text-white sm:text-2xl">
@@ -238,7 +239,8 @@ export default function Home() {
         </div>
       </section>
 
+      </main>
       <PublicFooter />
-    </main>
+    </>
   );
 }

@@ -18,7 +18,8 @@ export const metadata = {
 
 export default function ConfidentialitePage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <>
+      <main className="min-h-screen bg-background text-foreground">
       <SitePageHeader
         eyebrow="Confidentialité & RGPD"
         title="Protection des données et rétention"
@@ -105,8 +106,9 @@ export default function ConfidentialitePage() {
         </div>
       </Section>
 
+      </main>
       <PublicFooter />
-    </main>
+    </>
   );
 }
 

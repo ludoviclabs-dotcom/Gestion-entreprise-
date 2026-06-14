@@ -18,7 +18,8 @@ export const metadata = {
 
 export default function SecuritePage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <>
+      <main className="min-h-screen bg-background text-foreground">
       <SitePageHeader
         eyebrow="Sécurité & confiance"
         title="Trust center"
@@ -155,8 +156,9 @@ export default function SecuritePage() {
         </div>
       </Section>
 
+      </main>
       <PublicFooter />
-    </main>
+    </>
   );
 }
 

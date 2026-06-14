@@ -31,17 +31,18 @@ for (const p of PAGES) {
   });
 }
 
-test("le footer public relie les pages de crédibilité depuis l'accueil", async ({
+test("le footer public (landmark contentinfo) relie les pages de crédibilité", async ({
   page,
 }) => {
   await page.goto("/");
   const footer = page.getByRole("contentinfo");
-  for (const label of [
-    "Souveraineté",
-    "Sécurité",
-    "Confidentialité",
-    "Ressources",
+  await expect(footer).toBeVisible();
+  for (const href of [
+    "/souverainete",
+    "/securite",
+    "/confidentialite",
+    "/ressources",
   ]) {
-    await expect(footer.getByRole("link", { name: label })).toBeVisible();
+    await expect(footer.locator(`a[href="${href}"]`).first()).toBeVisible();
   }
 });

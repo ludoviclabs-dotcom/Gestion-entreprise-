@@ -18,7 +18,8 @@ export const metadata = {
 
 export default function SectorsPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <>
+      <main className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-surface px-6 py-6">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <div>
@@ -140,8 +141,9 @@ export default function SectorsPage() {
         </div>
       </section>
 
+      </main>
       <PublicFooter />
-    </main>
+    </>
   );
 }
 

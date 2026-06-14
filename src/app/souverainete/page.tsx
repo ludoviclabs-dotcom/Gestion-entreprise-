@@ -18,7 +18,8 @@ export const metadata = {
 
 export default function SouverainetePage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <>
+      <main className="min-h-screen bg-background text-foreground">
       <SitePageHeader
         eyebrow="Souveraineté & hébergement"
         title="Une trajectoire vers un hébergement souverain"
@@ -124,8 +125,9 @@ export default function SouverainetePage() {
         </ol>
       </Section>
 
+      </main>
       <PublicFooter />
-    </main>
+    </>
   );
 }
 
