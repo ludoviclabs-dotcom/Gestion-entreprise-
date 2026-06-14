@@ -1,0 +1,10 @@
+{
+  "document": "Kbis",
+  "confidence": 0.97,
+  "company": { "siren": "812345678", "denomination": "DUPONT HOLDING" },
+  "dirigeants": [
+    { "nom": "MARTIN", "prenoms": "Claire", "qualite": "Présidente" },
+    { "nom": "DUPONT", "prenoms": "Jean", "qualite": "Directeur général" }
+  ],
+  "address": { "label": "12 rue de la Paix, 75002 Paris" }
+}

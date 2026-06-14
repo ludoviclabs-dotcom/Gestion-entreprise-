@@ -791,6 +791,18 @@ export class DbCasesRepository implements CasesRepository {
       requestedAt: r.requestedAt.toISOString(),
     }));
   }
+
+  async addSourceDocument(): Promise<{
+    entities: number;
+    edges: number;
+    merged: number;
+  }> {
+    // Persistance BDD d'un document extrait (réingestion entités/liens/preuves)
+    // — vague ultérieure. Opérationnel en mode session (FixtureCasesRepository).
+    throw new Error(
+      "addSourceDocument non raccordé en BDD : disponible en mode session (sans DATABASE_URL). Persistance Neon prévue dans une vague ultérieure.",
+    );
+  }
 }
 
 /** Ligne audit_logs → ProofEvent (occurred_at est déjà l'ISO haché verbatim). */

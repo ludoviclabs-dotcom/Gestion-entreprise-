@@ -65,6 +65,15 @@ export const ALGORITHM_EXPLAINERS = {
     limit:
       "Un chemin de proximité n'établit pas une relation juridique ; les homonymies exigent une revue des identifiants (date de naissance, références UE/ONU), pas seulement du nom.",
   },
+  "resolution-entites": {
+    id: "resolution-entites",
+    title: "Résolution d'entités",
+    fn: "resolveEntities — src/lib/ingestion/entity-resolver.ts",
+    proves:
+      "Rapproche les entités issues de plusieurs sources par similarité de nom (Jaro-Winkler + clé phonétique) : sociétés par SIREN puis dénomination, personnes par nom complet. Les variantes (« Jean Martin » / « J. Martin », « DUPONT SARL » / « Dupont S.A.R.L. ») fusionnent en une entité canonique, et les liens sont re-pointés.",
+    limit:
+      "Un rapprochement nominatif n'établit pas une identité juridique : les homonymies imposent une revue sur les identifiants (SIREN, date de naissance). Le seuil de fusion est volontairement conservateur ; deux SIREN distincts ne sont jamais fusionnés.",
+  },
 } as const satisfies Record<string, AlgorithmExplainerEntry>;
 
 export type AlgorithmId = keyof typeof ALGORITHM_EXPLAINERS;

@@ -32,6 +32,7 @@ export const sourceKind = pgEnum("source_kind", [
   "inpi",
   "tresor_gels",
   "opensanctions",
+  "docling",
   "manual",
   "fixture",
 ]);
