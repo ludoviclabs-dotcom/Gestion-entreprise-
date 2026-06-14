@@ -1,4 +1,5 @@
 import { demoBundle } from "@/lib/fixtures/case-demo";
+import { materializeCase } from "@/lib/fixtures/materialize";
 import type {
   CaseEntity,
   CaseEvent,
@@ -191,11 +192,9 @@ export const DEMO_ALERTS: DemoAlert[] = [
   },
 ];
 
-if (!demoBundle.case.scores) {
-  throw new Error("Le dossier de démonstration doit porter ses trois scores.");
-}
-
-export const DEMO_SCORES = demoBundle.case.scores;
+// Scores RECALCULÉS du graphe (mêmes calculs que le case-view) — aucune valeur
+// en dur dans la démo (cf. docs/audit-calculs.md).
+export const DEMO_SCORES = materializeCase(demoBundle).case.scores ?? {};
 export const DEMO_SIREN = demoBundle.case.rootSiren;
 export const DEMO_CASE_TITLE = demoBundle.case.title;
 export const DEMO_ENTITY_COUNT = demoBundle.entities.length;

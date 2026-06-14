@@ -6,7 +6,6 @@ export const reseauMultiDirigeantsBundle: CaseBundle = {
     id: "groupe-meridien",
     title: "Groupe Méridien — réseau",
     rootSiren: "812345678",
-    scores: { complexite: 86, vigilance: 64, qualitePreuve: 52 },
   },
   entities: [
     {
@@ -102,30 +101,5 @@ export const reseauMultiDirigeantsBundle: CaseBundle = {
   events: [
     { id: "ev1", entityId: "c5", kind: "creation", title: "Immatriculation RCS", occurredOn: "2025-10-02", evidenceLevel: "confirmed", source: "BODACC" },
   ],
-  riskSignals: [
-    {
-      id: "r1",
-      ruleId: "DIRIGEANT_MULTI_SOCIETES",
-      subjectId: "p2",
-      severity: "medium",
-      category: "complexite",
-      explanation: "Ce dirigeant est lié à 3 sociétés du dossier.",
-    },
-    {
-      id: "r2",
-      ruleId: "ADRESSE_PARTAGEE",
-      subjectId: "a1",
-      severity: "medium",
-      category: "vigilance",
-      explanation: "4 sociétés déclarent la même adresse de siège (100 avenue des Champs, 75008 Paris).",
-    },
-    {
-      id: "r3",
-      ruleId: "SOCIETE_RECENTE_TRES_LIEE",
-      subjectId: "c5",
-      severity: "medium",
-      category: "vigilance",
-      explanation: "Société créée il y a moins de 12 mois et déjà fortement reliée au groupe.",
-    },
-  ],
+  riskSignals: [], // recalculés du graphe par materializeCase (index)
 };

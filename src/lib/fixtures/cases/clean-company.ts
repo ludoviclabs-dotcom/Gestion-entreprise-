@@ -6,7 +6,6 @@ export const cleanCompanyBundle: CaseBundle = {
     id: "innovatech",
     title: "INNOVATECH SAS",
     rootSiren: "843291567",
-    scores: { complexite: 18, vigilance: 12, qualitePreuve: 88 },
   },
   entities: [
     {

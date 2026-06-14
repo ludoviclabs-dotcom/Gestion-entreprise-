@@ -10,7 +10,6 @@ export const demoBundle: CaseBundle = {
     id: "demo-holding",
     title: "Holding Patrimoniale — démonstration",
     rootSiren: "900111222",
-    scores: { complexite: 58, vigilance: 72, qualitePreuve: 64 },
   },
   entities: [
     {
@@ -221,59 +220,7 @@ export const demoBundle: CaseBundle = {
       source: "BODACC",
     },
   ],
-  riskSignals: [
-    {
-      id: "r1",
-      ruleId: "PROCEDURE_COLLECTIVE",
-      subjectId: "c3",
-      severity: "high",
-      category: "vigilance",
-      explanation:
-        "Procédure collective (redressement judiciaire) publiée au BODACC le 10/11/2025.",
-    },
-    {
-      id: "r2",
-      ruleId: "ADRESSE_PARTAGEE",
-      subjectId: "a1",
-      severity: "medium",
-      category: "vigilance",
-      explanation:
-        "2 sociétés déclarent la même adresse de siège (12 rue de la Paix, 75002 Paris).",
-    },
-    {
-      id: "r3",
-      ruleId: "DIRIGEANT_MULTI_SOCIETES",
-      subjectId: "p1",
-      severity: "medium",
-      category: "complexite",
-      explanation: "Ce dirigeant est lié à 3 sociétés du dossier.",
-    },
-    {
-      id: "r4",
-      ruleId: "SOCIETE_RECENTE_TRES_LIEE",
-      subjectId: "c3",
-      severity: "medium",
-      category: "vigilance",
-      explanation:
-        "Société créée il y a moins de 12 mois et déjà reliée à une holding et à une procédure collective.",
-    },
-    {
-      id: "r5",
-      ruleId: "SANCTION_POSSIBLE",
-      subjectId: "s1",
-      severity: "high",
-      category: "vigilance",
-      explanation:
-        "Correspondance simulée avec le registre national des gels — à vérifier manuellement.",
-    },
-    {
-      id: "r6",
-      ruleId: "PROXIMITE_SANCTION",
-      subjectId: "c1",
-      severity: "high",
-      category: "vigilance",
-      explanation:
-        "MARTIN HOLDING SAS est directement reliée à une entité signalée (sanction/PEP) : Correspondance « MARTIN HOLDING LTD ».",
-    },
-  ],
+  // Scores et signaux RECALCULÉS du graphe par materializeCase (index) — aucun
+  // signal en dur (cf. docs/audit-calculs.md).
+  riskSignals: [],
 };
