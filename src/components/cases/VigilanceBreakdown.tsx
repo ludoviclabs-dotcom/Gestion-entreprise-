@@ -16,21 +16,22 @@ export default function VigilanceBreakdown({
 
   return (
     <section className="rounded-xl border border-border bg-surface p-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 className="font-[family-name:var(--font-display)] text-sm font-semibold">
-          Composition du score de vigilance
-        </h3>
-        <span className="text-sm font-semibold tabular-nums">
-          {explanation.score}
-          <span className="text-xs text-muted-foreground"> / 100</span>
-        </span>
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Somme pondérée des signaux déclenchés
-        {explanation.capped ? " (plafonnée à 100)" : ""}.
-      </p>
+      <details open>
+        <summary className="flex cursor-pointer list-none items-baseline justify-between gap-3">
+          <h3 className="font-[family-name:var(--font-display)] text-sm font-semibold">
+            Composition du score de vigilance
+          </h3>
+          <span className="text-sm font-semibold tabular-nums">
+            {explanation.score}
+            <span className="text-xs text-muted-foreground"> / 100</span>
+          </span>
+        </summary>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Somme pondérée des signaux déclenchés
+          {explanation.capped ? " (plafonnée à 100)" : ""}.
+        </p>
 
-      <ul className="mt-4 space-y-2">
+        <ul className="mt-4 space-y-2">
         {explanation.contributions.map((c, i) => (
           <li key={`${c.ruleId}-${i}`} className="flex items-center gap-3">
             <span
@@ -63,7 +64,8 @@ export default function VigilanceBreakdown({
             </div>
           </li>
         ))}
-      </ul>
+        </ul>
+      </details>
     </section>
   );
 }

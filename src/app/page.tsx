@@ -4,8 +4,8 @@ import AmbientGraph from "@/components/landing/AmbientGraph.client";
 import ProductPanel from "@/components/landing/ProductPanel.client";
 import FeatureGrid from "@/components/landing/FeatureGrid.client";
 import ProofBadge from "@/components/landing/ProofBadge";
-
-const NAV_ITEMS = ["Produit", "Fonctionnalités", "Cas d'usage", "Ressources", "Tarifs"];
+import { PUBLIC_NAV } from "@/components/site/nav-items";
+import { PublicFooter } from "@/components/site/PublicFooter";
 
 const PROOF_MARKERS = [
   { label: "Preuve", color: "var(--kyb-green)" },
@@ -114,7 +114,8 @@ function ThreatMatrix() {
 
 export default function Home() {
   return (
-    <main className="landing-scope min-h-screen bg-[var(--kyb-bg0)] text-[var(--kyb-text-hi)]">
+    <>
+      <main className="landing-scope min-h-screen bg-[var(--kyb-bg0)] text-[var(--kyb-text-hi)]">
       <header className="relative z-20 border-b border-white/8 bg-[#070f20]/95 px-6 sm:px-8">
         <div className="mx-auto flex h-[74px] max-w-[1800px] items-center justify-between gap-5">
           <Link href="/" className="flex items-center gap-3 whitespace-nowrap text-xl font-bold text-white sm:text-2xl">
@@ -122,9 +123,13 @@ export default function Home() {
             KYB Graph
           </Link>
           <nav className="hidden items-center gap-11 text-sm font-medium text-slate-300 lg:flex">
-            {NAV_ITEMS.map((item) => (
-              <Link key={item} href="/secteurs" className="transition hover:text-white">
-                {item}
+            {PUBLIC_NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="transition hover:text-white"
+              >
+                {item.label}
               </Link>
             ))}
           </nav>
@@ -233,6 +238,9 @@ export default function Home() {
           <ThreatMatrix />
         </div>
       </section>
-    </main>
+
+      </main>
+      <PublicFooter />
+    </>
   );
 }

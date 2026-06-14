@@ -7,6 +7,8 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { SECTOR_THREAT_PROFILES } from "@/lib/domain/sector-threats";
+import { SourceHealthStrip } from "@/components/site/SourceHealthStrip";
+import { PublicFooter } from "@/components/site/PublicFooter";
 
 export const metadata = {
   title: "Secteurs 2026 - KYB Graph",
@@ -16,7 +18,8 @@ export const metadata = {
 
 export default function SectorsPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <>
+      <main className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border bg-surface px-6 py-6">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <div>
@@ -44,6 +47,12 @@ export default function SectorsPage() {
           </Link>
         </div>
       </header>
+
+      <section className="px-6 pt-8">
+        <div className="mx-auto max-w-6xl">
+          <SourceHealthStrip />
+        </div>
+      </section>
 
       <section className="px-6 py-8">
         <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-3">
@@ -131,7 +140,10 @@ export default function SectorsPage() {
           ))}
         </div>
       </section>
-    </main>
+
+      </main>
+      <PublicFooter />
+    </>
   );
 }
 
