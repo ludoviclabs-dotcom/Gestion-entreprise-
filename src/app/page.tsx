@@ -4,8 +4,8 @@ import AmbientGraph from "@/components/landing/AmbientGraph.client";
 import ProductPanel from "@/components/landing/ProductPanel.client";
 import FeatureGrid from "@/components/landing/FeatureGrid.client";
 import ProofBadge from "@/components/landing/ProofBadge";
-
-const NAV_ITEMS = ["Produit", "Fonctionnalités", "Cas d'usage", "Ressources", "Tarifs"];
+import { PUBLIC_NAV } from "@/components/site/nav-items";
+import { PublicFooter } from "@/components/site/PublicFooter";
 
 const PROOF_MARKERS = [
   { label: "Preuve", color: "var(--kyb-green)" },
@@ -122,9 +122,13 @@ export default function Home() {
             KYB Graph
           </Link>
           <nav className="hidden items-center gap-11 text-sm font-medium text-slate-300 lg:flex">
-            {NAV_ITEMS.map((item) => (
-              <Link key={item} href="/secteurs" className="transition hover:text-white">
-                {item}
+            {PUBLIC_NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="transition hover:text-white"
+              >
+                {item.label}
               </Link>
             ))}
           </nav>
@@ -233,6 +237,8 @@ export default function Home() {
           <ThreatMatrix />
         </div>
       </section>
+
+      <PublicFooter />
     </main>
   );
 }

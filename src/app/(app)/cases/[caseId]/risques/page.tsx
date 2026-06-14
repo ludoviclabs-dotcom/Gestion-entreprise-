@@ -4,6 +4,7 @@ import RisksList from "@/components/cases/RisksList.client";
 import AiSynthesis from "@/components/cases/AiSynthesis.client";
 import UboPanel from "@/components/cases/UboPanel";
 import VigilanceBreakdown from "@/components/cases/VigilanceBreakdown";
+import { AlgorithmExplainer } from "@/components/cases/AlgorithmExplainer";
 import { computeUbo } from "@/lib/graph/ubo";
 import { explainVigilance } from "@/lib/risk/engine";
 import { isDemoMode, isInpiUboExposed } from "@/lib/env";
@@ -64,6 +65,8 @@ export default async function RisquesTab(props: {
             ecartExplanation={ecartSignal?.explanation}
             ecartHistory={ecartHistory}
           />
+          <AlgorithmExplainer id="detention-indirecte" />
+          <AlgorithmExplainer id="ecart-ubo" />
         </div>
       ) : null}
       <div className="mt-6">
@@ -78,6 +81,11 @@ export default async function RisquesTab(props: {
           <RisksList signals={signals} />
         )}
       </div>
+      {signals.length > 0 ? (
+        <div className="mt-4">
+          <AlgorithmExplainer id="chemin-sanctions" />
+        </div>
+      ) : null}
     </div>
   );
 }

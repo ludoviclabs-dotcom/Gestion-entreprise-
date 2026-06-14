@@ -83,8 +83,14 @@ export default function GraphTooltip({
         )}
       </div>
       {source && (
-        <p className="mt-2 text-[11px] text-muted-foreground">{source}</p>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          <span className="font-medium text-foreground/70">Source : </span>
+          {source}
+        </p>
       )}
+      <p className="mt-2 text-[10px] text-muted-foreground/70">
+        Cliquez l&apos;élément pour la fiche de preuve complète.
+      </p>
     </div>
   );
 }
