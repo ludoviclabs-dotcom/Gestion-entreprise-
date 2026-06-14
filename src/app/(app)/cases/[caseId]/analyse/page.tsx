@@ -6,8 +6,10 @@ import EmptyState from "@/components/empty/EmptyState";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { buildGraph } from "@/lib/graph/build-graph";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
+import { explainComplexite } from "@/lib/risk/engine";
 import { NODE_COLORS, NODE_LABELS } from "@/lib/graph/graph-types";
 import { AlgorithmExplainer } from "@/components/cases/AlgorithmExplainer";
+import ComplexiteBreakdown from "@/components/cases/ComplexiteBreakdown";
 
 export default async function AnalyseTab(props: {
   params: Promise<{ caseId: string }>;
@@ -90,6 +92,13 @@ export default async function AnalyseTab(props: {
           communautés (Louvain), cycles de détention (composantes fortement
           connexes).
         </p>
+      </div>
+
+      <div className="mt-6">
+        <ComplexiteBreakdown
+          explanation={explainComplexite(bundle, graph)}
+          id="complexite"
+        />
       </div>
 
       {/* KPIs */}

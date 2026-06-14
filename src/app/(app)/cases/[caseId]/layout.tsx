@@ -64,7 +64,7 @@ export default async function CaseWorkspaceLayout(props: {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <ScorePills scores={bundle.case.scores ?? {}} size="sm" />
+          <ScorePills scores={bundle.case.scores ?? {}} size="sm" caseId={caseId} />
           <ExportMenu caseId={caseId} />
         </div>
       </div>
