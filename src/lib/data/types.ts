@@ -1,9 +1,12 @@
 import type {
   CaseBundle,
+  CaseEdge,
+  CaseEntity,
   CaseScores,
   EvidenceLevel,
 } from "@/lib/graph/graph-types";
 import type { SourceKind } from "@/lib/graph/source";
+import type { SourceRecordInput } from "@/lib/connectors/types";
 import type { ProofEvent, ProofEventKind } from "@/lib/audit/journal";
 
 /** Statut d'un dossier (miroir de l'enum Drizzle case_status). */
@@ -110,4 +113,15 @@ export interface CasesRepository {
   listProofEvents(caseId: string): Promise<ProofEvent[]>;
   /** Enregistrements source détaillés (payload brut) pour l'inspecteur de preuve. */
   getSourceRecords(caseId: string): Promise<SourceRecordDetail[]>;
+  /**
+   * Ajoute un document extrait (ex. Kbis via Docling) à un dossier : fusionne
+   * les entités/liens extraits dans le bundle (résolution d'entités), recalcule
+   * le risque et journalise la source. Implémenté pour les dossiers de session
+   * (mode démo) ; la persistance BDD est une vague ultérieure.
+   */
+  addSourceDocument(
+    caseId: string,
+    sourceRecord: SourceRecordInput,
+    extracted: { entities: CaseEntity[]; edges: CaseEdge[] },
+  ): Promise<{ entities: number; edges: number; merged: number }>;
 }

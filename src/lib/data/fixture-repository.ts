@@ -1,5 +1,9 @@
-import type { CaseBundle } from "@/lib/graph/graph-types";
+import type { CaseBundle, CaseEntity, CaseEdge } from "@/lib/graph/graph-types";
+import type { SourceRecordInput } from "@/lib/connectors/types";
 import { assembleCase } from "@/lib/ingestion/assemble-case";
+import { getEntityResolver } from "@/lib/ingestion/resolver-backend";
+import { buildGraph } from "@/lib/graph/build-graph";
+import { computeRisk } from "@/lib/risk/engine";
 import { fixtureCases, fixtureCasesById } from "@/lib/fixtures/cases";
 import { seedJournalFor } from "@/lib/audit/fixture-journal";
 import {
@@ -205,5 +209,72 @@ export class FixtureCasesRepository implements CasesRepository {
       payload: s.raw,
       payloadHash: payloadHash(s.raw),
     }));
+  }
+
+  async addSourceDocument(
+    caseId: string,
+    sourceRecord: SourceRecordInput,
+    extracted: { entities: CaseEntity[]; edges: CaseEdge[] },
+  ): Promise<{ entities: number; edges: number; merged: number }> {
+    const session = sessionStore.get(caseId);
+    if (!session) {
+      throw new Error(
+        "L'ajout de document n'est possible que pour les dossiers créés en session — branche Neon (`DATABASE_URL`) pour persister sur les fixtures statiques.",
+      );
+    }
+    // Fusionner l'extraction dans le bundle via la résolution d'entités.
+    const resolved = await getEntityResolver().resolve({
+      entities: [...session.bundle.entities, ...extracted.entities],
+      edges: [...session.bundle.edges, ...extracted.edges],
+    });
+    const events = session.bundle.events.map((ev) => {
+      const canonical = resolved.idMap[ev.entityId];
+      return canonical && canonical !== ev.entityId
+        ? { ...ev, entityId: canonical }
+        : ev;
+    });
+    const bundle: CaseBundle = {
+      ...session.bundle,
+      entities: resolved.entities,
+      edges: resolved.edges,
+      events,
+    };
+    const graph = buildGraph(bundle);
+    const { signals, scores } = computeRisk(bundle, graph);
+    bundle.riskSignals = signals;
+    bundle.case.scores = scores;
+
+    const updatedAt = new Date().toISOString();
+    const sources: SourceRow[] = [
+      ...session.sources,
+      {
+        source: sourceRecord.source,
+        endpoint: sourceRecord.endpoint,
+        httpStatus: sourceRecord.httpStatus,
+        isFixture: sourceRecord.isFixture,
+      },
+    ];
+    sessionStore.set(caseId, {
+      bundle,
+      sources,
+      evidence: buildBundleEvidence(bundle, sources),
+      updatedAt,
+      sourceRecords: [...(session.sourceRecords ?? []), sourceRecord],
+    });
+    await this.appendProofEvent(caseId, "source_consultee", {
+      source: sourceRecord.source,
+      endpoint: sourceRecord.endpoint,
+      httpStatus: sourceRecord.httpStatus,
+      isFixture: sourceRecord.isFixture,
+      payloadHash: payloadHash(sourceRecord.raw),
+    });
+    const merged = bundle.entities.filter(
+      (e) => e.attributes?.["Entités fusionnées"],
+    ).length;
+    return {
+      entities: bundle.entities.length,
+      edges: bundle.edges.length,
+      merged,
+    };
   }
 }

@@ -37,4 +37,18 @@ describe("getConnectorStatuses", () => {
   it("isLiveMode reflète le mode démo (false en test)", () => {
     expect(isLiveMode()).toBe(false);
   });
+
+  it("signale le screening auto-hébergé (yente) sans ajouter de connecteur", () => {
+    const prev = process.env.OPENSANCTIONS_SELF_HOSTED;
+    process.env.OPENSANCTIONS_SELF_HOSTED = "true";
+    try {
+      const selfHosted = getConnectorStatuses();
+      expect(selfHosted).toHaveLength(6);
+      const os = selfHosted.find((s) => s.key === "opensanctions");
+      expect(os?.detail).toMatch(/yente/i);
+    } finally {
+      if (prev === undefined) delete process.env.OPENSANCTIONS_SELF_HOSTED;
+      else process.env.OPENSANCTIONS_SELF_HOSTED = prev;
+    }
+  });
 });

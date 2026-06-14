@@ -1,6 +1,7 @@
-import type { CaseBundle, CaseEntity, CaseEdge } from "@/lib/graph/graph-types";
+import type { CaseBundle } from "@/lib/graph/graph-types";
 import type { ConnectorResult, SourceRecordInput } from "@/lib/connectors/types";
 import type { SourceKind } from "@/lib/graph/source";
+import { getEntityResolver } from "./resolver-backend";
 import { sirene } from "@/lib/connectors/sirene";
 import { bodacc } from "@/lib/connectors/bodacc";
 import { inpi } from "@/lib/connectors/inpi";
@@ -25,17 +26,6 @@ function toSource(source: SourceKind, r: ConnectorResult<unknown>): SourceRecord
   };
 }
 
-function dedupeById<T extends { id: string }>(items: T[]): T[] {
-  const seen = new Set<string>();
-  const out: T[] = [];
-  for (const it of items) {
-    if (seen.has(it.id)) continue;
-    seen.add(it.id);
-    out.push(it);
-  }
-  return out;
-}
-
 /**
  * Orchestre les connecteurs (Sirene + BODACC + INPI + gels), normalise et fusionne
  * en un CaseBundle prêt pour le graphe. Renvoie aussi les source_records pour
@@ -58,7 +48,7 @@ export async function assembleCase(
 
   const bodaccRes = await bodacc.bySiren(siren);
   sources.push(toSource("bodacc", bodaccRes));
-  const events = normalizeBodacc(bodaccRes.raw, companyId);
+  const rawEvents = normalizeBodacc(bodaccRes.raw, companyId);
 
   const inpiRes = await inpi.getRne(siren);
   sources.push(toSource("inpi", inpiRes));
@@ -112,18 +102,31 @@ export async function assembleCase(
     subjectLabel: sireneNorm.denomination ?? `SIREN ${siren}`,
   });
 
-  const entities: CaseEntity[] = dedupeById([
-    ...sireneNorm.entities,
-    ...inpiNorm.entities,
-    ...gelsNorm.entities,
-    ...osNorm.entities,
-  ]);
-  const edges: CaseEdge[] = dedupeById([
-    ...sireneNorm.edges,
-    ...inpiNorm.edges,
-    ...gelsNorm.edges,
-    ...osNorm.edges,
-  ]);
+  // Résolution d'entités : fusionne les entités multi-sources (sociétés par
+  // SIREN puis dénomination floue ; personnes par nom flou) et re-pointe les
+  // arêtes. Seam RESOLVER_BACKEND (builtin TS / splink sidecar).
+  const resolved = await getEntityResolver().resolve({
+    entities: [
+      ...sireneNorm.entities,
+      ...inpiNorm.entities,
+      ...gelsNorm.entities,
+      ...osNorm.entities,
+    ],
+    edges: [
+      ...sireneNorm.edges,
+      ...inpiNorm.edges,
+      ...gelsNorm.edges,
+      ...osNorm.edges,
+    ],
+  });
+  const { entities, edges } = resolved;
+  // Re-pointer les événements (BODACC) vers les identifiants canoniques.
+  const events = rawEvents.map((ev) => {
+    const canonical = resolved.idMap[ev.entityId];
+    return canonical && canonical !== ev.entityId
+      ? { ...ev, entityId: canonical }
+      : ev;
+  });
 
   const bundle: CaseBundle = {
     case: {

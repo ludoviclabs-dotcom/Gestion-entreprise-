@@ -93,11 +93,11 @@ describe("page Sécurité (trust center)", () => {
 describe("explainers d'algorithmes", () => {
   it("chaque algorithme expose ce qu'il prouve, sa limite et sa fonction source", () => {
     const entries = Object.values(ALGORITHM_EXPLAINERS);
-    expect(entries.length).toBe(5);
+    expect(entries.length).toBe(6);
     for (const e of entries) {
       expect(e.proves.length).toBeGreaterThan(0);
       expect(e.limit.length).toBeGreaterThan(0);
-      expect(e.fn).toMatch(/src\/lib\/graph/);
+      expect(e.fn).toMatch(/src\/lib\//);
     }
   });
 });

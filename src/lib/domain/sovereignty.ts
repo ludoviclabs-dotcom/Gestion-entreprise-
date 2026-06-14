@@ -105,8 +105,8 @@ export const SOVEREIGNTY_COMPONENTS: SovereigntyComponent[] = [
   },
   {
     component: "Sanctions / PEP",
-    today: "OpenSanctions (UE)",
-    target: "Inchangé — déjà souverain",
+    today: "OpenSanctions (API SaaS, UE)",
+    target: "Auto-hébergeable via yente (FastAPI + Elasticsearch, UE)",
     sovereign: true,
   },
   {

@@ -16,6 +16,7 @@ import EvidenceExplorer from "@/components/cases/EvidenceExplorer.client";
 import ProofJournal from "@/components/cases/ProofJournal";
 import EmptyState from "@/components/empty/EmptyState";
 import { SOURCE_LABELS } from "@/components/cases/source-labels";
+import { AlgorithmExplainer } from "@/components/cases/AlgorithmExplainer";
 
 export default async function SourcesTab(props: {
   params: Promise<{ caseId: string }>;
@@ -34,6 +35,10 @@ export default async function SourcesTab(props: {
   const { sources, evidence } = detail;
   const sourceHealth = getSourceHealth(sources);
   const scoreStatus = getScoreStatus(detail.bundle.case.scores ?? {});
+  // Entités issues d'une fusion par résolution d'entités (attribut de provenance).
+  const mergedEntities = detail.bundle.entities.filter(
+    (e) => e.attributes?.["Entités fusionnées"],
+  );
 
   // Libellés des sujets pour l'inspecteur (id → label lisible).
   const subjectLabels: Record<string, string> = {};
@@ -62,6 +67,20 @@ export default async function SourcesTab(props: {
           {evidence.length} preuve{evidence.length > 1 ? "s" : ""} reliee
           {evidence.length > 1 ? "s" : ""} aux entites, liens et signaux.
         </span>
+      </div>
+
+      <div className="mt-4">
+        {mergedEntities.length > 0 ? (
+          <p className="mb-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {mergedEntities.length}
+            </span>{" "}
+            entité{mergedEntities.length > 1 ? "s" : ""} fusionnée
+            {mergedEntities.length > 1 ? "s" : ""} par résolution d&apos;entités
+            (variantes de nom rapprochées en une entité canonique).
+          </p>
+        ) : null}
+        <AlgorithmExplainer id="resolution-entites" />
       </div>
 
       {sources.length === 0 ? (

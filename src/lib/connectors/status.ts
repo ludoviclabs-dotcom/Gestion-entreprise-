@@ -6,6 +6,7 @@ import {
   hasOpenSanctionsKey,
   hasInpiCreds,
   isInpiUboExposed,
+  isOpenSanctionsSelfHosted,
 } from "@/lib/env";
 
 /**
@@ -26,6 +27,7 @@ export type ConnectorStatus = {
 
 export function getConnectorStatuses(): ConnectorStatus[] {
   const demo = isDemoMode();
+  const osSelfHosted = isOpenSanctionsSelfHosted();
   return [
     {
       key: "sirene",
@@ -62,13 +64,14 @@ export function getConnectorStatuses(): ConnectorStatus[] {
     {
       key: "opensanctions",
       label: "OpenSanctions",
-      live: !demo && hasOpenSanctionsKey(),
+      live: !demo && (hasOpenSanctionsKey() || osSelfHosted),
       detail:
-        !demo && hasOpenSanctionsKey()
+        (!demo && (hasOpenSanctionsKey() || osSelfHosted)
           ? "Sanctions + PEP (agrégat UE) en temps réel."
-          : hasOpenSanctionsKey()
-            ? "Clé posée — actif dès la sortie du mode démo."
-            : "OPENSANCTIONS_API_KEY non posée → fixture.",
+          : hasOpenSanctionsKey() || osSelfHosted
+            ? "Configuré — actif dès la sortie du mode démo."
+            : "OPENSANCTIONS_API_KEY non posée → fixture.") +
+        (osSelfHosted ? " Screening auto-hébergé (yente)." : ""),
     },
     {
       key: "inpi",

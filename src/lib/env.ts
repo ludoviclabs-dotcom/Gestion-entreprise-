@@ -28,11 +28,21 @@ const serverSchema = z.object({
   OPENSANCTIONS_API_KEY: z.string().optional(),
   OPENSANCTIONS_BASE_URL: z.string().default("https://api.opensanctions.org"),
   OPENSANCTIONS_DATASET: z.string().default("sanctions"),
+  // Screening auto-hébergé (yente, même contrat /match) : schéma d'en-tête
+  // d'auth et indicateur d'instance self-hosted. Cf. docs/screening-yente.md.
+  OPENSANCTIONS_AUTH_SCHEME: z.enum(["ApiKey", "Bearer"]).default("ApiKey"),
+  OPENSANCTIONS_SELF_HOSTED: z.enum(["true", "false"]).default("false"),
   // Gate optionnelle des routes d'export (même esprit que CRON_SECRET) :
   // si défini, les exports exigent ?token=<valeur>. Non défini → public
   // (garde-fou « mode démo zéro-clé » intact). L'auth utilisateur réelle
   // arrive à l'Étape 2.2 (Better-Auth).
   EXPORT_TOKEN: z.string().optional(),
+  // Résolution d'entités : `builtin` (TS in-process, défaut) ou `splink`
+  // (sidecar Python probabiliste, à raccorder). Cf. resolver-backend.ts.
+  RESOLVER_BACKEND: z.enum(["builtin", "splink"]).default("builtin"),
+  SPLINK_BASE_URL: z.string().optional(),
+  // Extraction documentaire (Docling, sidecar Python). Sans URL → fixture.
+  DOCLING_BASE_URL: z.string().optional(),
 });
 
 export const env = serverSchema.parse(process.env);
@@ -50,3 +60,6 @@ export const hasInpiCreds = (): boolean =>
   Boolean(env.INPI_USERNAME && env.INPI_PASSWORD);
 /** Garde-fou CJUE : affichage des UBO réels uniquement si explicitement activé. */
 export const isInpiUboExposed = (): boolean => env.INPI_EXPOSE_UBO === "true";
+/** Screening pointé vers une instance yente auto-hébergée (libellé souveraineté). */
+export const isOpenSanctionsSelfHosted = (): boolean =>
+  process.env.OPENSANCTIONS_SELF_HOSTED === "true";
