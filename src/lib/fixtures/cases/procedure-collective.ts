@@ -6,7 +6,6 @@ export const procedureCollectiveBundle: CaseBundle = {
     id: "atlas-btp",
     title: "ATLAS BTP SARL",
     rootSiren: "789456123",
-    scores: { complexite: 34, vigilance: 81, qualitePreuve: 70 },
   },
   entities: [
     {
@@ -83,15 +82,5 @@ export const procedureCollectiveBundle: CaseBundle = {
       source: "BODACC",
     },
   ],
-  riskSignals: [
-    {
-      id: "r1",
-      ruleId: "PROCEDURE_COLLECTIVE",
-      subjectId: "c1",
-      severity: "high",
-      category: "vigilance",
-      explanation:
-        "Procédure collective (redressement judiciaire) publiée au BODACC le 18/03/2026.",
-    },
-  ],
+  riskSignals: [], // recalculés du graphe par materializeCase (index)
 };

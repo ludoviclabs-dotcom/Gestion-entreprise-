@@ -3,6 +3,7 @@ import type {
   CaseBundle,
   CaseRiskSignal,
   CaseScores,
+  EvidenceLevel,
   Severity,
 } from "@/lib/graph/graph-types";
 import { DEFAULT_RULES } from "./rules";
@@ -75,40 +76,122 @@ function computeVigilance(signals: CaseRiskSignal[]): number {
   return explainVigilance(signals).score;
 }
 
+const round1 = (x: number): number => Math.round(x * 10) / 10;
+
+export type ComplexiteComponent = {
+  label: string;
+  detail: string;
+  /** Points apportés au score de complexité (avant cap à 100). */
+  points: number;
+};
+export type ComplexiteExplanation = {
+  score: number;
+  components: ComplexiteComponent[];
+  capped: boolean;
+};
+
 /**
- * Score de complexité structurelle : densité du graphe + degré max + nombre
- * d'entités. Calibré pour qu'un dossier solo soit < 20, un réseau dense > 70.
+ * Décompose le score de complexité structurelle en trois composantes
+ * (densité du réseau, nombre d'entités, degré maximal), chacune avec son
+ * apport en points. Rend le score traçable au graphe plutôt qu'opaque.
+ * Calibré pour qu'un dossier solo soit < 20, un réseau dense > 70.
  */
-function computeComplexite(bundle: CaseBundle, graph: Graph): number {
+export function explainComplexite(
+  bundle: CaseBundle,
+  graph: Graph,
+): ComplexiteExplanation {
   const n = bundle.entities.length;
   const e = bundle.edges.length;
-  if (n === 0) return 0;
+  if (n === 0) return { score: 0, components: [], capped: false };
+
   let maxDegree = 0;
   graph.forEachNode((node) => {
     const d = graph.degree(node);
     if (d > maxDegree) maxDegree = d;
   });
   const density = e / Math.max(n - 1, 1);
-  // Combinaison empirique calibrée à partir des fixtures.
-  const score = density * 22 + Math.log2(n + 1) * 8 + Math.log2(maxDegree + 1) * 8;
-  return clamp(score);
+
+  // Combinaison empirique calibrée à partir des fixtures (coefficients 22/8/8).
+  const components: ComplexiteComponent[] = [
+    {
+      label: "Densité du réseau",
+      detail: `${e} liens pour ${n} entités (densité ${round1(density)})`,
+      points: round1(density * 22),
+    },
+    {
+      label: "Nombre d'entités",
+      detail: `${n} entités dans le dossier`,
+      points: round1(Math.log2(n + 1) * 8),
+    },
+    {
+      label: "Degré maximal",
+      detail: `nœud le plus connecté : ${maxDegree} liens`,
+      points: round1(Math.log2(maxDegree + 1) * 8),
+    },
+  ];
+  const raw = components.reduce((acc, c) => acc + c.points, 0);
+  return { score: clamp(raw), components, capped: raw > 100 };
 }
 
+function computeComplexite(bundle: CaseBundle, graph: Graph): number {
+  return explainComplexite(bundle, graph).score;
+}
+
+const EVIDENCE_LEVELS: EvidenceLevel[] = [
+  "confirmed",
+  "declared",
+  "inferred",
+  "simulated",
+];
+const isSolidLevel = (level: EvidenceLevel): boolean =>
+  level === "confirmed" || level === "declared";
+
+export type QualitePreuveCount = {
+  level: EvidenceLevel;
+  count: number;
+  /** Compté comme « solide » (confirmed | declared). */
+  solid: boolean;
+};
+export type QualitePreuveExplanation = {
+  score: number;
+  total: number;
+  solid: number;
+  counts: QualitePreuveCount[];
+};
+
 /**
- * Score de qualité de preuve : % de nœuds + arêtes `confirmed|declared`
- * (vs `inferred|simulated`). Plus c'est haut, plus le dossier est fiable.
+ * Décompose le score de qualité de preuve : répartition des nœuds + arêtes +
+ * événements par niveau de preuve, et part « solide » (confirmed | declared).
+ * Un dossier vide vaut 100 (rien d'inféré à pondérer).
  */
-function computeQualitePreuve(bundle: CaseBundle): number {
-  const items: { evidenceLevel: string }[] = [
+export function explainQualitePreuve(
+  bundle: CaseBundle,
+): QualitePreuveExplanation {
+  const items: { evidenceLevel: EvidenceLevel }[] = [
     ...bundle.entities,
     ...bundle.edges,
     ...bundle.events,
   ];
-  if (items.length === 0) return 100;
-  const solid = items.filter(
-    (it) => it.evidenceLevel === "confirmed" || it.evidenceLevel === "declared",
-  ).length;
-  return clamp((solid / items.length) * 100);
+  const total = items.length;
+  const byLevel: Record<EvidenceLevel, number> = {
+    confirmed: 0,
+    declared: 0,
+    inferred: 0,
+    simulated: 0,
+  };
+  for (const it of items) byLevel[it.evidenceLevel] += 1;
+  const solid = byLevel.confirmed + byLevel.declared;
+  const score = total === 0 ? 100 : clamp((solid / total) * 100);
+  const counts: QualitePreuveCount[] = EVIDENCE_LEVELS.map((level) => ({
+    level,
+    count: byLevel[level],
+    solid: isSolidLevel(level),
+  }));
+  return { score, total, solid, counts };
+}
+
+function computeQualitePreuve(bundle: CaseBundle): number {
+  return explainQualitePreuve(bundle).score;
 }
 
 export interface RiskComputationResult {

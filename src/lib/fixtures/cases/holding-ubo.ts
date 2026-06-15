@@ -102,21 +102,11 @@ export const holdingUboBundle: CaseBundle = {
     id: "holding-ubo",
     title: "OPTIMA FRANCE — bénéficiaires effectifs",
     rootSiren: "908765432",
-    scores: { complexite: 62, vigilance: 58, qualitePreuve: 71 },
   },
   entities,
   edges,
   events: [],
-  riskSignals: [
-    {
-      id: "ecart-ubo-declare-case",
-      ruleId: "ECART_UBO_DECLARE",
-      severity: "high",
-      category: "vigilance",
-      explanation:
-        "Écart de bénéficiaire effectif : 3 déclaré(s) au registre, 3 recalculé(s) ≥ 25 % depuis le capital, 2 divergence(s). Signalement de divergence de registre attendu (AMLR).",
-    },
-  ],
+  riskSignals: [], // recalculés du graphe par materializeCase (index)
   declaredUbo: [
     { label: "Hélène MOREAU", nom: "MOREAU", prenoms: "Hélène", modaliteControle: "Détention directe ≥ 25 %", sourceEndpoint: "fixture:inpi" },
     { label: "Sofia HADDAD", nom: "HADDAD", prenoms: "Sofia", modaliteControle: "Contrôle", sourceEndpoint: "fixture:inpi" },

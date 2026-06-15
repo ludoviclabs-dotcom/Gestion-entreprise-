@@ -131,3 +131,96 @@ describe("ECART_UBO_DECLARE", () => {
     expect(ECART_UBO_DECLARE.evaluate(noDeclared)).toHaveLength(0);
   });
 });
+
+describe("computeUbo — cas pièges (ÉTAPE 1)", () => {
+  const co = (id: string) =>
+    ({ id, type: "company", label: id.toUpperCase(), evidenceLevel: "confirmed" }) as const;
+  const pe = (id: string) =>
+    ({ id, type: "person", label: id.toUpperCase(), evidenceLevel: "declared" }) as const;
+  const det = (source: string, target: string, weight: string) =>
+    ({
+      id: `e:${source}:${target}`,
+      type: "DETIENT",
+      source,
+      target,
+      weight,
+      evidenceLevel: "declared",
+    }) as const;
+
+  it("dilution multi-niveaux sous le seuil : 60 % × 40 % = 24 % → non UBO", () => {
+    const b = bundleOf(
+      [co("s"), co("h"), pe("p")],
+      [det("p", "h", "60 %"), det("h", "s", "40 %")],
+      "s",
+    );
+    const u = computeUbo(b, "s")[0];
+    expect(pct(u)).toBe(24);
+    expect(u.isBeneficialOwner).toBe(false);
+    expect(u.hasControl).toBe(false); // 40 % à l'étage final < 50 %
+  });
+
+  it("seuil EXACTEMENT 25 % → UBO ; juste en dessous → non UBO", () => {
+    const at25 = bundleOf(
+      [co("s"), co("h"), pe("p")],
+      [det("p", "h", "100 %"), det("h", "s", "25 %")],
+      "s",
+    );
+    const u25 = computeUbo(at25, "s")[0];
+    expect(pct(u25)).toBe(25);
+    expect(u25.isBeneficialOwner).toBe(true); // seuil inclusif (≥ 25 %)
+    expect(u25.hasControl).toBe(false);
+
+    const at24 = bundleOf(
+      [co("s"), co("h"), pe("p")],
+      [det("p", "h", "100 %"), det("h", "s", "24 %")],
+      "s",
+    );
+    expect(computeUbo(at24, "s")[0].isBeneficialOwner).toBe(false);
+  });
+
+  it("chemins parallèles : 15 % + 15 % = 30 % (aucun chemin ≥ 25 % seul)", () => {
+    const b = bundleOf(
+      [co("s"), co("h1"), co("h2"), pe("p")],
+      [
+        det("h1", "s", "50 %"),
+        det("h2", "s", "50 %"),
+        det("p", "h1", "30 %"),
+        det("p", "h2", "30 %"),
+      ],
+      "s",
+    );
+    const u = computeUbo(b, "s")[0];
+    expect(pct(u)).toBe(30);
+    expect(u.pathsCount).toBe(2);
+    expect(u.isBeneficialOwner).toBe(true);
+  });
+
+  it("chaîne profonde (4 niveaux) : 0,8⁴ ≈ 41 % effectif", () => {
+    const b = bundleOf(
+      [co("s"), co("h1"), co("h2"), co("h3"), pe("p")],
+      [
+        det("h1", "s", "80 %"),
+        det("h2", "h1", "80 %"),
+        det("h3", "h2", "80 %"),
+        det("p", "h3", "80 %"),
+      ],
+      "s",
+    );
+    const u = computeUbo(b, "s")[0];
+    expect(pct(u)).toBeCloseTo(41, 0);
+    expect(u.hasControl).toBe(true); // 80 % ≥ 50 % à chaque étage
+    expect(u.isBeneficialOwner).toBe(true);
+  });
+
+  it("boucle de détention : le détenteur réel n'est compté qu'une fois (24 %)", () => {
+    const b = bundleOf(
+      [co("a"), co("b"), pe("p")],
+      [det("b", "a", "60 %"), det("a", "b", "60 %"), det("p", "b", "40 %")],
+      "a",
+    );
+    const person = computeUbo(b, "a").find((x) => x.personId === "p");
+    expect(person).toBeDefined();
+    expect(pct(person!)).toBe(24); // 60 % (b→a) × 40 % (p→b) ; le cycle a→b est ignoré
+    expect(person!.pathsCount).toBe(1);
+  });
+});

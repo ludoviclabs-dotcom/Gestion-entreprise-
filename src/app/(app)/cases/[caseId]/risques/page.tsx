@@ -4,9 +4,10 @@ import RisksList from "@/components/cases/RisksList.client";
 import AiSynthesis from "@/components/cases/AiSynthesis.client";
 import UboPanel from "@/components/cases/UboPanel";
 import VigilanceBreakdown from "@/components/cases/VigilanceBreakdown";
+import QualitePreuveBreakdown from "@/components/cases/QualitePreuveBreakdown";
 import { AlgorithmExplainer } from "@/components/cases/AlgorithmExplainer";
 import { computeUbo } from "@/lib/graph/ubo";
-import { explainVigilance } from "@/lib/risk/engine";
+import { explainVigilance, explainQualitePreuve } from "@/lib/risk/engine";
 import { isDemoMode, isInpiUboExposed } from "@/lib/env";
 
 export default async function RisquesTab(props: {
@@ -53,10 +54,16 @@ export default async function RisquesTab(props: {
         d&apos;analyse, jamais des accusations.
       </p>
       {signals.length > 0 ? (
-        <div className="mt-6">
+        <div id="vigilance" className="mt-6 scroll-mt-20">
           <VigilanceBreakdown explanation={vigilance} />
         </div>
       ) : null}
+      <div className="mt-6">
+        <QualitePreuveBreakdown
+          explanation={explainQualitePreuve(detail.bundle)}
+          id="qualite-preuve"
+        />
+      </div>
       {ubo.length > 0 ? (
         <div className="mt-6">
           <UboPanel

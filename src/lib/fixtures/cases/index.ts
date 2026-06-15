@@ -7,6 +7,7 @@ import { procedureCollectiveBundle } from "./procedure-collective";
 import { reseauMultiDirigeantsBundle } from "./reseau-multi-dirigeants";
 import { holdingUboBundle } from "./holding-ubo";
 import { brouillonBundle } from "./brouillon";
+import { materializeCase } from "@/lib/fixtures/materialize";
 
 export type FixtureCase = {
   bundle: CaseBundle;
@@ -25,34 +26,41 @@ function demoSources(...kinds: SourceKind[]): SourceRow[] {
   }));
 }
 
-/** Catalogue des dossiers de démonstration (ordre d'affichage). */
+/**
+ * Catalogue des dossiers de démonstration (ordre d'affichage).
+ *
+ * Les dossiers « ready » sont passés par `materializeCase` : scores ET signaux
+ * RECALCULÉS de leur graphe (mêmes calculs que le chemin live `assembleCase`) —
+ * aucune valeur en dur affichée (cf. docs/audit-calculs.md). Le brouillon reste
+ * sans scores : un dossier non enrichi n'a pas de score (honnête).
+ */
 export const fixtureCases: FixtureCase[] = [
   {
-    bundle: demoBundle,
+    bundle: materializeCase(demoBundle),
     status: "ready",
     updatedAt: "2026-05-28T10:15:00.000Z",
     sources: demoSources("sirene", "bodacc", "inpi", "tresor_gels"),
   },
   {
-    bundle: reseauMultiDirigeantsBundle,
+    bundle: materializeCase(reseauMultiDirigeantsBundle),
     status: "ready",
     updatedAt: "2026-05-30T16:42:00.000Z",
     sources: demoSources("sirene", "inpi", "bodacc"),
   },
   {
-    bundle: holdingUboBundle,
+    bundle: materializeCase(holdingUboBundle),
     status: "ready",
     updatedAt: "2026-06-02T11:20:00.000Z",
     sources: demoSources("sirene", "inpi"),
   },
   {
-    bundle: procedureCollectiveBundle,
+    bundle: materializeCase(procedureCollectiveBundle),
     status: "ready",
     updatedAt: "2026-05-31T09:05:00.000Z",
     sources: demoSources("sirene", "bodacc", "inpi"),
   },
   {
-    bundle: cleanCompanyBundle,
+    bundle: materializeCase(cleanCompanyBundle),
     status: "ready",
     updatedAt: "2026-05-22T14:30:00.000Z",
     sources: demoSources("sirene", "inpi"),
