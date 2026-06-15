@@ -28,7 +28,7 @@ export default function GlobalError({
             <button
               type="button"
               onClick={reset}
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#7c3aed] px-4 py-2 text-sm font-medium text-white"
+              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#15c2b8] px-4 py-2 text-sm font-medium text-[#04201d]"
             >
               <RotateCcw size={15} /> Reessayer
             </button>

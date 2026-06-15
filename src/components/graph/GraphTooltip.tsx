@@ -27,7 +27,7 @@ export default function GraphTooltip({
 
   let title = "";
   let kindLabel = "";
-  let color = "#7c3aed";
+  let color = "#15c2b8";
   let evidence: import("@/lib/graph/graph-types").EvidenceLevel = "declared";
   let source: string | undefined;
 

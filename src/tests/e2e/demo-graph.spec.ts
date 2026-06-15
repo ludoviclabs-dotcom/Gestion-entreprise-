@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 /**
  * Smoke test du graphe de démonstration :
  *  - la page workspace charge,
- *  - le canvas Sigma est monté,
+ *  - le graphe SVG (orbes & flux) est monté,
  *  - les couches sont togglables,
  *  - un clic sur le bouton « Recentrer » ne casse rien.
  */
@@ -19,9 +19,9 @@ test("le dossier de démonstration affiche le graphe et permet le toggle des cou
   await expect(page.getByRole("link", { name: "Graphe" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Risques" })).toBeVisible();
 
-  // Sigma rend un <canvas> dans le conteneur. On attend au moins l'un d'eux.
-  await page.waitForSelector("canvas", { state: "attached", timeout: 15_000 });
-  expect(await page.locator("canvas").count()).toBeGreaterThan(0);
+  // Le moteur SVG rend les orbes dans <svg.graph-svg> : on attend les nœuds.
+  await page.waitForSelector("svg.graph-svg .node", { state: "attached", timeout: 15_000 });
+  expect(await page.locator("svg.graph-svg .node").count()).toBeGreaterThan(0);
 
   // Toolbar : bouton Recentrer.
   await page.getByRole("button", { name: "Recentrer" }).click();

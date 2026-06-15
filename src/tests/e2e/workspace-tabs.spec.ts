@@ -10,7 +10,7 @@ test("navigation entre les 4 onglets d'un dossier", async ({ page }) => {
   // Onglet Graphe (point d'entrée).
   await page.goto(`/cases/${caseId}/graphe`);
   await expect(page.getByRole("heading", { name: /Holding Patrimoniale/i })).toBeVisible();
-  await page.waitForSelector("canvas", { state: "attached", timeout: 15_000 });
+  await page.waitForSelector("svg.graph-svg", { state: "attached", timeout: 15_000 });
 
   // Onglet Timeline.
   await page.getByRole("link", { name: "Timeline" }).click();
@@ -37,5 +37,5 @@ test("navigation entre les 4 onglets d'un dossier", async ({ page }) => {
   // Retour à Graphe.
   await page.getByRole("link", { name: "Graphe" }).click();
   await page.waitForURL(`**/cases/${caseId}/graphe`);
-  await page.waitForSelector("canvas", { state: "attached" });
+  await page.waitForSelector("svg.graph-svg", { state: "attached" });
 });
