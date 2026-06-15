@@ -290,3 +290,23 @@ body {
   --kyb-text-mid: #a4a9c4;
   --kyb-text-low: #6b7095;
 }
+
+/* ── Page Secteurs (refonte interactive) — responsive des grilles inline ── */
+@media (max-width: 980px) {
+  .hero-grid,
+  .cards-grid,
+  .sector-open-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .hero-orb {
+    height: 360px !important;
+  }
+  .hero-title {
+    font-size: 44px !important;
+  }
+}
+@media (max-width: 640px) {
+  .sector-axes-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
