@@ -10,7 +10,10 @@
  */
 :root {
   /* ── Palette de marque (tokens partagés clair/sombre) ── */
-  --violet: #7c3aed;
+  --violet: #7c3aed; /* conservé pour la pastille « Demo » uniquement */
+  /* Accent produit : teal (remplace le violet — casse le côté « IA générique »). */
+  --teal: #15c2b8;
+  --teal-2: #0ea5a3;
   --emerald: #10b981;
   --amber: #f59e0b;
   --red: #ef4444;
@@ -26,8 +29,8 @@
   --card-foreground: var(--foreground);
   --popover: #ffffff;
   --popover-foreground: var(--foreground);
-  --primary: var(--violet);
-  --primary-foreground: #ffffff;
+  --primary: var(--teal);
+  --primary-foreground: #04201d;
   --secondary: var(--surface-2);
   --secondary-foreground: var(--foreground);
   --muted: #f1f5f9;
@@ -36,18 +39,18 @@
   --accent-foreground: var(--foreground);
   --destructive: var(--red);
   --destructive-foreground: #ffffff;
-  --ring: var(--violet);
+  --ring: var(--teal);
   --input: var(--border);
   --radius: 0.625rem;
 
   --sidebar: #f8fafc;
   --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--violet);
+  --sidebar-primary: var(--teal);
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #eef2f7;
   --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: var(--border);
-  --sidebar-ring: var(--violet);
+  --sidebar-ring: var(--teal);
 }
 
 .dark {
@@ -62,8 +65,8 @@
   --card-foreground: var(--foreground);
   --popover: var(--surface-2);
   --popover-foreground: var(--foreground);
-  --primary: var(--violet);
-  --primary-foreground: #ffffff;
+  --primary: var(--teal);
+  --primary-foreground: #04201d;
   --secondary: var(--surface-2);
   --secondary-foreground: var(--foreground);
   --muted: #1a2c49;
@@ -72,17 +75,17 @@
   --accent-foreground: var(--foreground);
   --destructive: var(--red);
   --destructive-foreground: #ffffff;
-  --ring: var(--violet);
+  --ring: var(--teal);
   --input: var(--border);
 
   --sidebar: #0c1a30;
   --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--violet);
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary: var(--teal);
+  --sidebar-primary-foreground: #04201d;
   --sidebar-accent: var(--surface-2);
   --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: var(--border);
-  --sidebar-ring: var(--violet);
+  --sidebar-ring: var(--teal);
 }
 
 @theme inline {
@@ -93,6 +96,8 @@
   --color-foreground: var(--foreground);
   --color-border: var(--border);
   --color-violet: var(--violet);
+  --color-teal: var(--teal);
+  --color-teal-2: var(--teal-2);
   --color-emerald: var(--emerald);
   --color-amber: var(--amber);
   --color-red: var(--red);
@@ -140,9 +145,92 @@ body {
 /* Grille discrète en fond (esprit « carte »). */
 .bg-grid {
   background-image:
-    linear-gradient(to right, rgba(124, 58, 237, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(124, 58, 237, 0.06) 1px, transparent 1px);
+    linear-gradient(to right, rgba(21, 194, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(21, 194, 184, 0.06) 1px, transparent 1px);
   background-size: 32px 32px;
+}
+
+/*
+ * ── Stage du graphe (refonte « orbes & flux ») ──
+ * Fond indigo profond + aurores teal/indigo/violet animées + grille en fondu
+ * + vignette. Indépendant du thème clair/sombre : le graphe est toujours sombre
+ * (identité « carte réseau » lustrée). Le rendu des orbes/liens/particules est
+ * fait en SVG par GraphSceneSvg.
+ */
+.graph-stage {
+  background: #0b1020;
+}
+.graph-aurora {
+  position: absolute;
+  inset: -10%;
+  pointer-events: none;
+}
+.graph-aurora::before,
+.graph-aurora::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(40% 50% at 24% 30%, rgba(21, 194, 184, 0.16), transparent 60%),
+    radial-gradient(45% 55% at 78% 28%, rgba(86, 128, 233, 0.16), transparent 62%),
+    radial-gradient(50% 60% at 60% 88%, rgba(124, 92, 255, 0.12), transparent 62%),
+    radial-gradient(40% 50% at 12% 82%, rgba(21, 194, 184, 0.1), transparent 60%);
+  animation: graphDrift 26s ease-in-out infinite alternate;
+}
+.graph-aurora::after {
+  animation-duration: 34s;
+  animation-direction: alternate-reverse;
+  opacity: 0.8;
+  filter: blur(8px);
+}
+@keyframes graphDrift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(2.5%, -2%) scale(1.06);
+  }
+  100% {
+    transform: translate(-2%, 2.5%) scale(1.03);
+  }
+}
+.graph-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(to right, rgba(125, 156, 196, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(125, 156, 196, 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(120% 100% at 50% 45%, #000 45%, transparent 90%);
+  mask-image: radial-gradient(120% 100% at 50% 45%, #000 45%, transparent 90%);
+}
+.graph-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 90% at 50% 45%,
+    transparent 55%,
+    rgba(5, 9, 18, 0.55) 100%
+  );
+}
+/* Libellés des nœuds : contour sombre pour lisibilité sur fond chargé. */
+.graph-svg .lbl {
+  font-family: Inter, system-ui, sans-serif;
+  paint-order: stroke fill;
+  stroke: #08101c;
+  stroke-width: 3.4px;
+  stroke-linejoin: round;
+  letter-spacing: -0.005em;
+  user-select: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .graph-aurora::before,
+  .graph-aurora::after {
+    animation: none;
+  }
 }
 
 /*

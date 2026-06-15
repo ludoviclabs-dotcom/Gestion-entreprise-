@@ -8,8 +8,10 @@ import {
   ImageDown,
   Table as TableIcon,
   Network,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Popover,
   PopoverContent,
@@ -38,11 +40,19 @@ export default function GraphToolbar() {
   const viewMode = useGraphStore((s) => s.viewMode);
   const toggleViewMode = useGraphStore((s) => s.toggleViewMode);
 
+  const [sound, setSound] = useState(true);
+
   const cam = (action: "in" | "out" | "fit") =>
     window.dispatchEvent(new CustomEvent("kyb:graph-camera", { detail: action }));
 
   const exportPng = () =>
     window.dispatchEvent(new CustomEvent("kyb:graph-export-png"));
+
+  const toggleSound = () => {
+    const next = !sound;
+    setSound(next);
+    window.dispatchEvent(new CustomEvent("kyb:graph-sound", { detail: next }));
+  };
 
   // Raccourci clavier T = bascule vue table / graphe (a11y).
   useEffect(() => {
@@ -74,6 +84,16 @@ export default function GraphToolbar() {
       </button>
       <button type="button" className={btn} onClick={exportPng} aria-label="Exporter en PNG">
         <ImageDown size={16} />
+      </button>
+      <button
+        type="button"
+        className={`${btn} ${sound ? "border-primary text-primary" : ""}`}
+        onClick={toggleSound}
+        aria-label={sound ? "Couper les sons" : "Activer les sons"}
+        aria-pressed={sound}
+        title="Sons & retours discrets"
+      >
+        {sound ? <Volume2 size={16} /> : <VolumeX size={16} />}
       </button>
       <button
         type="button"

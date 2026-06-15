@@ -28,7 +28,10 @@ export default function Legend() {
           <div key={k} className="flex items-center gap-2 text-xs">
             <span
               className="h-3 w-3 rounded-full"
-              style={{ background: NODE_COLORS[k] }}
+              style={{
+                background: NODE_COLORS[k],
+                boxShadow: "inset 0 1px 1px rgba(255,255,255,0.45)",
+              }}
             />
             <span>{NODE_LABELS[k]}</span>
           </div>
@@ -38,20 +41,27 @@ export default function Legend() {
         Niveau de preuve
       </p>
       <div className="space-y-1.5">
-        {LEVELS.map((l) => (
-          <div key={l} className="flex items-center gap-2 text-xs">
-            {/* Double encodage : couleur ET épaisseur (a11y daltonisme). */}
-            <span
-              className="rounded"
-              style={{
-                background: EVIDENCE_EDGE_COLORS[l],
-                width: "20px",
-                height: `${Math.max(1, EVIDENCE_EDGE_SIZE[l] - 0.5)}px`,
-              }}
-            />
-            <span>{EVIDENCE_LABELS[l]}</span>
-          </div>
-        ))}
+        {LEVELS.map((l) => {
+          // Double encodage : couleur + épaisseur ; pointillés pour inféré/simulé
+          // (cohérent avec le rendu des liens du graphe — a11y daltonisme).
+          const dashed = l === "inferred" || l === "simulated";
+          const h = Math.max(2, EVIDENCE_EDGE_SIZE[l] - 0.5);
+          return (
+            <div key={l} className="flex items-center gap-2 text-xs">
+              <span
+                className="rounded"
+                style={{
+                  width: "22px",
+                  height: `${h}px`,
+                  background: dashed
+                    ? `repeating-linear-gradient(90deg, ${EVIDENCE_EDGE_COLORS[l]} 0 4px, transparent 4px 7px)`
+                    : EVIDENCE_EDGE_COLORS[l],
+                }}
+              />
+              <span>{EVIDENCE_LABELS[l]}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
