@@ -1,7 +1,9 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Grid2X2, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import MockupGraph from "./MockupGraph.client";
+import NodeDetailPopover from "./NodeDetailPopover.client";
 import ScoreRing from "../ScoreRing.client";
 import { ENTITY_SUMMARIES } from "./mock-data";
 import { NODE_FILL, NODE_TYPE_LABEL, type MockNodeType } from "./graph-data";
@@ -28,9 +30,37 @@ export default function GraphTab({
 }) {
   const ent = ENTITY_SUMMARIES[selected] ?? ENTITY_SUMMARIES.holding;
 
+  // Cible du popover de détail (effet profondeur) — null = fermé.
+  const [openId, setOpenId] = useState<string | null>(null);
+  // Dimensions de la zone graphe, pour caler le popover sur la sphère cliquée.
+  const areaRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const node = areaRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (cr) setSize({ w: cr.width, h: cr.height });
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
+
+  // Clic sur une sphère : met à jour la carte de synthèse (selected) ET fait
+  // jaillir le popover de détail depuis la sphère. La fermeture se fait via la
+  // croix, la touche Échap ou un clic sur le voile (le voile capture les clics).
+  const handleSelect = useCallback(
+    (id: string) => {
+      onSelect(id);
+      setOpenId(id);
+    },
+    [onSelect],
+  );
+
   return (
     <div className="flex h-full flex-col">
-      <div className="relative min-h-[196px] flex-1">
+      <div ref={areaRef} className="relative min-h-[196px] flex-1">
         {/* toolbar flottante (visuelle) */}
         <div
           className="absolute right-2.5 top-2.5 z-[3] hidden flex-col gap-1 rounded-lg border border-[var(--kyb-line)] p-1 backdrop-blur-md sm:flex"
@@ -48,7 +78,13 @@ export default function GraphTab({
           ))}
         </div>
 
-        <MockupGraph selected={selected} onSelect={onSelect} />
+        <MockupGraph selected={selected} onSelect={handleSelect} />
+
+        <NodeDetailPopover
+          openId={openId}
+          metrics={size}
+          onClose={() => setOpenId(null)}
+        />
       </div>
 
       {/* légende (bande sous le graphe, ne chevauche aucun libellé) */}
