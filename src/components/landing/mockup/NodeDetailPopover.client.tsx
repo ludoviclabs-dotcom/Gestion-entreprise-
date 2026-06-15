@@ -123,13 +123,34 @@ export default function NodeDetailPopover({
     if (panelRef.current) setBoxH(panelRef.current.offsetHeight);
   }, [renderId, metrics.w, metrics.h]);
 
-  // Échap = fermeture ; focus initial sur le bouton de fermeture.
+  // Échap = fermeture ; piège à focus (le panneau est `aria-modal`) ; focus
+  // initial sur le bouton de fermeture.
   useEffect(() => {
     if (!openId) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
         onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusables = panel.querySelectorAll<HTMLElement>(
+        'button, a[href], [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !panel.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !panel.contains(active)) {
+        e.preventDefault();
+        first.focus();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -227,7 +248,7 @@ export default function NodeDetailPopover({
         role="dialog"
         aria-modal="true"
         aria-label={`Fiche : ${ent.label}`}
-        className="absolute z-[6] overflow-hidden rounded-xl border text-left"
+        className="absolute z-[6] flex flex-col overflow-hidden rounded-xl border text-left"
         style={{
           left,
           top,
@@ -252,7 +273,7 @@ export default function NodeDetailPopover({
         }}
       >
         {/* En-tête : avatar/icône typée + libellé + score animé + fermeture. */}
-        <div className="flex items-start gap-2.5 border-b border-[var(--kyb-line)] px-3 py-2.5">
+        <div className="flex shrink-0 items-start gap-2.5 border-b border-[var(--kyb-line)] px-3 py-2.5">
           <span
             aria-hidden
             className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[12px] font-bold"
@@ -304,8 +325,10 @@ export default function NodeDetailPopover({
           </button>
         </div>
 
-        {/* Corps : faits clés + résumé. */}
-        <div className="px-3 py-2.5">
+        {/* Corps : faits clés + résumé. Scrollable si la zone graphe est courte
+            (le panneau garde son plafond de hauteur, le contenu ne se fait plus
+            rogner). */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
           <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5">
             {facts.map((f) => (
               <div key={f.k} className="min-w-0">
