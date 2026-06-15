@@ -30,7 +30,7 @@ export default function AmbientGraph({ className }: { className?: string }) {
       r: 1.5 + Math.random() * 2.5,
       vx: (Math.random() - 0.5) * 0.0004,
       vy: (Math.random() - 0.5) * 0.0004,
-      hue: Math.random() > 0.7 ? "#f5b544" : "#7c5cff",
+      hue: Math.random() > 0.7 ? "#f5b544" : "#15c2b8",
     }));
 
     let raf = 0;

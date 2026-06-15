@@ -235,7 +235,7 @@ export default function DemoSimulation() {
             />
           )}
           <span
-            className={`inline-flex shrink-0 items-center justify-center rounded bg-violet px-2.5 py-1.5 text-white ${
+            className={`inline-flex shrink-0 items-center justify-center rounded bg-violet px-2.5 py-1.5 text-[#04201d] ${
               view.searchClicked ? "demo-click-pulse" : ""
             }`}
           >
@@ -449,7 +449,7 @@ export default function DemoSimulation() {
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
                 href="/cases/demo-holding/graphe"
-                className="inline-flex items-center justify-center gap-2 rounded-md bg-violet px-5 py-3 text-sm font-semibold text-white shadow-[0_15px_40px_rgba(124,58,237,0.35)] transition hover:bg-violet/90"
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-violet px-5 py-3 text-sm font-semibold text-[#04201d] shadow-[0_15px_40px_rgba(21,194,184,0.35)] transition hover:bg-violet/90"
               >
                 Explorer le dossier <ArrowRight size={16} aria-hidden />
               </Link>

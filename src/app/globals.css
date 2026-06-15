@@ -10,10 +10,13 @@
  */
 :root {
   /* ── Palette de marque (tokens partagés clair/sombre) ── */
-  --violet: #7c3aed; /* conservé pour la pastille « Demo » uniquement */
   /* Accent produit : teal (remplace le violet — casse le côté « IA générique »). */
   --teal: #15c2b8;
   --teal-2: #0ea5a3;
+  /* Rebrand : l'ancien token de marque « violet » pointe désormais sur le teal,
+     de sorte que toutes les utilities (bg-violet/text-violet/border-violet) et
+     var(--violet) basculent en teal d'un coup, sur toute l'app. */
+  --violet: var(--teal);
   --emerald: #10b981;
   --amber: #f59e0b;
   --red: #ef4444;
@@ -275,8 +278,10 @@ body {
   --kyb-bg1: #0e1020;
   --kyb-bg2: #14172b;
   --kyb-line: #1e2238;
-  --kyb-violet: #7c5cff;
-  --kyb-violet-soft: #9d85ff;
+  /* Rebrand teal — conserve les noms `--kyb-violet*` (consommés un peu partout
+     dans la landing/démo) mais bascule les teintes en teal clair sur fond sombre. */
+  --kyb-violet: #15c2b8;
+  --kyb-violet-soft: #5fe3d6;
   --kyb-amber: #f5b544;
   --kyb-green: #4ade9b;
   --kyb-red: #f26d6d;
