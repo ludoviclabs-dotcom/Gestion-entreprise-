@@ -15,7 +15,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/dashboard"
-          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-[#04201d] transition hover:opacity-90"
         >
           <ArrowLeft size={15} /> Retour au dashboard
         </Link>

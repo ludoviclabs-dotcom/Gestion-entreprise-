@@ -149,7 +149,7 @@ export default function SecuritePage() {
           </p>
           <a
             href={`mailto:${SECURITY_CONTACT.email}`}
-            className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+            className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet px-4 py-2 text-sm font-medium text-[#04201d] transition hover:opacity-90"
           >
             <Mail size={15} /> {SECURITY_CONTACT.email}
           </a>

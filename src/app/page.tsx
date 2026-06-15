@@ -142,7 +142,7 @@ export default function Home() {
             </Link>
             <Link
               href="/dashboard"
-              className="inline-flex items-center whitespace-nowrap rounded-md bg-violet px-5 py-2.5 text-sm font-semibold text-white shadow-[0_10px_35px_rgba(124,58,237,0.34)] transition hover:bg-violet/90"
+              className="inline-flex items-center whitespace-nowrap rounded-md bg-violet px-5 py-2.5 text-sm font-semibold text-[#04201d] shadow-[0_10px_35px_rgba(21,194,184,0.34)] transition hover:bg-violet/90"
             >
               Ouvrir l'application
             </Link>
@@ -194,7 +194,7 @@ export default function Home() {
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
                 href="/dashboard"
-                className="inline-flex min-w-[246px] items-center justify-center gap-4 rounded-md bg-violet px-6 py-4 text-base font-semibold text-white shadow-[0_15px_40px_rgba(124,58,237,0.35)] transition hover:bg-violet/90"
+                className="inline-flex min-w-[246px] items-center justify-center gap-4 rounded-md bg-violet px-6 py-4 text-base font-semibold text-[#04201d] shadow-[0_15px_40px_rgba(21,194,184,0.35)] transition hover:bg-violet/90"
               >
                 Ouvrir l'application <ArrowRight size={20} />
               </Link>

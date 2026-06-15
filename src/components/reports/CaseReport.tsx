@@ -29,7 +29,7 @@ const PALETTE = {
   inkSoft: "#475569",
   border: "#CBD5E1",
   borderSoft: "#E2E8F0",
-  violet: "#5B21B6",
+  violet: "#0E7D76", // rebrand teal (foncé, lisible sur fond blanc en PDF)
   emerald: "#047857",
   amber: "#B45309",
   red: "#B91C1C",
