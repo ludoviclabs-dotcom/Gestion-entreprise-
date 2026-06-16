@@ -767,12 +767,21 @@ export class DbCasesRepository implements CasesRepository {
       return [...seedJournalFor(caseId), ...journalStore.list(caseId)];
     }
     const db = getDb();
-    const rows = await db
-      .select()
-      .from(auditLogs)
-      .where(eq(auditLogs.caseId, caseId))
-      .orderBy(asc(auditLogs.seq));
-    return rows.map(rowToProofEvent);
+    try {
+      const rows = await db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.caseId, caseId))
+        .orderBy(asc(auditLogs.seq));
+      return rows.map(rowToProofEvent);
+    } catch (error) {
+      // Journal de preuve indisponible (ex. table audit_logs non encore
+      // provisionnée en base) : dégradation gracieuse — le dossier reste
+      // consultable, sans piste d'audit, plutôt que de casser tout l'espace de
+      // travail. La fonctionnalité revient dès la migration appliquée.
+      console.error("[db] listProofEvents indisponible", error);
+      return [];
+    }
   }
 
   async getSourceRecords(caseId: string): Promise<SourceRecordDetail[]> {
