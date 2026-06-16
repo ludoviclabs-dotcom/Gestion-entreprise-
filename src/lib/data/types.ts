@@ -2,6 +2,7 @@ import type {
   CaseBundle,
   CaseScores,
   EvidenceLevel,
+  FamilySeverityCounts,
 } from "@/lib/graph/graph-types";
 import type { SourceKind } from "@/lib/graph/source";
 import type { ProofEvent, ProofEventKind } from "@/lib/audit/journal";
@@ -30,6 +31,9 @@ export type CaseSummary = {
   sourceHealth: SourceHealth;
   scores: CaseScores;
   counts: { entities: number; edges: number; signalsHigh: number };
+  /** Répartition famille × sévérité (vue portefeuille V9). Optionnel : non
+   *  porté par l'agrégat SQL de `listCases` en mode base. */
+  signalsByFamilySeverity?: FamilySeverityCounts;
   lastRunAt: string;
   updatedAt: string; // ISO
 };

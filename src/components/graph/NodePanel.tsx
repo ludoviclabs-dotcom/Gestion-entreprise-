@@ -11,6 +11,8 @@ import {
   NODE_LABELS,
   SEVERITY_COLORS,
   SEVERITY_LABELS,
+  RULE_FAMILY_LABELS,
+  familyForRule,
 } from "@/lib/graph/graph-types";
 import { findPathAction } from "@/app/(app)/cases/actions";
 import EvidenceBadge from "./EvidenceBadge";
@@ -157,7 +159,7 @@ export default function NodePanel({
         {signals.length > 0 && (
           <div className="mt-5">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-              Signaux
+              Signaux ({signals.length})
             </p>
             <ul className="space-y-2">
               {signals.map((s) => (
@@ -165,7 +167,7 @@ export default function NodePanel({
                   key={s.id}
                   className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-2.5"
                 >
-                  <div className="mb-1 flex items-center gap-2">
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
                     <span
                       className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
                       style={{
@@ -176,7 +178,7 @@ export default function NodePanel({
                       {SEVERITY_LABELS[s.severity]}
                     </span>
                     <span className="text-[10px] uppercase text-[var(--muted-foreground)]">
-                      {s.category}
+                      {RULE_FAMILY_LABELS[familyForRule(s.ruleId)]}
                     </span>
                   </div>
                   <p className="text-xs">{s.explanation}</p>

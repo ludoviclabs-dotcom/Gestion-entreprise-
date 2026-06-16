@@ -20,6 +20,8 @@ import {
   CERTIFICATIONS,
 } from "@/lib/domain/trust";
 import { ALGORITHM_EXPLAINERS } from "@/lib/domain/algorithm-explainers";
+import { INVESTIGATION_FICHES } from "@/lib/domain/investigation-fiches";
+import { DEFAULT_RULES } from "@/lib/risk/rules";
 
 const ACCUSATORY = /fraude|coupable|criminel/i;
 
@@ -119,9 +121,33 @@ describe("garde-fou anti-accusatoire", () => {
       SUB_PROCESSORS,
       CERTIFICATIONS,
       ALGORITHM_EXPLAINERS,
+      INVESTIGATION_FICHES,
     ];
     for (const blob of blobs) {
       expect(JSON.stringify(blob)).not.toMatch(ACCUSATORY);
+    }
+  });
+});
+
+describe("fiches d'investigation (M11)", () => {
+  it("couvre chaque règle du catalogue (exhaustivité)", () => {
+    for (const r of DEFAULT_RULES) {
+      expect(
+        (INVESTIGATION_FICHES as Record<string, unknown>)[r.id],
+        `fiche manquante pour ${r.id}`,
+      ).toBeDefined();
+    }
+  });
+
+  it("reste strictement non accusatoire et formule des questions", () => {
+    expect(JSON.stringify(INVESTIGATION_FICHES)).not.toMatch(
+      /fraude|frauduleux|coupable|criminel|p[ée]nal/i,
+    );
+    // Chaque fiche a au moins une pièce et une incohérence formulée en question.
+    for (const fiche of Object.values(INVESTIGATION_FICHES)) {
+      expect(fiche.documents.length).toBeGreaterThan(0);
+      expect(fiche.incoherences.length).toBeGreaterThan(0);
+      expect(fiche.incoherences.some((q) => q.includes("?"))).toBe(true);
     }
   });
 });

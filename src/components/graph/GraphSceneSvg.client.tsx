@@ -21,12 +21,19 @@
 
 import { useEffect, useRef } from "react";
 import { useGraphStore } from "@/lib/store/graph-store";
-import type { GraphDTO, GraphNodeDTO, LayerKey } from "@/lib/graph/graph-types";
+import type {
+  GraphDTO,
+  GraphNodeDTO,
+  LayerKey,
+  Severity,
+} from "@/lib/graph/graph-types";
 import {
   EVIDENCE_EDGE_COLORS,
   EVIDENCE_EDGE_OPACITY,
   EVIDENCE_EDGE_SIZE,
   NODE_COLORS,
+  SEVERITY_COLORS,
+  communityColor,
   layerForEdgeType,
   layerForNodeKind,
 } from "@/lib/graph/graph-types";
@@ -110,9 +117,12 @@ type EngineEdge = {
 export default function GraphSceneSvg({
   dto,
   flaggedIds,
+  flaggedSeverity,
 }: {
   dto: GraphDTO;
   flaggedIds: string[];
+  /** Sévérité maximale par nœud signalé → couleur de la surcouche de risque. */
+  flaggedSeverity?: Record<string, Severity>;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -122,6 +132,12 @@ export default function GraphSceneSvg({
 
     const flagged = new Set(flaggedIds);
     const dashed = (lvl: string) => lvl === "inferred" || lvl === "simulated";
+    // Couleur d'un nœud sous surcouche de risque : sa sévérité maximale (V3,
+    // « couleur = sévérité »), à défaut le rouge de risque générique.
+    const riskColorOf = (id: string): string => {
+      const sev = flaggedSeverity?.[id];
+      return sev ? SEVERITY_COLORS[sev] : RISK_RED;
+    };
 
     // ── état moteur ──
     let cssW = 0;
@@ -157,6 +173,7 @@ export default function GraphSceneSvg({
     let path = useGraphStore.getState().path;
     let selectedNode = useGraphStore.getState().selectedNode;
     let selectedEdge = useGraphStore.getState().selectedEdge;
+    let colorMode = useGraphStore.getState().colorMode;
     let pathNodeSet = new Set<string>();
     let pathEdgeSet = new Set<string>();
 
@@ -546,8 +563,12 @@ export default function GraphSceneSvg({
           String(n.R * (2.2 + (n.pulse ? 0.55 * pulseAmt : 0) + (hovered || selected ? 0.5 : 0))),
         );
         n.elBody.setAttribute("r", String(n.R));
-        if (riskOn || onPath) {
-          n.elBody.setAttribute("fill", onPath ? PATH_TEAL : RISK_RED);
+        if (onPath) {
+          n.elBody.setAttribute("fill", PATH_TEAL);
+        } else if (riskOn) {
+          n.elBody.setAttribute("fill", riskColorOf(n.id));
+        } else if (colorMode === "community") {
+          n.elBody.setAttribute("fill", communityColor(n.cluster));
         } else {
           n.elBody.setAttribute("fill", `url(#orb-${n.kind})`);
         }
@@ -900,6 +921,7 @@ export default function GraphSceneSvg({
     // abonnement au store (filtres / path / sélection)
     const unsub = useGraphStore.subscribe((s) => {
       layers = s.layers;
+      colorMode = s.colorMode;
       selectedEdge = s.selectedEdge;
       if (s.path !== path) {
         path = s.path;
@@ -935,7 +957,7 @@ export default function GraphSceneSvg({
       window.removeEventListener("kyb:graph-sound", onSound);
       while (svg.firstChild) svg.removeChild(svg.firstChild);
     };
-  }, [dto, flaggedIds]);
+  }, [dto, flaggedIds, flaggedSeverity]);
 
   return (
     <svg

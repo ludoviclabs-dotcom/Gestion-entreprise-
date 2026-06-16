@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import CasesTable from "@/components/cases/CasesTable.client";
+import PortfolioHeatmap from "@/components/cases/PortfolioHeatmap";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { curateCaseSummaries } from "@/lib/data/case-curation";
 
@@ -28,6 +29,7 @@ export default async function CasesPage() {
           <Link href="/cases/new">Nouveau dossier</Link>
         </Button>
       </div>
+      <PortfolioHeatmap cases={curated.visible} />
       <CasesTable cases={curated.visible} />
     </div>
   );

@@ -1,4 +1,5 @@
 import type { CaseBundle } from "@/lib/graph/graph-types";
+import { countSignalsByFamilySeverity } from "@/lib/graph/graph-types";
 import { assembleCase } from "@/lib/ingestion/assemble-case";
 import { fixtureCases, fixtureCasesById } from "@/lib/fixtures/cases";
 import { seedJournalFor } from "@/lib/audit/fixture-journal";
@@ -51,6 +52,7 @@ function toSummary(
       edges: bundle.edges.length,
       signalsHigh: countHighSignals(bundle),
     },
+    signalsByFamilySeverity: countSignalsByFamilySeverity(bundle.riskSignals),
     lastRunAt: updatedAt,
     updatedAt,
   };

@@ -10,7 +10,16 @@ import {
   SirenSchema,
 } from "@/lib/server/validate";
 import { validateSynthesisReferences } from "@/lib/synthesis/validate";
+import {
+  reviewStateFromEvents,
+  reviewTransitionError,
+  type ReviewState,
+  type ReviewOutcome,
+} from "@/lib/audit/journal";
 import type { CompanyCandidate } from "@/lib/data/types";
+
+/** Bande de vigilance haute (seuil rouge, aligné sur ScorePills) → note requise. */
+const VIGILANCE_HIGH_BAND = 67;
 
 // Synthèse manuelle : entre 20 et 5000 caractères, sans HTML brut.
 const SynthesisSchema = z
@@ -104,6 +113,61 @@ export async function saveSynthesisAction(
         error instanceof Error
           ? error.message
           : "Erreur lors de l'enregistrement de la synthèse.",
+    };
+  }
+}
+
+/**
+ * Transition de l'axe de REVUE (P4) — à_trier → en_revue → conclu. Orthogonal au
+ * statut d'ingestion. Garde humaine via `reviewTransitionError` (pure, testée).
+ * Journalise une entrée hash-chaînée (payload agrégé, non nominatif).
+ *
+ * Portée : MONO-RÉVISEUR (lecture-puis-append non transactionnelle). Suffisant
+ * pour le périmètre actuel ; en multi-réviseur, revalider la transition dans la
+ * boucle de ré-chaînage (cf. appendProofEvent).
+ */
+export async function transitionReviewAction(
+  caseId: string,
+  to: ReviewState,
+  opts?: { note?: string; outcome?: ReviewOutcome },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const repo = getCasesRepository();
+    const detail = await repo.getCase(caseId);
+    if (!detail) return { ok: false, error: "Dossier introuvable." };
+
+    const events = await repo.listProofEvents(caseId);
+    const from = reviewStateFromEvents(events);
+    const vigilance = detail.bundle.case.scores?.vigilance ?? 0;
+    const highBand = vigilance >= VIGILANCE_HIGH_BAND;
+    const note = opts?.note?.trim() ?? "";
+    const outcome = to === "conclu" ? opts?.outcome : undefined;
+
+    const error = reviewTransitionError({
+      from,
+      to,
+      outcome,
+      highBand,
+      noteLength: note.length,
+    });
+    if (error) return { ok: false, error };
+
+    await repo.appendProofEvent(caseId, "revue_transition", {
+      from,
+      to,
+      ...(outcome ? { outcome } : {}),
+      vigilanceBand: highBand ? "haute" : "standard",
+      noteFournie: note.length > 0,
+      ...(note ? { noteLongueur: note.length } : {}),
+    });
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de la transition de revue.",
     };
   }
 }

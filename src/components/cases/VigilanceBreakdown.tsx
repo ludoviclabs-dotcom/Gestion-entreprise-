@@ -1,25 +1,35 @@
 import { SEVERITY_COLORS, SEVERITY_LABELS } from "@/lib/graph/graph-types";
-import type { VigilanceExplanation } from "@/lib/risk/engine";
+import type { FaisceauResult, VigilanceExplanation } from "@/lib/risk/engine";
+import { GlossaryTerm } from "@/components/ui/GlossaryTerm";
 
 /**
  * Décomposition explicable du score de vigilance : chaque signal et sa
  * contribution en points. Rend le score auditable (motivation des décisions
  * de vigilance) au lieu d'un chiffre opaque. Composant serveur.
+ *
+ * Le `faisceau` (optionnel) rappelle qu'un signal isolé n'est jamais une alerte
+ * (§7.3) — statut qualitatif, n'altère pas le score.
  */
 export default function VigilanceBreakdown({
   explanation,
+  faisceau,
 }: {
   explanation: VigilanceExplanation;
+  faisceau?: FaisceauResult;
 }) {
   if (explanation.contributions.length === 0) return null;
   const max = Math.max(...explanation.contributions.map((c) => c.points), 1);
 
   return (
-    <section className="rounded-xl border border-border bg-surface p-5">
+    <section
+      id="score-vigilance"
+      className="scroll-mt-24 rounded-xl border border-border bg-surface p-5"
+    >
       <details open>
         <summary className="flex cursor-pointer list-none items-baseline justify-between gap-3">
           <h3 className="font-[family-name:var(--font-display)] text-sm font-semibold">
-            Composition du score de vigilance
+            Composition du score de{" "}
+            <GlossaryTerm id="vigilance">vigilance</GlossaryTerm>
           </h3>
           <span className="text-sm font-semibold tabular-nums">
             {explanation.score}
@@ -30,6 +40,29 @@ export default function VigilanceBreakdown({
           Somme pondérée des signaux déclenchés
           {explanation.capped ? " (plafonnée à 100)" : ""}.
         </p>
+        {faisceau ? (
+          <p
+            className="mt-3 rounded-lg border px-3 py-2 text-xs"
+            style={
+              faisceau.converged
+                ? {
+                    borderColor: `${SEVERITY_COLORS.medium}66`,
+                    background: `${SEVERITY_COLORS.medium}14`,
+                  }
+                : { borderColor: "var(--border)" }
+            }
+          >
+            <span className="font-medium">
+              <GlossaryTerm id="faisceau">Faisceau d&apos;indices</GlossaryTerm>{" "}
+              :{" "}
+            </span>
+            {faisceau.converged
+              ? `constitué — ${faisceau.distinctFamilies} familles d'indices convergentes sur ${faisceau.distinctSubjects} entité(s) (seuil ${faisceau.k}). À qualifier humainement.`
+              : faisceau.materialCount === 0
+                ? "aucun signal matériel — rien à escalader."
+                : `${faisceau.distinctFamilies}/${faisceau.k} famille${faisceau.distinctFamilies > 1 ? "s" : ""} d'indices — non concluant à lui seul.`}
+          </p>
+        ) : null}
 
         <ul className="mt-4 space-y-2">
         {explanation.contributions.map((c, i) => (

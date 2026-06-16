@@ -3,11 +3,14 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import ScorePills from "@/components/cases/ScorePills";
 import CaseStatusBadge from "@/components/cases/CaseStatusBadge";
+import ReviewStateBadge from "@/components/cases/ReviewStateBadge";
+import ReviewActionBar from "@/components/cases/ReviewActionBar.client";
 import CaseQualityBadges from "@/components/cases/CaseQualityBadges";
 import WorkspaceTabs from "@/components/cases/WorkspaceTabs";
 import ExportMenu from "@/components/cases/ExportMenu.client";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
+import { reviewStateFromEvents } from "@/lib/audit/journal";
 
 export default async function CaseWorkspaceLayout(props: {
   children: React.ReactNode;
@@ -30,6 +33,11 @@ export default async function CaseWorkspaceLayout(props: {
     ? new Intl.DateTimeFormat("fr-FR").format(new Date(summaryEntry.updatedAt))
     : null;
 
+  // Axe de revue (P4) — projeté depuis le journal append-only.
+  const reviewEvents = await getCasesRepository().listProofEvents(caseId);
+  const reviewState = reviewStateFromEvents(reviewEvents);
+  const reviewHighBand = (bundle.case.scores?.vigilance ?? 0) >= 67;
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-start justify-between gap-4 px-4 pt-4">
@@ -47,6 +55,7 @@ export default async function CaseWorkspaceLayout(props: {
                 {bundle.case.title}
               </h1>
               <CaseStatusBadge status={status} />
+              <ReviewStateBadge state={reviewState} />
             </div>
             <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
               <span>
@@ -64,9 +73,25 @@ export default async function CaseWorkspaceLayout(props: {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <ScorePills scores={bundle.case.scores ?? {}} size="sm" />
+          <ScorePills
+            scores={bundle.case.scores ?? {}}
+            size="sm"
+            vigilanceHref={
+              bundle.riskSignals.length > 0
+                ? `/cases/${caseId}/risques#score-vigilance`
+                : undefined
+            }
+          />
           <ExportMenu caseId={caseId} />
         </div>
+      </div>
+
+      <div className="mt-3 px-4">
+        <ReviewActionBar
+          caseId={caseId}
+          state={reviewState}
+          highBand={reviewHighBand}
+        />
       </div>
 
       <div className="mt-3">

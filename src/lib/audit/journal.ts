@@ -22,7 +22,8 @@ export type ProofEventKind =
   | "risque_calcule"
   | "ecart_ubo_detecte"
   | "synthese_enregistree"
-  | "export_genere";
+  | "export_genere"
+  | "revue_transition";
 
 export type ProofEvent = {
   id: string;
@@ -43,6 +44,7 @@ export const PROOF_EVENT_LABELS: Record<ProofEventKind, string> = {
   ecart_ubo_detecte: "Écart UBO détecté",
   synthese_enregistree: "Synthèse enregistrée",
   export_genere: "Export généré",
+  revue_transition: "Transition de revue",
 };
 
 type ProofEventDraft = {
@@ -180,5 +182,84 @@ export function summarizeProofEvent(event: ProofEvent): string {
       return `${String(p.longueur ?? "?")} caractères`;
     case "export_genere":
       return `Format ${String(p.format ?? "?")}`;
+    case "revue_transition":
+      return `Revue : ${String(p.from ?? "?")} → ${String(p.to ?? "?")}${
+        p.outcome ? ` (${String(p.outcome)})` : ""
+      }`;
   }
+}
+
+// ── Axe de REVUE (P4) — orthogonal au statut d'ingestion case_status ──────────
+// L'état de revue est une PROJECTION du journal append-only (la dernière
+// transition journalisée), pas une colonne : chaque changement est une entrée
+// hash-chaînée, donc inviolable et rejouable, et fonctionne en mode démo comme
+// en base sans migration.
+
+export type ReviewState = "a_trier" | "en_revue" | "conclu";
+export type ReviewOutcome =
+  | "vigilance_standard"
+  | "vigilance_renforcee"
+  | "a_reexaminer";
+
+export const REVIEW_STATE_LABELS: Record<ReviewState, string> = {
+  a_trier: "À trier",
+  en_revue: "En revue (EDD)",
+  conclu: "Conclu",
+};
+export const REVIEW_OUTCOME_LABELS: Record<ReviewOutcome, string> = {
+  vigilance_standard: "Vigilance standard",
+  vigilance_renforcee: "Vigilance renforcée",
+  a_reexaminer: "À réexaminer",
+};
+export const REVIEW_OUTCOMES: ReviewOutcome[] = [
+  "vigilance_standard",
+  "vigilance_renforcee",
+  "a_reexaminer",
+];
+
+/** Transitions autorisées. Pas de conclusion sans revue (a_trier↛conclu). */
+export const REVIEW_TRANSITIONS: Record<ReviewState, ReviewState[]> = {
+  a_trier: ["en_revue"],
+  en_revue: ["conclu", "a_trier"],
+  conclu: ["en_revue"],
+};
+
+/** État de revue courant = dernière transition journalisée (sinon « à trier »). */
+export function reviewStateFromEvents(events: ProofEvent[]): ReviewState {
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    if (events[i].kind !== "revue_transition") continue;
+    const to = events[i].payload.to;
+    if (to === "a_trier" || to === "en_revue" || to === "conclu") return to;
+  }
+  return "a_trier";
+}
+
+/**
+ * Valide une transition de revue (P4). PUR et testable — réutilisé par la Server
+ * Action. Renvoie un message d'erreur, ou `null` si la transition est permise.
+ * Garde humaine : conclure exige un `outcome` ; une note de justification (≥ 10
+ * caractères) est requise dès que la conclusion ESCALADE (`vigilance_renforcee`)
+ * OU que le dossier est en bande de vigilance haute. Jamais d'escalade automatique.
+ */
+export function reviewTransitionError(args: {
+  from: ReviewState;
+  to: ReviewState;
+  outcome?: ReviewOutcome;
+  highBand: boolean;
+  noteLength: number;
+}): string | null {
+  const { from, to, outcome, highBand, noteLength } = args;
+  if (!REVIEW_TRANSITIONS[from].includes(to)) {
+    return `Transition ${from} → ${to} non autorisée.`;
+  }
+  if (to === "conclu") {
+    if (!outcome || !REVIEW_OUTCOMES.includes(outcome)) {
+      return "Choisissez une conclusion de revue.";
+    }
+    const needNote = highBand || outcome === "vigilance_renforcee";
+    if (needNote && noteLength < 10) {
+      return "Une note de justification (≥ 10 caractères) est requise pour conclure en vigilance élevée ou en escalade.";
+    }
+  }
+  return null;
 }
