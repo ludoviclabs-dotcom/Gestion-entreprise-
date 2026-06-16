@@ -5,6 +5,8 @@ import EvidenceBadge from "@/components/graph/EvidenceBadge";
 import EmptyState from "@/components/empty/EmptyState";
 import GraphEvolution from "@/components/cases/GraphEvolution";
 import { diffBundles } from "@/lib/graph/diff";
+import { SEVERITY_COLORS, maxSeverityBySubject } from "@/lib/graph/graph-types";
+import type { Severity } from "@/lib/graph/graph-types";
 
 export default async function TimelineTab(props: {
   params: Promise<{ caseId: string }>;
@@ -17,6 +19,14 @@ export default async function TimelineTab(props: {
   const events = [...bundle.events].sort((a, b) =>
     (b.occurredOn ?? "").localeCompare(a.occurredOn ?? ""),
   );
+
+  // Sévérité maximale par entité signalée → met en avant les événements liés à
+  // un signal de vigilance (V10), sans jamais qualifier l'événement lui-même.
+  const sevByEntity = maxSeverityBySubject(bundle.riskSignals);
+  const materialSev = (entityId: string): Severity | null => {
+    const sev = sevByEntity.get(entityId);
+    return sev === "medium" || sev === "high" ? sev : null;
+  };
 
   // Diff d'évolution T0 → T1 si un état antérieur est disponible.
   const previous = bundle.previous;
@@ -56,18 +66,34 @@ export default async function TimelineTab(props: {
         </div>
       ) : (
         <ol className="mt-6 space-y-0">
-          {events.map((ev, i) => (
+          {events.map((ev, i) => {
+            const sev = materialSev(ev.entityId);
+            return (
             <li key={ev.id} className="flex gap-4">
               <div className="flex flex-col items-center">
-                <span className="mt-1 h-2.5 w-2.5 rounded-full bg-primary" />
+                <span
+                  className="mt-1 h-2.5 w-2.5 rounded-full bg-primary"
+                  style={sev ? { backgroundColor: SEVERITY_COLORS[sev] } : undefined}
+                />
                 {i < events.length - 1 && (
                   <span className="w-px flex-1 bg-border" />
                 )}
               </div>
               <div className="pb-6">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{ev.title}</span>
                   <EvidenceBadge level={ev.evidenceLevel} />
+                  {sev ? (
+                    <span
+                      className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+                      style={{
+                        background: `${SEVERITY_COLORS[sev]}22`,
+                        color: SEVERITY_COLORS[sev],
+                      }}
+                    >
+                      Lié à un signal de vigilance
+                    </span>
+                  ) : null}
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {ev.occurredOn
@@ -81,7 +107,8 @@ export default async function TimelineTab(props: {
                 </p>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ol>
       )}
     </div>

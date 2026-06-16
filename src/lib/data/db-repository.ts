@@ -14,6 +14,7 @@ import {
   auditLogs,
 } from "@/lib/db/schema";
 import { assembleCase } from "@/lib/ingestion/assemble-case";
+import { countSignalsByFamilySeverity } from "@/lib/graph/graph-types";
 import { fixtureCasesById } from "@/lib/fixtures/cases";
 import { seedJournalFor } from "@/lib/audit/fixture-journal";
 import {
@@ -666,6 +667,9 @@ export class DbCasesRepository implements CasesRepository {
           signalsHigh: bundle.riskSignals.filter((s) => s.severity === "high")
             .length,
         },
+        signalsByFamilySeverity: countSignalsByFamilySeverity(
+          bundle.riskSignals,
+        ),
         lastRunAt: completedAt.toISOString(),
         updatedAt: completedAt.toISOString(),
       };

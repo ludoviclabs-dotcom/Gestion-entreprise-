@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import type { CaseBundle, GraphDTO } from "@/lib/graph/graph-types";
+import { maxSeverityBySubject } from "@/lib/graph/graph-types";
 import Legend from "./Legend";
 import GraphToolbar from "./GraphToolbar";
 import GraphTooltip from "./GraphTooltip";
@@ -50,6 +51,11 @@ export default function GraphCanvas({
       ),
     [bundle.riskSignals],
   );
+  // Sévérité maximale par nœud signalé → couleur de la surcouche de risque.
+  const flaggedSeverity = useMemo(
+    () => Object.fromEntries(maxSeverityBySubject(bundle.riskSignals)),
+    [bundle.riskSignals],
+  );
   const viewMode = useGraphStore((s) => s.viewMode);
 
   return (
@@ -61,7 +67,11 @@ export default function GraphCanvas({
       {/* Calques d'ambiance (aurores + grille en fondu + vignette). */}
       <div className="graph-aurora" aria-hidden />
       <div className="graph-grid" aria-hidden />
-      <GraphScene dto={dto} flaggedIds={flaggedIds} />
+      <GraphScene
+        dto={dto}
+        flaggedIds={flaggedIds}
+        flaggedSeverity={flaggedSeverity}
+      />
       <div className="graph-vignette" aria-hidden />
       {viewMode === "table" && <GraphTable bundle={bundle} />}
       <GraphToolbar />

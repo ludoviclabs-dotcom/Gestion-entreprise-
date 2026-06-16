@@ -28,7 +28,7 @@ Code : `src/lib/risk/{types,rules,engine}.ts` · Tests : `src/tests/unit/risk-ru
 | Déclencheur | une adresse `PARTAGE_ADRESSE` reçue de ≥ N sociétés |
 | Seuils | medium = 2 · high = 5 |
 | Sévérité | medium si ≥2, high si >5 |
-| Justification | Adresse de domiciliation partagée par plusieurs sociétés sans lien explicite (groupe ou activité commune) — indicateur classique de structure-coquille. |
+| Justification | Adresse de domiciliation partagée par plusieurs sociétés sans lien explicite (groupe ou activité commune) — concentration de domiciliation à vérifier (substance économique). |
 | Format FR | « {n} sociétés déclarent la même adresse : {adresse}. » |
 
 ### 3. `SOCIETE_RECENTE_TRES_LIEE`

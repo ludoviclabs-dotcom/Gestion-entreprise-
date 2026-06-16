@@ -8,6 +8,7 @@ import {
   ImageDown,
   Table as TableIcon,
   Network,
+  Boxes,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -39,6 +40,8 @@ export default function GraphToolbar() {
   const toggleLayer = useGraphStore((s) => s.toggleLayer);
   const viewMode = useGraphStore((s) => s.viewMode);
   const toggleViewMode = useGraphStore((s) => s.toggleViewMode);
+  const colorMode = useGraphStore((s) => s.colorMode);
+  const toggleColorMode = useGraphStore((s) => s.toggleColorMode);
 
   const [sound, setSound] = useState(true);
 
@@ -103,6 +106,20 @@ export default function GraphToolbar() {
         aria-pressed={viewMode === "table"}
       >
         {viewMode === "graph" ? <TableIcon size={16} /> : <Network size={16} />}
+      </button>
+      <button
+        type="button"
+        className={`${btn} ${colorMode === "community" ? "border-primary text-primary" : ""}`}
+        onClick={toggleColorMode}
+        aria-label={
+          colorMode === "community"
+            ? "Colorer par type d'entité"
+            : "Colorer par communauté structurelle"
+        }
+        aria-pressed={colorMode === "community"}
+        title="Coloration par communauté structurelle"
+      >
+        <Boxes size={16} />
       </button>
       <Popover>
         <PopoverTrigger asChild>

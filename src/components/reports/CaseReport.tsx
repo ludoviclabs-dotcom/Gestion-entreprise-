@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
 const SEVERITY_PALETTE: Record<Severity, { fg: string; bg: string; label: string }> = {
   info: { fg: PALETTE.inkSoft, bg: "#F1F5F9", label: "Info" },
   low: { fg: PALETTE.emerald, bg: "#D1FAE5", label: "Faible" },
-  medium: { fg: PALETTE.amber, bg: "#FEF3C7", label: "Moyen" },
+  medium: { fg: PALETTE.amber, bg: "#FEF3C7", label: "Modéré" },
   high: { fg: PALETTE.red, bg: "#FEE2E2", label: "Élevé" },
 };
 

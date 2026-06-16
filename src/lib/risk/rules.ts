@@ -7,7 +7,7 @@ import type {
   Severity,
 } from "@/lib/graph/graph-types";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
-import { compareDeclaredUbo } from "@/lib/graph/ubo";
+import { compareDeclaredUbo, parsePct } from "@/lib/graph/ubo";
 import type { Rule } from "./types";
 
 // ── Utilitaires partagés ─────────────────────────────────────────────────
@@ -27,7 +27,7 @@ function makeSignal(
 }
 
 /** Compte les arêtes d'un type donné sur un nœud, dans la direction donnée. */
-function countEdgesOfType(
+export function countEdgesOfType(
   graph: Graph,
   node: string,
   type: EdgeKind | "A_PUBLIE",
@@ -46,7 +46,7 @@ function countEdgesOfType(
  * Parse une date en formats variés rencontrés dans les fixtures et payloads
  * Sirene / INPI : ISO (YYYY-MM-DD), FR (DD/MM/YYYY), partielle (YYYY).
  */
-function parseFlexibleDate(raw: string | undefined | null): Date | null {
+export function parseFlexibleDate(raw: string | undefined | null): Date | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   // ISO complet
@@ -64,7 +64,7 @@ function parseFlexibleDate(raw: string | undefined | null): Date | null {
   return null;
 }
 
-function monthsBetween(from: Date, to: Date): number {
+export function monthsBetween(from: Date, to: Date): number {
   return (
     (to.getUTCFullYear() - from.getUTCFullYear()) * 12 +
     (to.getUTCMonth() - from.getUTCMonth())
@@ -281,7 +281,8 @@ export const CYCLE_DETENTION: Rule = {
  * Repère les nœuds « pivots » dont la centralité d'intermédiarité (betweenness)
  * est anormalement élevée — ils relient des sous-réseaux qui sinon seraient
  * disjoints. Utile pour repérer un nominee, un dirigeant-paille, ou une
- * société-coquille qui canalise des flux entre groupes.
+ * entité en position d'intermédiation marquée entre groupes (substance
+ * économique à vérifier).
  *
  * Seuil : betweenness normalisée > 0.4 (sur [0, 1]) → signal medium.
  */
@@ -291,7 +292,7 @@ export const PIVOT_SUSPECT: Rule = {
   category: "vigilance",
   evaluate(ctx) {
     if (ctx.bundle.entities.length < 5) return []; // pas pertinent sur petits graphes
-    const { betweenness } = computeGraphMetrics(ctx.graph);
+    const { betweenness } = ctx.metrics ?? computeGraphMetrics(ctx.graph);
     const signals: CaseRiskSignal[] = [];
     for (const [nodeId, score] of Object.entries(betweenness)) {
       if (score <= 0.4) continue;
@@ -426,6 +427,150 @@ export const PROXIMITE_SANCTION: Rule = {
   },
 };
 
+// ── Typologies structurelles (M9) ────────────────────────────────────────
+// Reconnaissance de SCHÉMAS par composition de features existantes. Émettent des
+// signaux « à vérifier » — jamais une qualification d'infraction. Réutilisent
+// ctx.metrics (précalculé) pour ne pas multiplier les passes de graphe.
+
+/**
+ * 10. RELAIS_STRUCTUREL — récupère l'intention structurelle de M7 (« société de
+ * passage ») SANS données de flux : une société à forte centralité combinée à
+ * un indice secondaire (création récente ou adresse partagée) est un relais à la
+ * substance à vérifier. Famille « structure ».
+ */
+export const RELAIS_STRUCTUREL: Rule = {
+  id: "RELAIS_STRUCTUREL",
+  label: "Relais structurel",
+  category: "vigilance",
+  evaluate(ctx) {
+    if (ctx.bundle.entities.length < 5) return [];
+    const { betweenness } = ctx.metrics ?? computeGraphMetrics(ctx.graph);
+    const { betweenness: bwSeuil, recentMonths } = ctx.thresholds.relaisStructurel;
+    const now = new Date();
+    const signals: CaseRiskSignal[] = [];
+    for (const entity of ctx.bundle.entities) {
+      if (entity.type !== "company") continue;
+      const bw = betweenness[entity.id] ?? 0;
+      if (bw <= bwSeuil) continue;
+      const attrs = entity.attributes ?? {};
+      const created = parseFlexibleDate(
+        attrs["Création"] ?? attrs["Date de création"] ?? attrs["dateCreation"],
+      );
+      const recent = created ? monthsBetween(created, now) <= recentMonths : false;
+      // « Adresse partagée » = la société pointe vers une adresse REELLEMENT
+      // partagée (inDegree PARTAGE_ADRESSE ≥ 2), pas simplement « a une adresse »
+      // (toute société a un siège). Miroir de CONCENTRATION_DOMICILIATION.
+      const sharedAddr =
+        ctx.graph.hasNode(entity.id) &&
+        ctx.graph.outEdges(entity.id).some((e) => {
+          if (ctx.graph.getEdgeAttribute(e, "edgeKind") !== "PARTAGE_ADRESSE")
+            return false;
+          const addr = ctx.graph.target(e);
+          return countEdgesOfType(ctx.graph, addr, "PARTAGE_ADRESSE", "in") >= 2;
+        });
+      if (!recent && !sharedAddr) continue;
+      const indices = [
+        recent ? "création récente" : null,
+        sharedAddr ? "adresse partagée" : null,
+      ]
+        .filter(Boolean)
+        .join(" + ");
+      signals.push(
+        makeSignal(
+          this.id,
+          entity.id,
+          "medium",
+          this.category,
+          `${entity.label} occupe une position de relais (centralité ${Math.round(bw * 100)} %) combinée à ${indices} — substance à vérifier.`,
+        ),
+      );
+    }
+    return signals;
+  },
+};
+
+/**
+ * 11. CONCENTRATION_DOMICILIATION — une adresse concentrant plusieurs sociétés
+ * dont au moins une récente : domiciliation à vérifier. Renforce ADRESSE_PARTAGEE
+ * par le critère d'ancienneté. Famille « adresse ».
+ */
+export const CONCENTRATION_DOMICILIATION: Rule = {
+  id: "CONCENTRATION_DOMICILIATION",
+  label: "Concentration de domiciliation",
+  category: "vigilance",
+  evaluate(ctx) {
+    const { minCompanies, recentMonths } =
+      ctx.thresholds.concentrationDomiciliation;
+    const now = new Date();
+    const signals: CaseRiskSignal[] = [];
+    for (const entity of ctx.bundle.entities) {
+      if (entity.type !== "address") continue;
+      const count = countEdgesOfType(
+        ctx.graph,
+        entity.id,
+        "PARTAGE_ADRESSE",
+        "in",
+      );
+      if (count < minCompanies) continue;
+      const sharers = ctx.bundle.edges
+        .filter((e) => e.type === "PARTAGE_ADRESSE" && e.target === entity.id)
+        .map((e) => e.source);
+      const hasRecent = sharers.some((sid) => {
+        const c = ctx.bundle.entities.find(
+          (x) => x.id === sid && x.type === "company",
+        );
+        const a = c?.attributes ?? {};
+        const created = parseFlexibleDate(
+          a["Création"] ?? a["Date de création"] ?? a["dateCreation"],
+        );
+        return created ? monthsBetween(created, now) <= recentMonths : false;
+      });
+      if (!hasRecent) continue;
+      signals.push(
+        makeSignal(
+          this.id,
+          entity.id,
+          "medium",
+          this.category,
+          `${count} sociétés domiciliées à la même adresse (${entity.label}), dont au moins une récente — domiciliation à vérifier.`,
+        ),
+      );
+    }
+    return signals;
+  },
+};
+
+/**
+ * 12. CHAINE_DETENTION_OPAQUE — des liens de détention sans pourcentage
+ * exploitable empêchent de recalculer entièrement la détention effective. C'est
+ * une lacune de QUALITÉ DE PREUVE (pas une charge), donc sévérité faible et
+ * catégorie qualite_preuve — ne double pas ECART_UBO_DECLARE en vigilance.
+ * Famille « capital ».
+ */
+export const CHAINE_DETENTION_OPAQUE: Rule = {
+  id: "CHAINE_DETENTION_OPAQUE",
+  label: "Chaîne de détention incomplète",
+  category: "qualite_preuve",
+  evaluate(ctx) {
+    const { minMissing } = ctx.thresholds.chaineDetentionOpaque;
+    let missing = 0;
+    for (const e of ctx.bundle.edges) {
+      if (e.type !== "DETIENT") continue;
+      if (parsePct(e.weight) === null) missing += 1;
+    }
+    if (missing < minMissing) return [];
+    return [
+      makeSignal(
+        this.id,
+        undefined,
+        "low",
+        this.category,
+        `${missing} lien(s) de détention sans pourcentage exploitable — la détention effective ne peut être entièrement recalculée.`,
+      ),
+    ];
+  },
+};
+
 /** Catalogue par défaut, dans l'ordre d'évaluation. */
 export const DEFAULT_RULES: Rule[] = [
   DIRIGEANT_MULTI_SOCIETES,
@@ -437,4 +582,7 @@ export const DEFAULT_RULES: Rule[] = [
   PIVOT_SUSPECT,
   ECART_UBO_DECLARE,
   PROXIMITE_SANCTION,
+  RELAIS_STRUCTUREL,
+  CONCENTRATION_DOMICILIATION,
+  CHAINE_DETENTION_OPAQUE,
 ];

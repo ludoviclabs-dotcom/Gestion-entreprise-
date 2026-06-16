@@ -3,8 +3,11 @@ import type {
   CaseBundle,
   CaseRiskSignal,
   CaseScores,
+  EvidenceLevel,
   Severity,
 } from "@/lib/graph/graph-types";
+import { familyForRule } from "@/lib/graph/graph-types";
+import { computeGraphMetrics } from "@/lib/graph/algorithms";
 import { DEFAULT_RULES } from "./rules";
 import { DEFAULT_THRESHOLDS } from "./types";
 import type { Rule, Thresholds } from "./types";
@@ -63,6 +66,54 @@ export function explainVigilance(
 
 function clamp(value: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+/**
+ * Faisceau d'indices : un signal isolé n'est jamais une alerte (§7.3, garde-fou
+ * « non négociable »). On ne compte que les signaux MATÉRIELS (sévérité
+ * `medium|high`), et la convergence se mesure sur des AXES DISTINCTS — le nombre
+ * de FAMILLES distinctes déclenchées (`distinctFamilies`), pas le nombre brut de
+ * signaux ni de règles. Ainsi plusieurs règles structurelles déclenchées par un
+ * même fait (ex. relais + pivot + société récente, toutes « structure ») ne
+ * sur-pondèrent pas le faisceau. Statut qualitatif — N'ALTÈRE PAS le score de
+ * vigilance. À interpréter humainement, jamais en automatisme.
+ */
+export type FaisceauResult = {
+  /** Seuil de convergence appliqué. */
+  k: number;
+  /** Nombre total de signaux matériels (medium|high). */
+  materialCount: number;
+  /** Nombre de sujets distincts visés (sociétés/personnes). */
+  distinctSubjects: number;
+  /** Nombre de règles distinctes déclenchées. */
+  distinctRules: number;
+  /** Nombre de familles distinctes déclenchées — base de la convergence. */
+  distinctFamilies: number;
+  /** Faisceau constitué : ≥ k familles d'indices DISTINCTES. */
+  converged: boolean;
+};
+
+const MATERIAL_SEVERITIES: ReadonlySet<Severity> = new Set<Severity>([
+  "medium",
+  "high",
+]);
+
+export function computeConvergence(
+  signals: CaseRiskSignal[],
+  k = 2,
+): FaisceauResult {
+  const material = signals.filter((s) => MATERIAL_SEVERITIES.has(s.severity));
+  const subjects = new Set(material.map((s) => s.subjectId ?? "case"));
+  const rules = new Set(material.map((s) => s.ruleId));
+  const families = new Set(material.map((s) => familyForRule(s.ruleId)));
+  return {
+    k,
+    materialCount: material.length,
+    distinctSubjects: subjects.size,
+    distinctRules: rules.size,
+    distinctFamilies: families.size,
+    converged: families.size >= k,
+  };
 }
 
 /**
@@ -129,7 +180,10 @@ export function computeRisk(
 ): RiskComputationResult {
   const rules = options.rules ?? DEFAULT_RULES;
   const thresholds = options.thresholds ?? DEFAULT_THRESHOLDS;
-  const ctx = { bundle, graph, thresholds };
+  // Métriques de graphe calculées UNE seule fois et partagées aux règles
+  // structurelles (betweenness/Louvain/cycles) — évite N passes coûteuses.
+  const metrics = computeGraphMetrics(graph);
+  const ctx = { bundle, graph, thresholds, metrics };
 
   const signals: CaseRiskSignal[] = [];
   for (const rule of rules) {
@@ -140,6 +194,17 @@ export function computeRisk(
       // On préfère un score sous-évalué à une erreur 500.
       console.error(`[risk] rule ${rule.id} threw`, error);
     }
+  }
+
+  // P7 — niveau de preuve du SUJET de chaque signal (dérivé de l'entité visée,
+  // jamais inventé). Sert la facette « Preuve du sujet », sans étiqueter le
+  // signal lui-même comme confirmé.
+  const evidenceBySubject = new Map<string, EvidenceLevel>(
+    bundle.entities.map((e) => [e.id, e.evidenceLevel]),
+  );
+  for (const s of signals) {
+    const lvl = s.subjectId ? evidenceBySubject.get(s.subjectId) : undefined;
+    if (lvl) s.evidenceLevel = lvl;
   }
 
   const scores: CaseScores = {
