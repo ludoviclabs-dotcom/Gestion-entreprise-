@@ -112,6 +112,30 @@ function splitPersonName(label: string): { prenoms: string; nom: string } {
 }
 
 /**
+ * Détecte l'erreur Postgres « relation inexistante » (code 42P01) — typiquement
+ * quand une migration n'a pas encore été appliquée à la base. Neon enveloppe
+ * l'erreur, on remonte donc la chaîne de `cause`. Sert à dégrader proprement les
+ * accès à une table OPTIONNELLE (journal de preuve `audit_logs`, migration 0003)
+ * au lieu de faire planter tout le rendu d'un dossier. Toute autre erreur
+ * continue d'être propagée (aucun masquage de vrai bug).
+ */
+function isMissingTableError(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; current && typeof current === "object" && depth < 5; depth++) {
+    const e = current as { code?: unknown; message?: unknown; cause?: unknown };
+    if (e.code === "42P01") return true;
+    if (
+      typeof e.message === "string" &&
+      /relation ".*" does not exist/i.test(e.message)
+    ) {
+      return true;
+    }
+    current = e.cause;
+  }
+  return false;
+}
+
+/**
  * Implémentation Neon Postgres (Drizzle) du repository.
  * S'active automatiquement dès que `DATABASE_URL` est défini.
  *
@@ -644,23 +668,33 @@ export class DbCasesRepository implements CasesRepository {
         .where(eq(cases.id, caseId));
 
       // 8. Journal de preuve (audit_logs) : la séquence de création chaînée.
+      // Tolérant : si la table audit_logs n'a pas encore été migrée (0003), on
+      // n'échoue PAS la création — le dossier reste « prêt », le journal est
+      // simplement non écrit (et signalé en logs).
       const proofEvents = buildCreationProofEvents({
         caseId,
         bundle,
         sources,
         occurredAt: completedAt.toISOString(),
       });
-      await db.insert(auditLogs).values(
-        proofEvents.map((event) => ({
-          caseId,
-          seq: event.seq,
-          kind: event.kind,
-          payload: event.payload,
-          occurredAt: event.occurredAt,
-          prevHash: event.prevHash,
-          entryHash: event.entryHash,
-        })),
-      );
+      try {
+        await db.insert(auditLogs).values(
+          proofEvents.map((event) => ({
+            caseId,
+            seq: event.seq,
+            kind: event.kind,
+            payload: event.payload,
+            occurredAt: event.occurredAt,
+            prevHash: event.prevHash,
+            entryHash: event.entryHash,
+          })),
+        );
+      } catch (error) {
+        if (!isMissingTableError(error)) throw error;
+        console.warn(
+          `[createCaseFromSiren] table audit_logs absente — journal de preuve non écrit pour ${caseId}. Appliquer la migration 0003 (npm run db:migrate).`,
+        );
+      }
 
       return {
         id: caseId,
@@ -739,33 +773,43 @@ export class DbCasesRepository implements CasesRepository {
     // Deux tentatives : en cas de course sur seq (pas de transaction
     // interactive avec neon-http), l'index unique (case_id, seq) rejette le
     // doublon et on rechaîne depuis la nouvelle tête. Mono-tenant : suffisant.
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const [head] = await db
-        .select()
-        .from(auditLogs)
-        .where(eq(auditLogs.caseId, caseId))
-        .orderBy(desc(auditLogs.seq))
-        .limit(1);
-      const entry = chainNext(head ? rowToProofEvent(head) : null, {
-        caseId,
-        kind,
-        occurredAt: new Date().toISOString(),
-        payload,
-      });
-      try {
-        await db.insert(auditLogs).values({
+    // Tolérant à l'absence de table audit_logs (migration 0003 non appliquée) :
+    // on n'écrit alors pas le journal plutôt que de planter le flux appelant.
+    try {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const [head] = await db
+          .select()
+          .from(auditLogs)
+          .where(eq(auditLogs.caseId, caseId))
+          .orderBy(desc(auditLogs.seq))
+          .limit(1);
+        const entry = chainNext(head ? rowToProofEvent(head) : null, {
           caseId,
-          seq: entry.seq,
-          kind: entry.kind,
-          payload: entry.payload,
-          occurredAt: entry.occurredAt,
-          prevHash: entry.prevHash,
-          entryHash: entry.entryHash,
+          kind,
+          occurredAt: new Date().toISOString(),
+          payload,
         });
-        return;
-      } catch (error) {
-        if (attempt === 1) throw error;
+        try {
+          await db.insert(auditLogs).values({
+            caseId,
+            seq: entry.seq,
+            kind: entry.kind,
+            payload: entry.payload,
+            occurredAt: entry.occurredAt,
+            prevHash: entry.prevHash,
+            entryHash: entry.entryHash,
+          });
+          return;
+        } catch (error) {
+          if (isMissingTableError(error)) throw error; // → catch externe
+          if (attempt === 1) throw error;
+        }
       }
+    } catch (error) {
+      if (!isMissingTableError(error)) throw error;
+      console.warn(
+        `[appendProofEvent] table audit_logs absente — événement « ${kind} » non journalisé pour ${caseId}. Appliquer la migration 0003 (npm run db:migrate).`,
+      );
     }
   }
 
@@ -774,12 +818,22 @@ export class DbCasesRepository implements CasesRepository {
       return [...seedJournalFor(caseId), ...journalStore.list(caseId)];
     }
     const db = getDb();
-    const rows = await db
-      .select()
-      .from(auditLogs)
-      .where(eq(auditLogs.caseId, caseId))
-      .orderBy(asc(auditLogs.seq));
-    return rows.map(rowToProofEvent);
+    // Tolérant à l'absence de table audit_logs (migration 0003 non appliquée) :
+    // journal vide plutôt que crash de l'onglet Sources/Risques et de l'export.
+    try {
+      const rows = await db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.caseId, caseId))
+        .orderBy(asc(auditLogs.seq));
+      return rows.map(rowToProofEvent);
+    } catch (error) {
+      if (!isMissingTableError(error)) throw error;
+      console.warn(
+        `[listProofEvents] table audit_logs absente — journal vide pour ${caseId}. Appliquer la migration 0003 (npm run db:migrate).`,
+      );
+      return [];
+    }
   }
 
   async getSourceRecords(caseId: string): Promise<SourceRecordDetail[]> {
