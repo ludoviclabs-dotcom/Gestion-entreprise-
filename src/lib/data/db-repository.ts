@@ -236,26 +236,12 @@ export class DbCasesRepository implements CasesRepository {
         : null;
     }
 
-    const [entRows, edgeRows, evtRows, sigRows, srcRows, evdRowsRaw] =
-      await Promise.all([
+    const [entRows, edgeRows, evtRows, sigRows, srcRows] = await Promise.all([
       db.select().from(entities).where(eq(entities.caseId, id)),
       db.select().from(edges).where(eq(edges.caseId, id)),
       db.select().from(events).where(eq(events.caseId, id)),
       db.select().from(riskSignals).where(eq(riskSignals.caseId, id)),
       db.select().from(sourceRecords).where(eq(sourceRecords.caseId, id)),
-      db.execute(sql`
-        SELECT
-          e.subject_type,
-          e.subject_id::text,
-          e.source_record_id::text,
-          e.level,
-          e.excerpt,
-          e.pointer,
-          sr.source
-        FROM evidence e
-        LEFT JOIN source_records sr ON sr.id = e.source_record_id
-        WHERE e.case_id = ${id}
-      `),
     ]);
 
     const bundleEntities: CaseEntity[] = entRows.map((e) => {
@@ -325,18 +311,43 @@ export class DbCasesRepository implements CasesRepository {
       pointer: Record<string, unknown> | null;
       source: SourceRow["source"] | null;
     };
-    const evidenceList =
-      (evdRowsRaw as unknown as { rows?: EvidenceDbRow[] }).rows ??
-      (evdRowsRaw as unknown as EvidenceDbRow[]);
-    const evidenceRows: EvidenceRow[] = evidenceList.map((e) => ({
-      subjectType: e.subject_type,
-      subjectId: e.subject_id,
-      source: e.source,
-      sourceRecordId: e.source_record_id ?? undefined,
-      level: e.level,
-      excerpt: e.excerpt ?? undefined,
-      pointer: e.pointer ?? undefined,
-    }));
+    // Requête de preuve isolée et tolérante : le graphe et les autres onglets
+    // n'en dépendent pas. En cas d'échec (dérive de schéma, jointure, etc.), on
+    // retombe sur la preuve dérivée du bundle (buildBundleEvidence) au lieu de
+    // faire planter tout le rendu du dossier.
+    let evidenceRows: EvidenceRow[] = [];
+    try {
+      const evdRowsRaw = await db.execute(sql`
+        SELECT
+          e.subject_type,
+          e.subject_id::text,
+          e.source_record_id::text,
+          e.level,
+          e.excerpt,
+          e.pointer,
+          sr.source
+        FROM evidence e
+        LEFT JOIN source_records sr ON sr.id = e.source_record_id
+        WHERE e.case_id = ${id}
+      `);
+      const evidenceList =
+        (evdRowsRaw as unknown as { rows?: EvidenceDbRow[] }).rows ??
+        (evdRowsRaw as unknown as EvidenceDbRow[]);
+      evidenceRows = evidenceList.map((e) => ({
+        subjectType: e.subject_type,
+        subjectId: e.subject_id,
+        source: e.source,
+        sourceRecordId: e.source_record_id ?? undefined,
+        level: e.level,
+        excerpt: e.excerpt ?? undefined,
+        pointer: e.pointer ?? undefined,
+      }));
+    } catch (error) {
+      console.error(
+        `[getCase] requête evidence en échec pour le dossier ${id} — repli sur la preuve dérivée`,
+        error,
+      );
+    }
 
     const bundle: CaseBundle = {
       case: {
