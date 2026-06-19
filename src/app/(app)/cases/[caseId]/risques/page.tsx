@@ -10,9 +10,18 @@ import { InvestigationFiche } from "@/components/cases/InvestigationFiche";
 import VigilanceRadar from "@/components/cases/VigilanceRadar";
 import { GlossaryTerm } from "@/components/ui/GlossaryTerm";
 import { computeUbo } from "@/lib/graph/ubo";
-import { computeConvergence, explainVigilance } from "@/lib/risk/engine";
+import {
+  computeConvergence,
+  explainVigilance,
+  explainComplexite,
+  explainQualitePreuve,
+} from "@/lib/risk/engine";
 import { computeVigilanceProfile } from "@/lib/risk/vigilance-profile";
 import { computeMitigatingFactors } from "@/lib/risk/mitigating";
+import { computeStructuralIndicators } from "@/lib/risk/indicators";
+import { buildGraph } from "@/lib/graph/build-graph";
+import IndicatorsPanel from "@/components/cases/IndicatorsPanel";
+import ScoreDetails from "@/components/cases/ScoreDetails";
 import { DEFAULT_RULES } from "@/lib/risk/rules";
 import { DEFAULT_THRESHOLDS } from "@/lib/risk/types";
 import { isDemoMode, isInpiUboExposed } from "@/lib/env";
@@ -61,6 +70,12 @@ export default async function RisquesTab(props: {
   // Profil de vigilance (V7) — 3 axes réellement calculables, échelle 0-100.
   const radarAxes = computeVigilanceProfile(detail.bundle, signals);
 
+  // Indicateurs structurels + décomposition des scores complexité / qualité.
+  const graph = buildGraph(detail.bundle);
+  const indicators = computeStructuralIndicators(detail.bundle);
+  const complexite = explainComplexite(detail.bundle, graph);
+  const qualite = explainQualitePreuve(detail.bundle);
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
       <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
@@ -100,6 +115,10 @@ export default async function RisquesTab(props: {
           </div>
         </div>
       ) : null}
+      <div className="mt-6 space-y-4">
+        <IndicatorsPanel indicators={indicators} />
+        <ScoreDetails complexite={complexite} qualite={qualite} />
+      </div>
       {ubo.length > 0 ? (
         <div className="mt-6">
           <UboPanel

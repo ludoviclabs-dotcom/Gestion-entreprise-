@@ -8,6 +8,23 @@ import { diffBundles } from "@/lib/graph/diff";
 import { SEVERITY_COLORS, maxSeverityBySubject } from "@/lib/graph/graph-types";
 import type { Severity } from "@/lib/graph/graph-types";
 
+/** Badge par type d'événement presse (GDELT) — distingue la tonalité défavorable. */
+function mediaBadge(
+  kind: string,
+): { label: string; className: string } | null {
+  if (kind === "couverture_media_defavorable")
+    return {
+      label: "Presse — défavorable",
+      className: "border border-amber/40 bg-amber/10 text-amber",
+    };
+  if (kind === "couverture_media")
+    return {
+      label: "Presse",
+      className: "border border-border bg-surface text-muted-foreground",
+    };
+  return null;
+}
+
 export default async function TimelineTab(props: {
   params: Promise<{ caseId: string }>;
 }) {
@@ -68,6 +85,7 @@ export default async function TimelineTab(props: {
         <ol className="mt-6 space-y-0">
           {events.map((ev, i) => {
             const sev = materialSev(ev.entityId);
+            const media = mediaBadge(ev.kind);
             return (
             <li key={ev.id} className="flex gap-4">
               <div className="flex flex-col items-center">
@@ -83,6 +101,13 @@ export default async function TimelineTab(props: {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{ev.title}</span>
                   <EvidenceBadge level={ev.evidenceLevel} />
+                  {media ? (
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${media.className}`}
+                    >
+                      {media.label}
+                    </span>
+                  ) : null}
                   {sev ? (
                     <span
                       className="rounded px-1.5 py-0.5 text-[10px] font-medium"
