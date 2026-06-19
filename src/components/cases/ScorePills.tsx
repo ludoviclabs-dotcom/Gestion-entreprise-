@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { SEVERITY_COLORS } from "@/lib/graph/graph-types";
 import type { CaseScores } from "@/lib/graph/graph-types";
@@ -48,41 +49,52 @@ function Pill({
   );
 }
 
+function linkable(node: ReactNode, href: string | undefined, title: string): ReactNode {
+  if (!href) return node;
+  return (
+    <Link
+      href={href}
+      className="rounded-lg transition hover:opacity-80"
+      title={title}
+      aria-label={title}
+    >
+      {node}
+    </Link>
+  );
+}
+
 /** Trois scores labellisés : complexité / vigilance / qualité de preuve. Jamais « fraude ». */
 export default function ScorePills({
   scores,
   size = "md",
   vigilanceHref,
+  complexiteHref,
+  qualiteHref,
 }: {
   scores: CaseScores;
   size?: "sm" | "md";
-  /** Si fourni, le score de vigilance devient cliquable vers sa décomposition (P3). */
+  /** Si fournis, les scores deviennent cliquables vers leur décomposition (P3). */
   vigilanceHref?: string;
+  complexiteHref?: string;
+  qualiteHref?: string;
 }) {
-  const vigilance = (
-    <Pill label="Vigilance" value={scores.vigilance} tone="risk" size={size} />
-  );
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Pill label="Complexité" value={scores.complexite} tone="risk" size={size} />
-      {vigilanceHref ? (
-        <Link
-          href={vigilanceHref}
-          className="rounded-lg transition hover:opacity-80"
-          title="Voir la composition du score de vigilance"
-          aria-label="Voir la composition du score de vigilance"
-        >
-          {vigilance}
-        </Link>
-      ) : (
-        vigilance
+      {linkable(
+        <Pill label="Complexité" value={scores.complexite} tone="risk" size={size} />,
+        complexiteHref,
+        "Voir la composition du score de complexité",
       )}
-      <Pill
-        label="Qualité de preuve"
-        value={scores.qualitePreuve}
-        tone="good"
-        size={size}
-      />
+      {linkable(
+        <Pill label="Vigilance" value={scores.vigilance} tone="risk" size={size} />,
+        vigilanceHref,
+        "Voir la composition du score de vigilance",
+      )}
+      {linkable(
+        <Pill label="Qualité de preuve" value={scores.qualitePreuve} tone="good" size={size} />,
+        qualiteHref,
+        "Voir la composition de la qualité de preuve",
+      )}
     </div>
   );
 }

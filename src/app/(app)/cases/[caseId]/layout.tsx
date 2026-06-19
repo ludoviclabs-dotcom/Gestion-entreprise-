@@ -81,6 +81,8 @@ export default async function CaseWorkspaceLayout(props: {
                 ? `/cases/${caseId}/risques#score-vigilance`
                 : undefined
             }
+            complexiteHref={`/cases/${caseId}/risques#score-complexite`}
+            qualiteHref={`/cases/${caseId}/risques#score-qualite`}
           />
           <ExportMenu caseId={caseId} />
         </div>

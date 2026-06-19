@@ -20,6 +20,8 @@ import type {
   SourceHealth,
   SourceRow,
 } from "@/lib/data/types";
+import type { MitigatingFactor } from "@/lib/risk/mitigating";
+import type { FaisceauResult, VigilanceContribution } from "@/lib/risk/engine";
 
 // Palette PDF — version contrastée pour impression (les tokens UI sombres
 // sont remplacés par des nuances claires lisibles sur fond blanc).
@@ -229,6 +231,9 @@ interface CaseReportProps {
   payloadHash: string;
   /** Mode de redaction appliqué à l'export (« persons » : personnes masquées). */
   redaction?: "persons" | "none";
+  mitigatingFactors?: MitigatingFactor[];
+  faisceau?: FaisceauResult;
+  vigilanceContributions?: VigilanceContribution[];
 }
 
 export function CaseReport({
@@ -241,6 +246,9 @@ export function CaseReport({
   generatedAt,
   payloadHash,
   redaction = "none",
+  mitigatingFactors = [],
+  faisceau,
+  vigilanceContributions = [],
 }: CaseReportProps) {
   const { case: c, entities, edges, events, riskSignals } = bundle;
 
@@ -413,6 +421,57 @@ export function CaseReport({
         ) : (
           riskSignals.map((s) => <SignalCard key={s.id} signal={s} />)
         )}
+
+        {/* Faisceau d'indices + décomposition vigilance */}
+        {faisceau ? (
+          <>
+            <Text style={styles.sectionTitle}>4 bis. Faisceau d&apos;indices</Text>
+            <Text style={styles.sectionHint}>
+              {faisceau.converged
+                ? `Faisceau constitué : ${faisceau.distinctFamilies} familles d'indices distinctes (seuil ${faisceau.k}) — à qualifier humainement.`
+                : `Faisceau non constitué : ${faisceau.distinctFamilies}/${faisceau.k} famille(s) d'indices. Un signal isolé n'est jamais une alerte.`}
+            </Text>
+            {vigilanceContributions.length > 0 ? (
+              <View style={styles.table}>
+                <View style={styles.tableHead}>
+                  <Text style={[styles.th, { flex: 3 }]}>Règle</Text>
+                  <Text style={[styles.th, { flex: 1, textAlign: "right" }]}>
+                    Points vigilance
+                  </Text>
+                </View>
+                {vigilanceContributions.map((co, i) => (
+                  <View key={`${co.ruleId}-${i}`} style={styles.tableRow}>
+                    <Text style={[styles.td, { flex: 3 }]}>{co.ruleId}</Text>
+                    <Text style={[styles.td, { flex: 1, textAlign: "right" }]}>
+                      +{co.points}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </>
+        ) : null}
+
+        {/* Facteurs atténuants */}
+        {mitigatingFactors.length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>4 ter. Facteurs atténuants</Text>
+            <Text style={styles.sectionHint}>
+              Éléments rassurants — une structure complexe n&apos;est pas
+              suspecte par nature.
+            </Text>
+            {mitigatingFactors.map((f) => (
+              <View key={f.id} style={styles.signalCard}>
+                <Text
+                  style={{ fontSize: 9, fontWeight: 700, color: PALETTE.emerald }}
+                >
+                  {f.label}
+                </Text>
+                <Text style={styles.signalText}>{f.detail}</Text>
+              </View>
+            ))}
+          </>
+        ) : null}
 
         {/* Sources */}
         <Text style={styles.sectionTitle}>5. Sources & provenance</Text>

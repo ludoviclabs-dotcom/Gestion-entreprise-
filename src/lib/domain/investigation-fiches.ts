@@ -129,6 +129,17 @@ export const INVESTIGATION_FICHES = {
     ],
     refs: ["CMF_L561_5", "AMLR"],
   },
+  COUVERTURE_MEDIA_DEFAVORABLE: {
+    documents: [
+      "Articles de presse cités (source, date, URL)",
+      "Réponse / position de l'entité concernée si disponible",
+    ],
+    incoherences: [
+      "Les articles concernent-ils bien l'entité (homonymie de nom) ?",
+      "La couverture est-elle corroborée par un fait vérifiable (procédure, sanction), ou seulement de l'opinion ?",
+    ],
+    refs: ["CMF_L561_5"],
+  },
   RELAIS_STRUCTUREL: {
     documents: [
       "Comptes annuels et effectif",

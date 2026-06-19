@@ -649,6 +649,46 @@ export const RESOLUTION_SANCTION: Rule = {
   },
 };
 
+// ── 14. COUVERTURE_MEDIA_DEFAVORABLE (presse défavorable, faisceau) ──
+
+/**
+ * Couverture médiatique DÉFAVORABLE concentrée sur une entité (≥ seuil
+ * d'articles à tonalité négative, GDELT). Famille « media ». JAMAIS une
+ * conclusion : un signal de faisceau à corroborer humainement — la convergence
+ * exige ≥ 2 familles distinctes, donc la presse seule ne déclenche pas d'alerte.
+ * Sévérité plafonnée à `medium`.
+ */
+export const COUVERTURE_MEDIA_DEFAVORABLE: Rule = {
+  id: "COUVERTURE_MEDIA_DEFAVORABLE",
+  label: "Couverture médiatique défavorable",
+  category: "vigilance",
+  evaluate(ctx) {
+    const { minAdverse } = ctx.thresholds.couvertureMedia;
+    const counts = new Map<string, number>();
+    for (const ev of ctx.bundle.events) {
+      if (ev.kind !== "couverture_media_defavorable") continue;
+      counts.set(ev.entityId, (counts.get(ev.entityId) ?? 0) + 1);
+    }
+    const signals: CaseRiskSignal[] = [];
+    let i = 0;
+    for (const [entityId, n] of counts) {
+      if (n < minAdverse) continue;
+      signals.push(
+        makeSignal(
+          this.id,
+          entityId,
+          "medium",
+          this.category,
+          `${n} article(s) de presse à tonalité défavorable rattaché(s) à cette entité — à examiner (jamais une conclusion ; à corroborer par d'autres familles d'indices).`,
+          String(i),
+        ),
+      );
+      i += 1;
+    }
+    return signals;
+  },
+};
+
 /** Catalogue par défaut, dans l'ordre d'évaluation. */
 export const DEFAULT_RULES: Rule[] = [
   DIRIGEANT_MULTI_SOCIETES,
@@ -664,4 +704,5 @@ export const DEFAULT_RULES: Rule[] = [
   CONCENTRATION_DOMICILIATION,
   CHAINE_DETENTION_OPAQUE,
   RESOLUTION_SANCTION,
+  COUVERTURE_MEDIA_DEFAVORABLE,
 ];
