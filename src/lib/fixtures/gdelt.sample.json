@@ -1,0 +1,22 @@
+{
+  "articles": [
+    {
+      "title": "Danone publie ses résultats trimestriels",
+      "url": "https://example-presse.fr/danone-resultats",
+      "domain": "example-presse.fr",
+      "seendate": "20260512T101500Z",
+      "tone": 0.8,
+      "language": "French",
+      "sourcecountry": "France"
+    },
+    {
+      "title": "Le secteur agroalimentaire face à l'inflation",
+      "url": "https://example-news.fr/agro-inflation",
+      "domain": "example-news.fr",
+      "seendate": "20260410T080000Z",
+      "tone": -1.2,
+      "language": "French",
+      "sourcecountry": "France"
+    }
+  ]
+}

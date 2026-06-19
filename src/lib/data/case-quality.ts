@@ -60,6 +60,7 @@ function sourceFromText(text: string | undefined): SourceKind | null {
   if (haystack.includes("vies") || haystack.includes("tva intracommunautaire")) {
     return "vies";
   }
+  if (haystack.includes("gdelt") || haystack.includes("presse")) return "gdelt";
   return null;
 }
 

@@ -9,6 +9,7 @@ import {
   isGleifEnabled,
   isViesEnabled,
   isBanEnabled,
+  isGdeltEnabled,
 } from "@/lib/env";
 
 /**
@@ -94,6 +95,17 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isBanEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "BAN_ENABLED non activé → fixture.",
+    },
+    {
+      key: "gdelt",
+      label: "Presse (GDELT)",
+      live: !demo && isGdeltEnabled(),
+      detail:
+        !demo && isGdeltEnabled()
+          ? "Couverture médiatique (adverse media) en temps réel."
+          : isGdeltEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "GDELT_ENABLED non activé → fixture.",
     },
     {
       key: "vies",

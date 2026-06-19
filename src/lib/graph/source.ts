@@ -8,5 +8,6 @@ export type SourceKind =
   | "gleif"
   | "vies"
   | "ban"
+  | "gdelt"
   | "manual"
   | "fixture";

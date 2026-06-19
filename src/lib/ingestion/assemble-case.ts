@@ -9,6 +9,7 @@ import { openSanctions } from "@/lib/connectors/opensanctions";
 import { gleif } from "@/lib/connectors/gleif";
 import { vies } from "@/lib/connectors/vies";
 import { ban, banAddressFrom } from "@/lib/connectors/ban";
+import { gdelt } from "@/lib/connectors/gdelt";
 import { isDemoMode } from "@/lib/env";
 import { normalizeSirene, sireneAddress } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
@@ -16,6 +17,7 @@ import { normalizeInpi } from "./normalize-inpi";
 import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
 import { normalizeGleif } from "./normalize-gleif";
+import { normalizeGdelt } from "./normalize-gdelt";
 import { buildGraph } from "@/lib/graph/build-graph";
 import { computeRisk } from "@/lib/risk/engine";
 import { payloadHash } from "@/lib/audit/hash-chain";
@@ -191,6 +193,15 @@ export async function assembleCase(
     }
   }
 
+  // GDELT — couverture médiatique (presse). Après construction des entités :
+  // appariement nominatif au graphe (résolution d'entité), faisceau via revue
+  // humaine. Gaté : en live, un connecteur désactivé ne pollue pas le dossier.
+  const gdeltRes = await gdelt.byName(sireneNorm.denomination ?? `SIREN ${siren}`);
+  sources.push(toSource("gdelt", gdeltRes));
+  const mediaEvents = usableResult(gdeltRes)
+    ? normalizeGdelt(gdeltRes.raw, { subjectId: companyId, entities })
+    : [];
+
   const bundle: CaseBundle = {
     case: {
       id: siren,
@@ -199,7 +210,7 @@ export async function assembleCase(
     },
     entities,
     edges,
-    events,
+    events: [...events, ...mediaEvents],
     riskSignals: [],
     ...(declaredUbo.length > 0 ? { declaredUbo } : {}),
   };

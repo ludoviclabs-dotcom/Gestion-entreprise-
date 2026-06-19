@@ -410,6 +410,26 @@ Le connecteur renvoie la fixture. Avec le flag **et** `NEXT_PUBLIC_DEMO_MODE=fal
 
 ---
 
+## 9️⃣ quinquies · GDELT — presse / adverse media (optionnel)
+
+**Effet** : interroge la presse mondiale par nom d'entité (API GDELT DOC 2.0, ouverte) et rattache les articles aux entités du graphe en **événements « couverture médiatique »** (visibles dans la timeline). L'appariement nominatif réutilise le moteur de résolution d'entité ; un article à tonalité négative (`tone ≤ -3`, si fournie) est marqué *défavorable*.
+
+> **Compute-first, faisceau, jamais d'alerte isolée.** On horodate et on source des articles existants — aucune génération narrative. Les événements sont **surfacés pour examen humain** ; aucune conclusion automatique n'est tirée (une règle de faisceau dédiée pourra suivre). Niveau de preuve `inferred` (presse, pas un registre).
+
+### Variable à poser
+
+Aucune clé requise — API publique. Juste un flag d'activation :
+
+```dotenv
+GDELT_ENABLED=true
+```
+
+### Sans flag
+
+Le connecteur renvoie la fixture. Avec le flag **et** `NEXT_PUBLIC_DEMO_MODE=false`, il interroge `https://api.gdeltproject.org/api/v2/doc/doc?query="<nom>"&mode=artlist&format=json`.
+
+---
+
 ## 🔟 Sentry — observabilité
 
 **Effet** : capture les erreurs front + serveur en prod (stack traces, breadcrumbs, contexte requête). Sans Sentry, une erreur 500 reste invisible.
@@ -592,6 +612,7 @@ curl -i -H "Authorization: Bearer $CRON_SECRET" \
 | `GLEIF_ENABLED=true` | Sociétés mères transfrontalières (LEI) | optionnel | flag |
 | `VIES_ENABLED=true` | Validation TVA intracommunautaire | optionnel | flag |
 | `BAN_ENABLED=true` | Normalisation/géocodage des adresses | optionnel | flag |
+| `GDELT_ENABLED=true` | Presse / adverse media | optionnel | flag |
 | `DATABASE_URL` | Persistance Neon | Étape 2.1 | Vercel Marketplace ou neon.tech |
 | `DATABASE_URL_UNPOOLED` | Migrations + transactions | Étape 2.1 | idem |
 | `SENTRY_DSN` | Observabilité | Étape 1.5 | sentry.io |
