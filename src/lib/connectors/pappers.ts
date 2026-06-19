@@ -55,14 +55,18 @@ export const pappers = {
         isFixture: true,
       };
     }
-    const url =
+    // Le token d'API ne doit JAMAIS être persisté : `endpoint` est enregistré
+    // dans source_records + le journal de preuve, et affiché par l'inspecteur de
+    // provenance / les rapports. On passe donc `api_token` en query pour l'appel
+    // réel (méthode d'auth Pappers), mais on enregistre un endpoint SANS le token.
+    const endpoint =
       `${env.PAPPERS_BASE_URL}/entreprise` +
       `?siren=${encodeURIComponent(siren)}` +
-      `&api_token=${env.PAPPERS_API_KEY}` +
       `&extrait_kbis=0&publications_bodacc=0`;
+    const url = `${endpoint}&api_token=${env.PAPPERS_API_KEY}`;
     try {
       const { data, status } = await fetchJson<PappersResult>(url, { limiter });
-      return { raw: data, endpoint: url, httpStatus: status, isFixture: false };
+      return { raw: data, endpoint, httpStatus: status, isFixture: false };
     } catch (error) {
       Sentry.captureException(error);
       return {
@@ -73,7 +77,7 @@ export const pappers = {
           beneficiaires_effectifs: [],
           finances: [],
         },
-        endpoint: `${url} (exception)`,
+        endpoint: `${endpoint} (exception)`,
         httpStatus: 0,
         isFixture: false,
       };
