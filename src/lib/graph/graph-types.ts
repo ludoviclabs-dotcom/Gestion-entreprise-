@@ -251,6 +251,8 @@ export const RULE_FAMILY: Record<string, RuleFamily> = {
   RELAIS_STRUCTUREL: "structure",
   CONCENTRATION_DOMICILIATION: "adresse",
   CHAINE_DETENTION_OPAQUE: "capital",
+  // Rapprochement nominatif post-résolution d'entités
+  RESOLUTION_SANCTION: "sanctions",
 };
 
 /** Famille d'un signal d'après son `ruleId` (défaut : « structure »). */
