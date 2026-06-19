@@ -8,6 +8,8 @@ import type {
 } from "@/lib/graph/graph-types";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
 import { compareDeclaredUbo, parsePct } from "@/lib/graph/ubo";
+import { normalizeName, stripLegalForms } from "@/lib/match/normalize";
+import { denominationSimilarity } from "@/lib/match/similarity";
 import type { Rule } from "./types";
 
 // ── Utilitaires partagés ─────────────────────────────────────────────────
@@ -571,6 +573,82 @@ export const CHAINE_DETENTION_OPAQUE: Rule = {
   },
 };
 
+// ── 13. RESOLUTION_SANCTION (rapprochement nominatif hors lien de graphe) ──
+
+/** Nom affiché d'une entité sanction (« Correspondance « X » » → « X »). */
+function sanctionDisplayName(label: string): string {
+  const m = /«\s*(.+?)\s*»/.exec(label);
+  return m ? m[1] : label;
+}
+/**
+ * Nombre de tokens DISCRIMINANTS (longueur > 1, formes juridiques retirées)
+ * partagés entre deux noms. On strippe les formes pour que « ≥ 2 tokens
+ * significatifs » exige réellement deux discriminants (pas un sigle générique).
+ */
+function sharedTokenCount(a: string, b: string): number {
+  const setA = new Set(stripLegalForms(a).split(" ").filter((t) => t.length > 1));
+  const setB = new Set(stripLegalForms(b).split(" ").filter((t) => t.length > 1));
+  let n = 0;
+  for (const t of setA) if (setB.has(t)) n += 1;
+  return n;
+}
+
+/**
+ * Rapproche une société/personne d'une entité signalée (sanction/PEP) par
+ * IDENTITÉ DE NOM, lorsqu'aucun lien de graphe ne les relie déjà (les paires
+ * adjacentes sont couvertes par PROXIMITE_SANCTION). Après résolution
+ * d'entités, ferme le faux négatif où un dirigeant porte le nom d'une personne
+ * signalée sans arête directe.
+ *
+ * Garde-fou anti-homonymie : ≥ 2 tokens significatifs partagés ET similarité
+ * ≥ 0.92. Le flou est plafonné à `medium` (homonymie probable) ; seul un nom
+ * strictement identique après normalisation atteint `high`.
+ */
+export const RESOLUTION_SANCTION: Rule = {
+  id: "RESOLUTION_SANCTION",
+  label: "Rapprochement nominatif d'une entité signalée",
+  category: "vigilance",
+  evaluate(ctx) {
+    const sanctions = ctx.bundle.entities.filter((e) => e.type === "sanction");
+    if (sanctions.length === 0) return [];
+
+    const adjacent = new Set<string>();
+    for (const e of ctx.bundle.edges) {
+      adjacent.add(`${e.source}|${e.target}`);
+      adjacent.add(`${e.target}|${e.source}`);
+    }
+
+    const signals: CaseRiskSignal[] = [];
+    let i = 0;
+    for (const entity of ctx.bundle.entities) {
+      if (entity.type !== "company" && entity.type !== "person") continue;
+      for (const s of sanctions) {
+        if (adjacent.has(`${entity.id}|${s.id}`)) continue;
+        const name = sanctionDisplayName(s.label);
+        const sim = denominationSimilarity(entity.label, name);
+        if (sim < 0.92 || sharedTokenCount(entity.label, name) < 2) continue;
+        // « high » réservé à un nom STRICTEMENT identique après normalisation
+        // (sans retirer la forme juridique : une SAS ≠ une LTD). Sinon medium.
+        const exact = normalizeName(entity.label) === normalizeName(name);
+        signals.push(
+          makeSignal(
+            this.id,
+            entity.id,
+            exact ? "high" : "medium",
+            this.category,
+            `${entity.label} présente un rapprochement nominatif (≈ ${Math.round(
+              sim * 100,
+            )} %) avec une entité signalée « ${name} ». Homonymie possible — à vérifier sur les identifiants (date de naissance, références UE/ONU).`,
+            String(i),
+          ),
+        );
+        i += 1;
+      }
+    }
+    return signals;
+  },
+};
+
 /** Catalogue par défaut, dans l'ordre d'évaluation. */
 export const DEFAULT_RULES: Rule[] = [
   DIRIGEANT_MULTI_SOCIETES,
@@ -585,4 +663,5 @@ export const DEFAULT_RULES: Rule[] = [
   RELAIS_STRUCTUREL,
   CONCENTRATION_DOMICILIATION,
   CHAINE_DETENTION_OPAQUE,
+  RESOLUTION_SANCTION,
 ];

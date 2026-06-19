@@ -7,6 +7,9 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   inpi: "INPI / RNE",
   tresor_gels: "DG Tresor - gels",
   opensanctions: "OpenSanctions",
+  gleif: "GLEIF / LEI",
+  vies: "VIES (TVA UE)",
+  ban: "Base Adresse Nationale",
   manual: "Manuel",
   fixture: "Fixture",
 };

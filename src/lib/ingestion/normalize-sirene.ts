@@ -1,4 +1,5 @@
 import type { CaseEntity, CaseEdge } from "@/lib/graph/graph-types";
+import type { BanAddress } from "@/lib/connectors/ban";
 import { slugify } from "@/lib/text";
 
 type SirenePeriode = {
@@ -35,6 +36,57 @@ const FORMES: Record<string, string> = {
 };
 const ETATS: Record<string, string> = { A: "Active", C: "Cessée" };
 
+/**
+ * Libellés NAF/APE des codes les plus fréquents (lisibilité). La nomenclature
+ * NAF 2025 fait évoluer ces codes au 1ᵉʳ janvier 2027 : enrichir alors la table
+ * de correspondance (anticipation de format). Fallback : code brut.
+ */
+const NAF_LABELS: Record<string, string> = {
+  "1051A": "Fabrication de lait liquide et de produits frais",
+  "6420Z": "Activités des sociétés holding",
+  "7010Z": "Activités des sièges sociaux",
+  "7022Z": "Conseil pour les affaires et autres conseils de gestion",
+  "6810Z": "Activités des marchands de biens immobiliers",
+  "6820A": "Location de logements",
+  "6831Z": "Agences immobilières",
+};
+
+/** Libellé NAF « code — intitulé » si connu, sinon le code brut. */
+function nafLabel(code: string): string {
+  const key = code.replace(/[.\s]/g, "").toUpperCase();
+  return NAF_LABELS[key] ? `${code} — ${NAF_LABELS[key]}` : code;
+}
+
+/** Adresse du siège extraite de la réponse établissement Sirene (libellé + composants). */
+export type SireneAddress = {
+  label: string;
+  postcode: string | null;
+  city: string | null;
+};
+
+export function sireneAddress(etabRaw: unknown): SireneAddress | null {
+  const adr = (etabRaw as SireneEtabResponse).etablissement?.adresseEtablissement;
+  if (!adr) return null;
+  const ligne = [
+    adr.numeroVoieEtablissement,
+    adr.typeVoieEtablissement,
+    adr.libelleVoieEtablissement,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const commune = [adr.codePostalEtablissement, adr.libelleCommuneEtablissement]
+    .filter(Boolean)
+    .join(" ");
+  const label = [ligne, commune].filter(Boolean).join(", ");
+  if (!label) return null;
+  return {
+    label,
+    postcode: adr.codePostalEtablissement ?? null,
+    city: adr.libelleCommuneEtablissement ?? null,
+  };
+}
+
 export type SireneNormalized = {
   siren: string;
   companyId: string;
@@ -47,6 +99,7 @@ export type SireneNormalized = {
 export function normalizeSirene(
   uniteLegaleRaw: unknown,
   etabRaw: unknown,
+  banAddress?: BanAddress | null,
 ): SireneNormalized {
   const ul = (uniteLegaleRaw as SireneULResponse).uniteLegale ?? {};
   const siren = ul.siren ?? "";
@@ -62,7 +115,7 @@ export function normalizeSirene(
   if (siren) companyAttrs["SIREN"] = siren;
   if (forme) companyAttrs["Forme juridique"] = forme;
   if (period.activitePrincipaleUniteLegale)
-    companyAttrs["Activité (NAF)"] = period.activitePrincipaleUniteLegale;
+    companyAttrs["Activité (NAF)"] = nafLabel(period.activitePrincipaleUniteLegale);
   if (ul.dateCreationUniteLegale)
     companyAttrs["Création"] = ul.dateCreationUniteLegale;
   if (period.etatAdministratifUniteLegale)
@@ -83,46 +136,45 @@ export function normalizeSirene(
   ];
   const edges: CaseEdge[] = [];
 
-  const adr = (etabRaw as SireneEtabResponse).etablissement?.adresseEtablissement;
-  if (adr) {
-    const ligne = [
-      adr.numeroVoieEtablissement,
-      adr.typeVoieEtablissement,
-      adr.libelleVoieEtablissement,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
-    const commune = [adr.codePostalEtablissement, adr.libelleCommuneEtablissement]
-      .filter(Boolean)
-      .join(" ");
-    const label = [ligne, commune].filter(Boolean).join(", ");
-    if (label) {
-      const addressId = `ad:${slugify(label)}`;
-      const addrAttrs: Record<string, string> = { Pays: "France" };
-      if (adr.codePostalEtablissement)
-        addrAttrs["Code postal"] = adr.codePostalEtablissement;
-      if (adr.libelleCommuneEtablissement)
-        addrAttrs["Commune"] = adr.libelleCommuneEtablissement;
-      entities.push({
-        id: addressId,
-        type: "address",
-        label,
-        evidenceLevel: "declared",
-        attributes: addrAttrs,
-        source: "INSEE Sirene — adresse du siège",
-        excerpt: "Adresse du siège déclarée.",
-      });
-      edges.push({
-        id: `e:${companyId}:${addressId}`,
-        type: "PARTAGE_ADRESSE",
-        source: companyId,
-        target: addressId,
-        label: "siège",
-        evidenceLevel: "declared",
-        excerpt: "Siège social déclaré à cette adresse.",
-      });
+  const sa = sireneAddress(etabRaw);
+  if (sa) {
+    // BAN prioritaire si le géocodage est confiant : clé d'adresse CANONIQUE
+    // (deux sociétés au même lieu → même nœud) + coordonnées. Sinon repli sur le
+    // slug du libellé Sirene (comportement historique).
+    const useBan = banAddress != null && banAddress.score >= 0.5;
+    const addressId = useBan ? `ad:ban:${banAddress.id}` : `ad:${slugify(sa.label)}`;
+    const label = useBan && banAddress.label ? banAddress.label : sa.label;
+    const postcode = (useBan ? banAddress.postcode : sa.postcode) ?? sa.postcode;
+    const city = (useBan ? banAddress.city : sa.city) ?? sa.city;
+    const addrAttrs: Record<string, string> = { Pays: "France" };
+    if (postcode) addrAttrs["Code postal"] = postcode;
+    if (city) addrAttrs["Commune"] = city;
+    if (useBan && banAddress.lat != null && banAddress.lon != null) {
+      addrAttrs["Coordonnées"] = `${banAddress.lat.toFixed(5)}, ${banAddress.lon.toFixed(5)}`;
+      addrAttrs["Référence BAN"] = banAddress.id;
     }
+    entities.push({
+      id: addressId,
+      type: "address",
+      label,
+      evidenceLevel: "declared",
+      attributes: addrAttrs,
+      source: useBan
+        ? "Base Adresse Nationale (siège normalisé)"
+        : "INSEE Sirene — adresse du siège",
+      excerpt: useBan
+        ? "Adresse du siège normalisée via la Base Adresse Nationale."
+        : "Adresse du siège déclarée.",
+    });
+    edges.push({
+      id: `e:${companyId}:${addressId}`,
+      type: "PARTAGE_ADRESSE",
+      source: companyId,
+      target: addressId,
+      label: "siège",
+      evidenceLevel: "declared",
+      excerpt: "Siège social déclaré à cette adresse.",
+    });
   }
 
   return {

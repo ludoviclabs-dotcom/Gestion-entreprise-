@@ -6,6 +6,9 @@ import {
   hasOpenSanctionsKey,
   hasInpiCreds,
   isInpiUboExposed,
+  isGleifEnabled,
+  isViesEnabled,
+  isBanEnabled,
 } from "@/lib/env";
 
 /**
@@ -69,6 +72,39 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : hasOpenSanctionsKey()
             ? "Clé posée — actif dès la sortie du mode démo."
             : "OPENSANCTIONS_API_KEY non posée → fixture.",
+    },
+    {
+      key: "gleif",
+      label: "GLEIF / LEI",
+      live: !demo && isGleifEnabled(),
+      detail:
+        !demo && isGleifEnabled()
+          ? "Sociétés mères transfrontalières (référentiel LEI)."
+          : isGleifEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "GLEIF_ENABLED non activé → fixture.",
+    },
+    {
+      key: "ban",
+      label: "Base Adresse Nationale",
+      live: !demo && isBanEnabled(),
+      detail:
+        !demo && isBanEnabled()
+          ? "Normalisation/géocodage des adresses en temps réel."
+          : isBanEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "BAN_ENABLED non activé → fixture.",
+    },
+    {
+      key: "vies",
+      label: "VIES (TVA UE)",
+      live: !demo && isViesEnabled(),
+      detail:
+        !demo && isViesEnabled()
+          ? "Validation TVA intracommunautaire en temps réel."
+          : isViesEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "VIES_ENABLED non activé → fixture.",
     },
     {
       key: "inpi",

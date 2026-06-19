@@ -110,6 +110,7 @@ const KNOWN_FACTOR_IDS = new Set([
   "AUCUNE_ENTITE_SIGNALEE",
   "PAS_DE_PROCEDURE",
   "ANCIENNETE_ETABLIE",
+  "TVA_INTRACOM_ACTIVE",
 ]);
 
 function baseBundle(): CaseBundle {

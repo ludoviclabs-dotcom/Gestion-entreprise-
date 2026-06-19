@@ -118,6 +118,17 @@ export const INVESTIGATION_FICHES = {
     ],
     refs: ["CMF_L561_5", "AMLR"],
   },
+  RESOLUTION_SANCTION: {
+    documents: [
+      "Pièce d'identité (date de naissance, nationalité)",
+      "Références de la mesure signalée (UE/ONU) et identifiants officiels",
+    ],
+    incoherences: [
+      "S'agit-il d'une homonymie ? (comparer date de naissance et identifiants officiels, pas seulement le nom)",
+      "Le rapprochement nominatif est-il corroboré par un autre élément (adresse, mandat, nationalité) ?",
+    ],
+    refs: ["CMF_L561_5", "AMLR"],
+  },
   RELAIS_STRUCTUREL: {
     documents: [
       "Comptes annuels et effectif",

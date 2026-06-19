@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [2.331, 48.872] },
+      "properties": {
+        "label": "17 Boulevard Haussmann 75009 Paris",
+        "score": 0.96,
+        "id": "75109_4673_00017",
+        "name": "17 Boulevard Haussmann",
+        "postcode": "75009",
+        "citycode": "75109",
+        "city": "Paris",
+        "context": "75, Paris, Île-de-France",
+        "type": "housenumber"
+      }
+    }
+  ]
+}
