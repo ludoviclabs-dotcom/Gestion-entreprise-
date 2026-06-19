@@ -70,7 +70,7 @@ export const fixtureCases: FixtureCase[] = [
     bundle: domiciliationConcentrationBundle,
     status: "ready",
     updatedAt: "2026-06-12T14:00:00.000Z",
-    sources: demoSources("sirene", "ban", "inpi"),
+    sources: demoSources("sirene", "ban", "inpi", "bodacc"),
   },
   {
     bundle: adverseMediaBundle,
