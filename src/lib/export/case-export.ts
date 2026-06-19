@@ -2,7 +2,13 @@ import { createHash } from "node:crypto";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
 import { CaseReport } from "@/components/reports/CaseReport";
-import { SCORE_MODEL_VERSION } from "@/lib/risk/engine";
+import {
+  SCORE_MODEL_VERSION,
+  computeConvergence,
+  explainVigilance,
+} from "@/lib/risk/engine";
+import { computeMitigatingFactors } from "@/lib/risk/mitigating";
+import { DEFAULT_THRESHOLDS } from "@/lib/risk/types";
 import { env } from "@/lib/env";
 import { redactCaseDetail, type RedactionMode } from "./redaction";
 import type {
@@ -79,12 +85,28 @@ export function buildExportMeta(
   };
 }
 
+/**
+ * Analytique dérivée d'un dossier pour les exports (facteurs atténuants,
+ * faisceau, décomposition vigilance). `now` dérivé de la date d'export →
+ * déterministe pour un export donné. N'altère pas le payloadHash (calculé sur
+ * bundle + evidence + generatedAt uniquement).
+ */
+export function buildCaseAnalytics(detail: CaseDetail, now: Date) {
+  const signals = detail.bundle.riskSignals;
+  return {
+    mitigatingFactors: computeMitigatingFactors(detail.bundle, now),
+    faisceau: computeConvergence(signals, DEFAULT_THRESHOLDS.convergence.k),
+    vigilance: explainVigilance(signals),
+  };
+}
+
 /** Manifeste JSON d'audit (forme de la route export/json + mode de redaction). */
 export function buildManifest(
   detail: CaseDetail,
   meta: ExportMeta,
   redaction: RedactionMode = "none",
 ) {
+  const analytics = buildCaseAnalytics(detail, new Date(meta.generatedAt));
   return {
     generator: "KYB Graph",
     scoreModelVersion: SCORE_MODEL_VERSION,
@@ -97,6 +119,9 @@ export function buildManifest(
     bundle: detail.bundle,
     sources: detail.sources,
     evidence: detail.evidence,
+    mitigatingFactors: analytics.mitigatingFactors,
+    faisceau: analytics.faisceau,
+    vigilanceBreakdown: analytics.vigilance,
   };
 }
 
@@ -106,6 +131,7 @@ export async function renderCasePdf(
   meta: ExportMeta,
   redaction: RedactionMode = "none",
 ): Promise<Buffer> {
+  const analytics = buildCaseAnalytics(detail, new Date(meta.generatedAt));
   return renderToBuffer(
     CaseReport({
       bundle: detail.bundle,
@@ -117,6 +143,9 @@ export async function renderCasePdf(
       generatedAt: meta.generatedAt,
       payloadHash: meta.payloadHash,
       redaction,
+      mitigatingFactors: analytics.mitigatingFactors,
+      faisceau: analytics.faisceau,
+      vigilanceContributions: analytics.vigilance.contributions,
     }),
   );
 }
