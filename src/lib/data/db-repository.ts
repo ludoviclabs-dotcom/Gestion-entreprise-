@@ -524,7 +524,13 @@ export class DbCasesRepository implements CasesRepository {
           const a = ent.attributes ?? {};
           await db.insert(companies).values({
             entityId: row.id,
-            siren: (a["SIREN"] ?? "").replace(/\s/g, "") || siren,
+            // Le SIREN racine ne sert de repli QUE pour la société sujet : une
+            // société sans SIREN propre (ex. mère étrangère GLEIF, LEI seul) ne
+            // doit pas hériter du SIREN racine (corromprait la recherche). On
+            // retombe alors sur son LEI, sinon l'identifiant du nœud.
+            siren:
+              (a["SIREN"] ?? "").replace(/\s/g, "") ||
+              (ent.id === `co:${siren}` ? siren : (a["LEI"] ?? row.id)),
             denomination: ent.label,
             formeJuridique: a["Forme juridique"] ?? null,
             nafCode: a["Activité (NAF)"]?.split(/\s|—/)[0] ?? null,

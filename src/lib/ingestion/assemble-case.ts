@@ -9,12 +9,15 @@ import { openSanctions } from "@/lib/connectors/opensanctions";
 import { gleif } from "@/lib/connectors/gleif";
 import { vies } from "@/lib/connectors/vies";
 import { ban, banAddressFrom } from "@/lib/connectors/ban";
+import { gdelt } from "@/lib/connectors/gdelt";
+import { isDemoMode } from "@/lib/env";
 import { normalizeSirene, sireneAddress } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
 import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
 import { normalizeGleif } from "./normalize-gleif";
+import { normalizeGdelt } from "./normalize-gdelt";
 import { buildGraph } from "@/lib/graph/build-graph";
 import { computeRisk } from "@/lib/risk/engine";
 import { payloadHash } from "@/lib/audit/hash-chain";
@@ -41,6 +44,16 @@ function dedupeById<T extends { id: string }>(items: T[]): T[] {
 }
 
 /**
+ * En mode LIVE, un connecteur désactivé (flag à false) renvoie sa fixture
+ * (`isFixture:true`). On ne doit JAMAIS enrichir un dossier réel avec ces données
+ * d'échantillon (LEI / TVA / adresse Danone) : un résultat n'est exploité que
+ * s'il est réel, OU si l'on est en mode démo (où la fixture EST la donnée voulue).
+ */
+function usableResult(r: { isFixture: boolean }): boolean {
+  return isDemoMode() || !r.isFixture;
+}
+
+/**
  * Orchestre les connecteurs (Sirene + BODACC + INPI + gels), normalise et fusionne
  * en un CaseBundle prêt pour le graphe. Renvoie aussi les source_records pour
  * persistance ultérieure (Phase 2 DB). En mode démo, tout vient des fixtures.
@@ -61,7 +74,7 @@ export async function assembleCase(
   // → clustering de domiciliation fiable (ADRESSE_PARTAGEE/CONCENTRATION).
   const banRes = await ban.geocode(sireneAddress(etab.raw)?.label ?? "");
   sources.push(toSource("ban", banRes));
-  const banAddr = banAddressFrom(banRes.raw);
+  const banAddr = usableResult(banRes) ? banAddressFrom(banRes.raw) : null;
 
   const sireneNorm = normalizeSirene(ul.raw, etab.raw, banAddr);
   const companyId = sireneNorm.companyId;
@@ -126,13 +139,17 @@ export async function assembleCase(
   // Arêtes DETIENT structurelles (sans %, GLEIF ne publie pas de participations).
   const gleifRes = await gleif.bySiren(siren);
   sources.push(toSource("gleif", gleifRes));
-  const gleifNorm = normalizeGleif(gleifRes.raw, companyId);
+  const gleifNorm = usableResult(gleifRes)
+    ? normalizeGleif(gleifRes.raw, companyId)
+    : { entities: [], edges: [], subjectLei: null };
 
   // VIES — validation de la TVA intracommunautaire (corroboration d'identité,
   // pas un signal de risque : un `valid:false` est neutre pour une PME domestique).
   const viesRes = await vies.validateFr(siren);
   sources.push(toSource("vies", viesRes));
-  const viesData = viesRes.raw as { vatNumber?: string | null; valid?: boolean | null };
+  const viesData = usableResult(viesRes)
+    ? (viesRes.raw as { vatNumber?: string | null; valid?: boolean | null })
+    : { vatNumber: null, valid: null };
 
   const entities: CaseEntity[] = dedupeById([
     ...sireneNorm.entities,
@@ -176,6 +193,15 @@ export async function assembleCase(
     }
   }
 
+  // GDELT — couverture médiatique (presse). Après construction des entités :
+  // appariement nominatif au graphe (résolution d'entité), faisceau via revue
+  // humaine. Gaté : en live, un connecteur désactivé ne pollue pas le dossier.
+  const gdeltRes = await gdelt.byName(sireneNorm.denomination ?? `SIREN ${siren}`);
+  sources.push(toSource("gdelt", gdeltRes));
+  const mediaEvents = usableResult(gdeltRes)
+    ? normalizeGdelt(gdeltRes.raw, { subjectId: companyId, entities })
+    : [];
+
   const bundle: CaseBundle = {
     case: {
       id: siren,
@@ -184,7 +210,7 @@ export async function assembleCase(
     },
     entities,
     edges,
-    events,
+    events: [...events, ...mediaEvents],
     riskSignals: [],
     ...(declaredUbo.length > 0 ? { declaredUbo } : {}),
   };

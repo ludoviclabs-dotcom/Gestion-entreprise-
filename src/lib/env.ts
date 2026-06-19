@@ -40,6 +40,9 @@ const serverSchema = z.object({
   // BAN — Base Adresse Nationale (géocodage/normalisation, sans clé). Opt-in.
   BAN_ENABLED: z.enum(["true", "false"]).default("false"),
   BAN_BASE_URL: z.string().default("https://api-adresse.data.gouv.fr"),
+  // GDELT — presse / adverse media (API DOC 2.0 ouverte, sans clé). Opt-in.
+  GDELT_ENABLED: z.enum(["true", "false"]).default("false"),
+  GDELT_BASE_URL: z.string().default("https://api.gdeltproject.org/api/v2"),
   // Résolution d'entités : `builtin` (TS in-process, défaut) ou `splink`
   // (sidecar Python probabiliste, à raccorder). Cf. resolver-backend.ts.
   RESOLVER_BACKEND: z.enum(["builtin", "splink"]).default("builtin"),
@@ -63,6 +66,7 @@ export const isTresorGelsEnabled = (): boolean => env.TRESOR_GELS_ENABLED === "t
 export const isGleifEnabled = (): boolean => env.GLEIF_ENABLED === "true";
 export const isViesEnabled = (): boolean => env.VIES_ENABLED === "true";
 export const isBanEnabled = (): boolean => env.BAN_ENABLED === "true";
+export const isGdeltEnabled = (): boolean => env.GDELT_ENABLED === "true";
 export const hasOpenSanctionsKey = (): boolean =>
   Boolean(env.OPENSANCTIONS_API_KEY);
 export const hasInpiCreds = (): boolean =>
