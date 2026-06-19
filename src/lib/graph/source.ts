@@ -5,5 +5,8 @@ export type SourceKind =
   | "inpi"
   | "tresor_gels"
   | "opensanctions"
+  | "gleif"
+  | "vies"
+  | "ban"
   | "manual"
   | "fixture";

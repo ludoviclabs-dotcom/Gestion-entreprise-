@@ -32,9 +32,12 @@ export const sourceKind = pgEnum("source_kind", [
   "inpi",
   "tresor_gels",
   "opensanctions",
+  "gleif",
+  "vies",
+  "ban",
   "manual",
   "fixture",
-]);
+]); // étendu au fil des connecteurs (cf. drizzle/ migrations)
 
 export const caseStatus = pgEnum("case_status", [
   "draft",

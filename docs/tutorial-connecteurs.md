@@ -344,6 +344,72 @@ INPI_EXPOSE_UBO=false
 
 ---
 
+## 9️⃣ bis · GLEIF / LEI — sociétés mères transfrontalières (optionnel)
+
+**Effet** : à partir du SIREN, retrouve le **LEI** du sujet (référentiel mondial GLEIF) et ses **sociétés mères de consolidation** (mère directe + mère ultime, niveau 2). Enrichit le nœud société racine d'un attribut `LEI` et ajoute les mères transfrontalières au graphe (arêtes `DETIENT` **structurelles**).
+
+> ⚠️ GLEIF publie des relations de **consolidation comptable, sans pourcentage**. Les arêtes issues de GLEIF n'ont donc pas de `%` exploitable : elles enrichissent la **structure** du graphe et les règles structurelles (boucles, centralité), mais ne pèsent pas dans la cascade `computeUbo`. C'est cohérent et honnête : « A est consolidée par B », sans participation chiffrée déclarée.
+
+### Variable à poser
+
+Aucune clé requise — API ouverte (licence **CC0**). Juste un flag d'activation :
+
+```dotenv
+GLEIF_ENABLED=true
+```
+
+### Sans flag
+
+Le connecteur renvoie la fixture (LEI DANONE, sans mère). Avec le flag **et** `NEXT_PUBLIC_DEMO_MODE=false`, il interroge `https://api.gleif.org/api/v1` : recherche par `entity.registeredAs=<siren>`, puis `direct-parent` / `ultimate-parent`. SIREN sans LEI (cas fréquent des PME) → résultat vide silencieux.
+
+### Quotas
+
+- API publique sans authentification, quotas généreux. Le rate limiter intégré plafonne à 50 req/min.
+
+---
+
+## 9️⃣ ter · VIES — validation TVA intracommunautaire (optionnel)
+
+**Effet** : dérive le n° de TVA intracommunautaire français du SIREN (clé = `(12 + 3·(SIREN mod 97)) mod 97`) et le **valide** auprès de VIES (Commission UE). Enrichit le nœud société racine des attributs `TVA intracommunautaire` + `Statut TVA (VIES)`. Une TVA **active** ajoute un **facteur atténuant** (corroboration d'identité).
+
+> ⚠️ **Validation, pas détection.** Un statut `inactive` n'est **pas** un signal de risque : beaucoup de PME purement domestiques ne sont pas enregistrées à la TVA intracommunautaire. La détection de carrousel (T2) relève de la couche transactionnelle, pas de ce connecteur.
+
+> On appelle **VIES directement** : `api-entreprise` ne fait que l'encapsuler et reste réservée aux administrations.
+
+### Variable à poser
+
+Aucune clé requise — API REST publique. Juste un flag d'activation :
+
+```dotenv
+VIES_ENABLED=true
+```
+
+### Sans flag
+
+Le connecteur renvoie la fixture. Avec le flag **et** `NEXT_PUBLIC_DEMO_MODE=false`, il interroge `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/FR/vat/<num>`. SIREN non dérivable / API indisponible → statut `indéterminée` (jamais une fausse alerte).
+
+---
+
+## 9️⃣ quater · BAN — normalisation d'adresse & domiciliation (optionnel)
+
+**Effet** : normalise/géocode l'adresse du siège via la **Base Adresse Nationale**. Le nœud `Adresse` est alors keyé sur l'**identifiant BAN canonique** (`ad:ban:<id>`) + coordonnées. C'est ce qui rend le **clustering de domiciliation fiable** : deux sociétés au même lieu partagent le même nœud, même si Sirene écrit « 17 BD HAUSSMANN » d'un côté et « 17 boulevard Haussmann » de l'autre. Les règles `ADRESSE_PARTAGEE` et `CONCENTRATION_DOMICILIATION` (déjà présentes) deviennent exploitables.
+
+> Repli : si le géocodage n'est pas confiant (score < 0,5) ou que BAN est indisponible, on retombe sur le slug du libellé Sirene (comportement historique). Aucune régression.
+
+### Variable à poser
+
+Aucune clé requise — API publique. Juste un flag d'activation :
+
+```dotenv
+BAN_ENABLED=true
+```
+
+### Sans flag
+
+Le connecteur renvoie la fixture. Avec le flag **et** `NEXT_PUBLIC_DEMO_MODE=false`, il interroge `https://api-adresse.data.gouv.fr/search/?q=<adresse>&limit=1`.
+
+---
+
 ## 🔟 Sentry — observabilité
 
 **Effet** : capture les erreurs front + serveur en prod (stack traces, breadcrumbs, contexte requête). Sans Sentry, une erreur 500 reste invisible.
@@ -523,6 +589,9 @@ curl -i -H "Authorization: Bearer $CRON_SECRET" \
 | `INPI_EXPOSE_UBO=true` | Affiche les UBO réels (après auth + log) | optionnel, défaut off | flag (CJUE) |
 | `TRESOR_GELS_ENABLED=true` | DG Trésor live | optionnel | flag |
 | `OPENSANCTIONS_API_KEY` | Quotas OpenSanctions | optionnel | opensanctions.org |
+| `GLEIF_ENABLED=true` | Sociétés mères transfrontalières (LEI) | optionnel | flag |
+| `VIES_ENABLED=true` | Validation TVA intracommunautaire | optionnel | flag |
+| `BAN_ENABLED=true` | Normalisation/géocodage des adresses | optionnel | flag |
 | `DATABASE_URL` | Persistance Neon | Étape 2.1 | Vercel Marketplace ou neon.tech |
 | `DATABASE_URL_UNPOOLED` | Migrations + transactions | Étape 2.1 | idem |
 | `SENTRY_DSN` | Observabilité | Étape 1.5 | sentry.io |

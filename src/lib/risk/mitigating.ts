@@ -1,4 +1,4 @@
-import type { CaseBundle } from "@/lib/graph/graph-types";
+import type { CaseBundle, CaseEntity } from "@/lib/graph/graph-types";
 import { compareDeclaredUbo } from "@/lib/graph/ubo";
 
 /**
@@ -33,14 +33,19 @@ function parseDate(raw: string | undefined | null): Date | null {
   return null;
 }
 
-function rootCompanyCreation(bundle: CaseBundle): Date | null {
+/** Société sujet du dossier (racine SIREN, sinon première société). */
+function rootCompany(bundle: CaseBundle): CaseEntity | null {
   const digits = (s: string | undefined) => (s ?? "").replace(/\D/g, "");
   const rootDigits = digits(bundle.case.rootSiren);
   const companies = bundle.entities.filter((e) => e.type === "company");
   const root = rootDigits
     ? companies.find((c) => digits(c.attributes?.SIREN) === rootDigits)
     : undefined;
-  const subject = root ?? companies[0];
+  return root ?? companies[0] ?? null;
+}
+
+function rootCompanyCreation(bundle: CaseBundle): Date | null {
+  const subject = rootCompany(bundle);
   if (!subject) return null;
   const a = subject.attributes ?? {};
   return parseDate(a["Création"] ?? a["Date de création"] ?? a["dateCreation"]);
@@ -121,6 +126,20 @@ export function computeMitigatingFactors(
         detail: `Société sujet créée il y a ${Math.floor(years)} ans — antériorité établie.`,
       });
     }
+  }
+
+  // 6. TVA intracommunautaire active (VIES) — corroboration d'identité (jamais
+  // un signal de risque : une TVA inactive est neutre pour une PME domestique).
+  const subject = rootCompany(bundle);
+  if (subject?.attributes?.["Statut TVA (VIES)"] === "active") {
+    const num = subject.attributes["TVA intracommunautaire"];
+    factors.push({
+      id: "TVA_INTRACOM_ACTIVE",
+      label: "TVA intracommunautaire active",
+      detail: `Numéro de TVA intracommunautaire validé et actif au registre VIES${
+        num ? ` (${num})` : ""
+      }.`,
+    });
   }
 
   return factors;

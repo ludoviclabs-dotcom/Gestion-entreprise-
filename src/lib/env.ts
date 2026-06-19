@@ -28,6 +28,22 @@ const serverSchema = z.object({
   OPENSANCTIONS_API_KEY: z.string().optional(),
   OPENSANCTIONS_BASE_URL: z.string().default("https://api.opensanctions.org"),
   OPENSANCTIONS_DATASET: z.string().default("sanctions"),
+  // GLEIF — référentiel LEI ouvert (CC0, sans clé). Opt-in explicite (comme
+  // TRESOR_GELS) : activer pour récupérer les sociétés mères transfrontalières.
+  GLEIF_ENABLED: z.enum(["true", "false"]).default("false"),
+  GLEIF_BASE_URL: z.string().default("https://api.gleif.org/api/v1"),
+  // VIES — validation TVA intracommunautaire (Commission UE, sans clé). Opt-in.
+  VIES_ENABLED: z.enum(["true", "false"]).default("false"),
+  VIES_BASE_URL: z
+    .string()
+    .default("https://ec.europa.eu/taxation_customs/vies/rest-api"),
+  // BAN — Base Adresse Nationale (géocodage/normalisation, sans clé). Opt-in.
+  BAN_ENABLED: z.enum(["true", "false"]).default("false"),
+  BAN_BASE_URL: z.string().default("https://api-adresse.data.gouv.fr"),
+  // Résolution d'entités : `builtin` (TS in-process, défaut) ou `splink`
+  // (sidecar Python probabiliste, à raccorder). Cf. resolver-backend.ts.
+  RESOLVER_BACKEND: z.enum(["builtin", "splink"]).default("builtin"),
+  SPLINK_BASE_URL: z.string().optional(),
   // Gate optionnelle des routes d'export (même esprit que CRON_SECRET) :
   // si défini, les exports exigent ?token=<valeur>. Non défini → public
   // (garde-fou « mode démo zéro-clé » intact). L'auth utilisateur réelle
@@ -44,6 +60,9 @@ export function isDemoMode(): boolean {
 
 export const hasSireneKey = (): boolean => Boolean(env.INSEE_SIRENE_API_KEY);
 export const isTresorGelsEnabled = (): boolean => env.TRESOR_GELS_ENABLED === "true";
+export const isGleifEnabled = (): boolean => env.GLEIF_ENABLED === "true";
+export const isViesEnabled = (): boolean => env.VIES_ENABLED === "true";
+export const isBanEnabled = (): boolean => env.BAN_ENABLED === "true";
 export const hasOpenSanctionsKey = (): boolean =>
   Boolean(env.OPENSANCTIONS_API_KEY);
 export const hasInpiCreds = (): boolean =>
