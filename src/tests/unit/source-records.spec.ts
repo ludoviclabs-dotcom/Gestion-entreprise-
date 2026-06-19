@@ -39,7 +39,7 @@ describe("enregistrements source (inspecteur de preuve)", () => {
     const summary = await repo.createCaseFromSiren("552032534");
     const records = await repo.getSourceRecords(summary.id);
 
-    expect(records).toHaveLength(10); // Sirene ×2, BAN, BODACC, INPI, gels, OpenSanctions, GLEIF, VIES, GDELT
+    expect(records).toHaveLength(11); // Sirene ×2, BAN, BODACC, INPI, gels, OpenSanctions, GLEIF, VIES, GDELT, Pappers
     for (const record of records) {
       expect(record.payload).toBeDefined();
       expect(record.payloadHash).toMatch(HEX64);

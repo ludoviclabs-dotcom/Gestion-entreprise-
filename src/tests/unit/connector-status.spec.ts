@@ -11,9 +11,9 @@ describe("getConnectorStatuses", () => {
   const statuses = getConnectorStatuses();
   const byKey = Object.fromEntries(statuses.map((s) => [s.key, s]));
 
-  it("couvre les 10 connecteurs attendus", () => {
+  it("couvre les 11 connecteurs attendus", () => {
     expect(statuses.map((s) => s.key).sort()).toEqual(
-      ["ban", "bodacc", "database", "gdelt", "gleif", "inpi", "opensanctions", "sirene", "tresor", "vies"].sort(),
+      ["ban", "bodacc", "database", "gdelt", "gleif", "inpi", "opensanctions", "pappers", "sirene", "tresor", "vies"].sort(),
     );
   });
 

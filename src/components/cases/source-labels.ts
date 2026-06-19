@@ -11,6 +11,7 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   vies: "VIES (TVA UE)",
   ban: "Base Adresse Nationale",
   gdelt: "Presse (GDELT)",
+  pappers: "Pappers",
   manual: "Manuel",
   fixture: "Fixture",
 };
