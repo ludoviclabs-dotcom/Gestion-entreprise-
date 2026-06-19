@@ -53,6 +53,13 @@ function sourceFromText(text: string | undefined): SourceKind | null {
     return "tresor_gels";
   }
   if (haystack.includes("opensanctions")) return "opensanctions";
+  if (haystack.includes("gleif")) return "gleif";
+  if (haystack.includes("adresse nationale") || haystack.includes("(ban)")) {
+    return "ban";
+  }
+  if (haystack.includes("vies") || haystack.includes("tva intracommunautaire")) {
+    return "vies";
+  }
   return null;
 }
 

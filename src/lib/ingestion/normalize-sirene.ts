@@ -173,6 +173,9 @@ export function normalizeSirene(
       target: addressId,
       label: "siège",
       evidenceLevel: "declared",
+      // Le LIEN « siège » est déclaré au Sirene (même si le NŒUD adresse est
+      // normalisé par la BAN) → provenance Sirene pour l'inspecteur de preuve.
+      sourceLabel: "INSEE Sirene — siège",
       excerpt: "Siège social déclaré à cette adresse.",
     });
   }
