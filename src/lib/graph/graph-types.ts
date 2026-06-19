@@ -23,7 +23,8 @@ export type RuleFamily =
   | "adresse"
   | "evenement"
   | "sanctions"
-  | "structure";
+  | "structure"
+  | "media";
 export type LayerKey =
   | "gouvernance"
   | "capital"
@@ -230,6 +231,7 @@ export const RULE_FAMILY_LABELS: Record<RuleFamily, string> = {
   evenement: "Événements juridiques",
   sanctions: "Sanctions & PEP",
   structure: "Structure du réseau",
+  media: "Couverture médiatique",
 };
 
 /**
@@ -253,6 +255,8 @@ export const RULE_FAMILY: Record<string, RuleFamily> = {
   CHAINE_DETENTION_OPAQUE: "capital",
   // Rapprochement nominatif post-résolution d'entités
   RESOLUTION_SANCTION: "sanctions",
+  // Couverture médiatique défavorable (GDELT)
+  COUVERTURE_MEDIA_DEFAVORABLE: "media",
 };
 
 /** Famille d'un signal d'après son `ruleId` (défaut : « structure »). */

@@ -46,6 +46,8 @@ export interface Thresholds {
   concentrationDomiciliation: { minCompanies: number; recentMonths: number };
   /** Chaîne opaque : nb min de liens DETIENT sans % exploitable. */
   chaineDetentionOpaque: { minMissing: number };
+  /** Presse défavorable : nb min d'articles à tonalité négative par entité. */
+  couvertureMedia: { minAdverse: number };
 }
 
 export const DEFAULT_THRESHOLDS: Thresholds = {
@@ -61,4 +63,6 @@ export const DEFAULT_THRESHOLDS: Thresholds = {
   relaisStructurel: { betweenness: 0.35, recentMonths: 18 },
   concentrationDomiciliation: { minCompanies: 3, recentMonths: 24 },
   chaineDetentionOpaque: { minMissing: 2 },
+  // Presse seule jamais alarmante : ce signal n'alerte qu'en faisceau (≥ 2 familles).
+  couvertureMedia: { minAdverse: 2 },
 };

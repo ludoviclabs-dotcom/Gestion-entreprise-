@@ -18,6 +18,7 @@ import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
 import { normalizeGleif } from "./normalize-gleif";
 import { normalizeGdelt } from "./normalize-gdelt";
+import { getEntityResolver } from "./resolver-backend";
 import { buildGraph } from "@/lib/graph/build-graph";
 import { computeRisk } from "@/lib/risk/engine";
 import { payloadHash } from "@/lib/audit/hash-chain";
@@ -193,13 +194,24 @@ export async function assembleCase(
     }
   }
 
-  // GDELT — couverture médiatique (presse). Après construction des entités :
-  // appariement nominatif au graphe (résolution d'entité), faisceau via revue
-  // humaine. Gaté : en live, un connecteur désactivé ne pollue pas le dossier.
+  // Résolution d'entité : dédoublonnage INTER-SOURCES (une même société/personne
+  // vue par Sirene, INPI et GLEIF est fusionnée ; arêtes re-pointées vers l'id
+  // canonique, preuve la plus forte conservée ; lignée tracée par attribut).
+  // Indispensable pour des métriques structurelles (degré, centralité, UBO) non
+  // biaisées par des doublons. Seam builtin/splink (RESOLVER_BACKEND).
+  const { entities: resolvedEntities, edges: resolvedEdges } =
+    await getEntityResolver().resolve({ entities, edges });
+
+  // GDELT — couverture médiatique (presse). Après résolution : appariement
+  // nominatif au graphe canonique, faisceau via revue humaine. Gaté : en live,
+  // un connecteur désactivé ne pollue pas le dossier.
   const gdeltRes = await gdelt.byName(sireneNorm.denomination ?? `SIREN ${siren}`);
   sources.push(toSource("gdelt", gdeltRes));
   const mediaEvents = usableResult(gdeltRes)
-    ? normalizeGdelt(gdeltRes.raw, { subjectId: companyId, entities })
+    ? normalizeGdelt(gdeltRes.raw, {
+        subjectId: companyId,
+        entities: resolvedEntities,
+      })
     : [];
 
   const bundle: CaseBundle = {
@@ -208,8 +220,8 @@ export async function assembleCase(
       title: sireneNorm.denomination ?? `SIREN ${siren}`,
       rootSiren: siren,
     },
-    entities,
-    edges,
+    entities: resolvedEntities,
+    edges: resolvedEdges,
     events: [...events, ...mediaEvents],
     riskSignals: [],
     ...(declaredUbo.length > 0 ? { declaredUbo } : {}),
