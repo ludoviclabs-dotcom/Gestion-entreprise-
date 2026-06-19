@@ -10,6 +10,7 @@ import {
   isViesEnabled,
   isBanEnabled,
   isGdeltEnabled,
+  isPappersEnabled,
 } from "@/lib/env";
 
 /**
@@ -128,6 +129,17 @@ export function getConnectorStatuses(): ConnectorStatus[] {
             ? "Dirigeants + bénéficiaires effectifs en temps réel."
             : "Dirigeants en temps réel (UBO masqués — garde-fou CJUE)."
           : "Credentials INPI non posés → fixture.",
+    },
+    {
+      key: "pappers",
+      label: "Pappers",
+      live: !demo && isPappersEnabled(),
+      detail:
+        !demo && isPappersEnabled()
+          ? "Identité + bilans financiers en temps réel."
+          : isPappersEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "PAPPERS_API_KEY non posée → fixture.",
     },
     {
       key: "database",

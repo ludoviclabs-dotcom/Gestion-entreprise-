@@ -1,0 +1,31 @@
+{
+  "siren": "552032534",
+  "nom_entreprise": "DANONE",
+  "forme_juridique": "SA à conseil d'administration",
+  "date_creation": "1899-01-01",
+  "capital": 162779200,
+  "statut_rcs": "Inscrit",
+  "siege": {
+    "adresse_ligne_1": "17 BOULEVARD HAUSSMANN",
+    "code_postal": "75009",
+    "ville": "PARIS 9"
+  },
+  "dirigeants": [
+    {
+      "nom": "FABER",
+      "prenom": "Emmanuel",
+      "qualite": "Président-directeur général",
+      "date_de_naissance_formate": "1963"
+    }
+  ],
+  "beneficiaires_effectifs": [],
+  "finances": [
+    {
+      "annee": 2022,
+      "chiffre_affaires": 27659000000,
+      "resultat_net": 423000000,
+      "capitaux_propres": 14300000000,
+      "effectif": 96000
+    }
+  ]
+}

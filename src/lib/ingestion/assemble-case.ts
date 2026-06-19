@@ -10,6 +10,7 @@ import { gleif } from "@/lib/connectors/gleif";
 import { vies } from "@/lib/connectors/vies";
 import { ban, banAddressFrom } from "@/lib/connectors/ban";
 import { gdelt } from "@/lib/connectors/gdelt";
+import { pappers } from "@/lib/connectors/pappers";
 import { isDemoMode } from "@/lib/env";
 import { normalizeSirene, sireneAddress } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
@@ -18,6 +19,7 @@ import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
 import { normalizeGleif } from "./normalize-gleif";
 import { normalizeGdelt } from "./normalize-gdelt";
+import { normalizePappers } from "./normalize-pappers";
 import { getEntityResolver } from "./resolver-backend";
 import { buildGraph } from "@/lib/graph/build-graph";
 import { computeRisk } from "@/lib/risk/engine";
@@ -210,6 +212,16 @@ export async function assembleCase(
         entities: resolvedEntities,
       })
     : [];
+
+  // Pappers — comptes annuels (CA, résultat net, capitaux propres) du dernier
+  // exercice publié. Enrichit le nœud société CANONIQUE en place (la
+  // normalisation mute `subject.attributes`, comme LEI/TVA). Gaté par
+  // usableResult : aucun enrichissement d'un dossier réel avec la fixture.
+  const pappersRes = await pappers.bySiren(siren);
+  sources.push(toSource("pappers", pappersRes));
+  if (usableResult(pappersRes)) {
+    normalizePappers(pappersRes.raw, canonicalSubjectId, resolvedEntities);
+  }
 
   // Re-pointer les événements (BODACC) vers les ids canoniques après résolution.
   const resolvedEvents = events.map((e) => ({

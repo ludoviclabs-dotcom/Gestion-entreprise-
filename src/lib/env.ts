@@ -43,6 +43,11 @@ const serverSchema = z.object({
   // GDELT — presse / adverse media (API DOC 2.0 ouverte, sans clé). Opt-in.
   GDELT_ENABLED: z.enum(["true", "false"]).default("false"),
   GDELT_BASE_URL: z.string().default("https://api.gdeltproject.org/api/v2"),
+  // Pappers — agrégateur commercial (identité + dirigeants + bilans financiers).
+  // Plan gratuit : 2 000 appels/mois. Opt-in clé API.
+  PAPPERS_ENABLED: z.enum(["true", "false"]).default("false"),
+  PAPPERS_API_KEY: z.string().optional(),
+  PAPPERS_BASE_URL: z.string().default("https://api.pappers.fr/v2"),
   // Résolution d'entités : `builtin` (TS in-process, défaut) ou `splink`
   // (sidecar Python probabiliste, à raccorder). Cf. resolver-backend.ts.
   RESOLVER_BACKEND: z.enum(["builtin", "splink"]).default("builtin"),
@@ -67,6 +72,8 @@ export const isGleifEnabled = (): boolean => env.GLEIF_ENABLED === "true";
 export const isViesEnabled = (): boolean => env.VIES_ENABLED === "true";
 export const isBanEnabled = (): boolean => env.BAN_ENABLED === "true";
 export const isGdeltEnabled = (): boolean => env.GDELT_ENABLED === "true";
+export const isPappersEnabled = (): boolean =>
+  env.PAPPERS_ENABLED === "true" && Boolean(env.PAPPERS_API_KEY);
 export const hasOpenSanctionsKey = (): boolean =>
   Boolean(env.OPENSANCTIONS_API_KEY);
 export const hasInpiCreds = (): boolean =>

@@ -70,8 +70,8 @@ describe("journal de preuve (Étape 3.4 audit_logs)", () => {
     const events = await repo.listProofEvents(summary.id);
 
     expect(events[0]?.kind).toBe("dossier_cree");
-    // assembleCase : Sirene UL + établissement, BAN, BODACC, INPI, gels, OpenSanctions, GLEIF, VIES, GDELT.
-    expect(events.filter((e) => e.kind === "source_consultee")).toHaveLength(10);
+    // assembleCase : Sirene UL + établissement, BAN, BODACC, INPI, gels, OpenSanctions, GLEIF, VIES, GDELT, Pappers.
+    expect(events.filter((e) => e.kind === "source_consultee")).toHaveLength(11);
     expect(events.some((e) => e.kind === "risque_calcule")).toBe(true);
     expect(verifyChain(events)).toEqual({ ok: true });
   });
