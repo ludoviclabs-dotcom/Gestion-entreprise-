@@ -26,11 +26,12 @@ export function findDuplicateTransactions(txns: Transaction[]): DuplicateGroup[]
   const out: DuplicateGroup[] = [];
   for (const [key, transactions] of groups) {
     if (transactions.length >= 2) {
-      const [amountStr, counterparty] = key.split("|");
+      const amountStr = key.split("|")[0];
       out.push({
         key,
         amount: Number(amountStr),
-        counterparty,
+        // Casse d'origine pour l'affichage (la clé de regroupement reste normalisée).
+        counterparty: transactions[0]?.counterparty ?? key.split("|")[1] ?? "",
         transactions,
       });
     }

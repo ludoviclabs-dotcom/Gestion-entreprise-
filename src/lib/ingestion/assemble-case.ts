@@ -1,4 +1,4 @@
-import type { CaseBundle, CaseEntity, CaseEdge } from "@/lib/graph/graph-types";
+import type { CaseBundle } from "@/lib/graph/graph-types";
 import type { ConnectorResult, SourceRecordInput } from "@/lib/connectors/types";
 import type { SourceKind } from "@/lib/graph/source";
 import { sirene } from "@/lib/connectors/sirene";
@@ -152,34 +152,41 @@ export async function assembleCase(
     ? (viesRes.raw as { vatNumber?: string | null; valid?: boolean | null })
     : { vatNumber: null, valid: null };
 
-  const entities: CaseEntity[] = dedupeById([
-    ...sireneNorm.entities,
-    ...inpiNorm.entities,
-    ...gleifNorm.entities,
-    ...gelsNorm.entities,
-    ...osNorm.entities,
-  ]);
-  const edges: CaseEdge[] = dedupeById([
-    ...sireneNorm.edges,
-    ...inpiNorm.edges,
-    ...gleifNorm.edges,
-    ...gelsNorm.edges,
-    ...osNorm.edges,
-  ]);
+  // Résolution d'entité : dédoublonnage INTER-SOURCES (une même société/personne
+  // vue par Sirene, INPI et GLEIF est fusionnée ; arêtes re-pointées vers l'id
+  // canonique, preuve la plus forte conservée). AVANT enrichissement/GDELT :
+  // l'id du sujet peut devenir un id canonique différent → on le remappe via
+  // l'idMap. Indispensable pour des métriques (degré, centralité, UBO) non
+  // biaisées par des doublons. Seam builtin/splink (RESOLVER_BACKEND).
+  const resolved = await getEntityResolver().resolve({
+    entities: dedupeById([
+      ...sireneNorm.entities,
+      ...inpiNorm.entities,
+      ...gleifNorm.entities,
+      ...gelsNorm.entities,
+      ...osNorm.entities,
+    ]),
+    edges: dedupeById([
+      ...sireneNorm.edges,
+      ...inpiNorm.edges,
+      ...gleifNorm.edges,
+      ...gelsNorm.edges,
+      ...osNorm.edges,
+    ]),
+  });
+  const resolvedEntities = resolved.entities;
+  const resolvedEdges = resolved.edges;
+  const remapId = (id: string): string => resolved.idMap[id] ?? id;
+  const canonicalSubjectId = remapId(companyId);
 
-  // Enrichissement du nœud société racine avec son LEI (GLEIF). Le nœud Sirene
-  // est prioritaire (dédupliqué en premier) → on lui ajoute l'attribut LEI.
-  if (gleifNorm.subjectLei) {
-    const subject = entities.find((e) => e.id === companyId);
-    if (subject) {
+  // Enrichissement LEI (GLEIF) + TVA (VIES) sur le nœud société CANONIQUE (après
+  // résolution) → survit quel que soit le membre retenu comme entité canonique.
+  const subject = resolvedEntities.find((e) => e.id === canonicalSubjectId);
+  if (subject) {
+    if (gleifNorm.subjectLei) {
       subject.attributes = { ...subject.attributes, LEI: gleifNorm.subjectLei };
     }
-  }
-
-  // Enrichissement TVA intracommunautaire (VIES) sur le nœud société racine.
-  if (viesData.vatNumber) {
-    const subject = entities.find((e) => e.id === companyId);
-    if (subject) {
+    if (viesData.vatNumber) {
       const statut =
         viesData.valid === true
           ? "active"
@@ -194,25 +201,21 @@ export async function assembleCase(
     }
   }
 
-  // Résolution d'entité : dédoublonnage INTER-SOURCES (une même société/personne
-  // vue par Sirene, INPI et GLEIF est fusionnée ; arêtes re-pointées vers l'id
-  // canonique, preuve la plus forte conservée ; lignée tracée par attribut).
-  // Indispensable pour des métriques structurelles (degré, centralité, UBO) non
-  // biaisées par des doublons. Seam builtin/splink (RESOLVER_BACKEND).
-  const { entities: resolvedEntities, edges: resolvedEdges } =
-    await getEntityResolver().resolve({ entities, edges });
-
-  // GDELT — couverture médiatique (presse). Après résolution : appariement
-  // nominatif au graphe canonique, faisceau via revue humaine. Gaté : en live,
-  // un connecteur désactivé ne pollue pas le dossier.
+  // GDELT — couverture médiatique (presse), appariée au graphe CANONIQUE.
   const gdeltRes = await gdelt.byName(sireneNorm.denomination ?? `SIREN ${siren}`);
   sources.push(toSource("gdelt", gdeltRes));
   const mediaEvents = usableResult(gdeltRes)
     ? normalizeGdelt(gdeltRes.raw, {
-        subjectId: companyId,
+        subjectId: canonicalSubjectId,
         entities: resolvedEntities,
       })
     : [];
+
+  // Re-pointer les événements (BODACC) vers les ids canoniques après résolution.
+  const resolvedEvents = events.map((e) => ({
+    ...e,
+    entityId: remapId(e.entityId),
+  }));
 
   const bundle: CaseBundle = {
     case: {
@@ -222,7 +225,7 @@ export async function assembleCase(
     },
     entities: resolvedEntities,
     edges: resolvedEdges,
-    events: [...events, ...mediaEvents],
+    events: [...resolvedEvents, ...mediaEvents],
     riskSignals: [],
     ...(declaredUbo.length > 0 ? { declaredUbo } : {}),
   };

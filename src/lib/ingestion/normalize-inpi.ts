@@ -38,7 +38,9 @@ export function normalizeInpi(
     if (d.type === "personne_morale" || (d.denomination && !d.nom)) {
       const denom = d.denomination?.trim();
       if (!denom) continue;
-      const id = d.siren ? `co:${d.siren}` : `co:${slugify(denom)}`;
+      const id = d.siren
+        ? `co:${d.siren.replace(/\s+/g, "")}`
+        : `co:${slugify(denom)}`;
       pushUnique(entities, {
         id,
         type: "company",

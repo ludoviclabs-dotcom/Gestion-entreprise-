@@ -8,6 +8,7 @@ import {
   type TransactionReport,
 } from "@/lib/risk/transactional";
 import { findSharedIbans, isValidIban, normalizeIban } from "@/lib/iban";
+import { parseAmount } from "@/lib/transactions/parse";
 import BenfordChart from "./BenfordChart";
 
 type Analysis = {
@@ -16,16 +17,6 @@ type Analysis = {
   sharedIbans: { iban: string; entityIds: string[] }[];
   ibanStats: { withIban: number; valid: number };
 };
-
-function parseAmount(raw: unknown): number {
-  if (typeof raw === "number") return raw;
-  const s = String(raw ?? "")
-    .replace(/\s/g, "")
-    .replace(/[^0-9,.-]/g, "")
-    .replace(",", ".");
-  const v = Number.parseFloat(s);
-  return Number.isFinite(v) ? v : Number.NaN;
-}
 
 function pick(row: Record<string, unknown>, keys: string[]): string | undefined {
   const lower: Record<string, unknown> = {};
