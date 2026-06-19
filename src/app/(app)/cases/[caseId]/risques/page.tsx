@@ -22,6 +22,7 @@ import { computeStructuralIndicators } from "@/lib/risk/indicators";
 import { buildGraph } from "@/lib/graph/build-graph";
 import IndicatorsPanel from "@/components/cases/IndicatorsPanel";
 import ScoreDetails from "@/components/cases/ScoreDetails";
+import UboCascadeChart from "@/components/cases/UboCascadeChart";
 import { DEFAULT_RULES } from "@/lib/risk/rules";
 import { DEFAULT_THRESHOLDS } from "@/lib/risk/types";
 import { isDemoMode, isInpiUboExposed } from "@/lib/env";
@@ -127,6 +128,9 @@ export default async function RisquesTab(props: {
             ecartExplanation={ecartSignal?.explanation}
             ecartHistory={ecartHistory}
           />
+          <div className="mt-4">
+            <UboCascadeChart owners={ubo} showNames={showUboNames} />
+          </div>
           <AlgorithmExplainer id="detention-indirecte" />
           <AlgorithmExplainer id="ecart-ubo" />
         </div>
