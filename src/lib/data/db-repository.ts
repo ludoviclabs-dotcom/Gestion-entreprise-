@@ -15,7 +15,7 @@ import {
 } from "@/lib/db/schema";
 import { assembleCase } from "@/lib/ingestion/assemble-case";
 import { countSignalsByFamilySeverity } from "@/lib/graph/graph-types";
-import { fixtureCasesById } from "@/lib/fixtures/cases";
+import { fixtureCases, fixtureCasesById } from "@/lib/fixtures/cases";
 import { seedJournalFor } from "@/lib/audit/fixture-journal";
 import {
   buildCreationProofEvents,
@@ -190,7 +190,7 @@ export class DbCasesRepository implements CasesRepository {
     const list =
       (rows as unknown as { rows?: Row[] }).rows ?? (rows as unknown as Row[]);
 
-    return list.map((r) => {
+    const dbSummaries: CaseSummary[] = list.map((r) => {
       const scores = {
         complexite: r.score_complexite ?? undefined,
         vigilance: r.score_vigilance ?? undefined,
@@ -231,6 +231,43 @@ export class DbCasesRepository implements CasesRepository {
         updatedAt,
       };
     });
+
+    // Fusionne les dossiers de DÉMONSTRATION (fixtures) — `getCase` les sert déjà
+    // par leur slug (id non-UUID), on les expose donc aussi dans la liste, SANS
+    // rien écrire en base. Dédoublonnage par SIREN : un vrai dossier en base
+    // masque la fixture de même SIREN (évite un doublon réel/démo, ex. DANONE).
+    const dbSirens = new Set(dbSummaries.map((s) => s.rootSiren));
+    const fixtureSummaries: CaseSummary[] = fixtureCases
+      .filter((fc) => !dbSirens.has(fc.bundle.case.rootSiren))
+      .map((fc) => {
+        const sourceHealth = getSourceHealth(fc.sources);
+        const scores = fc.bundle.case.scores ?? {};
+        return {
+          id: fc.bundle.case.id,
+          title: fc.bundle.case.title,
+          rootSiren: fc.bundle.case.rootSiren,
+          status: fc.status,
+          origin: sourceHealth.origin,
+          scoreStatus: getScoreStatus(scores, fc.status),
+          sourceHealth,
+          scores,
+          counts: {
+            entities: fc.bundle.entities.length,
+            edges: fc.bundle.edges.length,
+            signalsHigh: fc.bundle.riskSignals.filter((s) => s.severity === "high")
+              .length,
+          },
+          signalsByFamilySeverity: countSignalsByFamilySeverity(
+            fc.bundle.riskSignals,
+          ),
+          lastRunAt: fc.updatedAt,
+          updatedAt: fc.updatedAt,
+        };
+      });
+
+    return [...dbSummaries, ...fixtureSummaries].sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt),
+    );
   }
 
   async getCase(id: string): Promise<CaseDetail | null> {
