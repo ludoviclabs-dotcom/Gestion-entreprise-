@@ -7,6 +7,9 @@ import { procedureCollectiveBundle } from "./procedure-collective";
 import { reseauMultiDirigeantsBundle } from "./reseau-multi-dirigeants";
 import { holdingUboBundle } from "./holding-ubo";
 import { brouillonBundle } from "./brouillon";
+import { sanctionsTransfrontalierBundle } from "./sanctions-transfrontalier";
+import { domiciliationConcentrationBundle } from "./domiciliation-concentration";
+import { adverseMediaBundle } from "./adverse-media";
 
 export type FixtureCase = {
   bundle: CaseBundle;
@@ -56,6 +59,24 @@ export const fixtureCases: FixtureCase[] = [
     status: "ready",
     updatedAt: "2026-05-22T14:30:00.000Z",
     sources: demoSources("sirene", "inpi"),
+  },
+  {
+    bundle: sanctionsTransfrontalierBundle,
+    status: "ready",
+    updatedAt: "2026-06-10T09:30:00.000Z",
+    sources: demoSources("sirene", "inpi", "gleif", "opensanctions"),
+  },
+  {
+    bundle: domiciliationConcentrationBundle,
+    status: "ready",
+    updatedAt: "2026-06-12T14:00:00.000Z",
+    sources: demoSources("sirene", "ban", "inpi"),
+  },
+  {
+    bundle: adverseMediaBundle,
+    status: "ready",
+    updatedAt: "2026-06-14T11:45:00.000Z",
+    sources: demoSources("sirene", "inpi", "gdelt", "ban"),
   },
   {
     bundle: brouillonBundle,
