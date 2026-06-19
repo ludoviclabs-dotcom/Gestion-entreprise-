@@ -8,12 +8,14 @@ import {
   Settings,
   Network,
   BriefcaseBusiness,
+  Coins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/cases", label: "Dossiers", icon: FolderOpen },
+  { href: "/transactions", label: "Transactions", icon: Coins },
   { href: "/secteurs", label: "Secteurs 2026", icon: BriefcaseBusiness },
   { href: "/reglages", label: "Réglages", icon: Settings },
 ];
