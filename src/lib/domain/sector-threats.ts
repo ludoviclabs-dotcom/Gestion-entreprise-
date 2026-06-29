@@ -34,6 +34,31 @@ const TRACFIN = {
   url: "https://www.economie.gouv.fr/tracfin/les-publications-de-tracfin/les-rapports-dactivite-et-danalyse",
 };
 
+const WIRECARD = {
+  label: "Wirecard, 1,9 Md EUR introuvables",
+  url: "https://www.theguardian.com/business/2020/jun/22/german-payments-firm-wirecard-says-missing-19bn-may-not-exist",
+};
+
+const EU_RUSSIA_SANCTIONS_2025 = {
+  label: "UE, sanctions flotte fantome 2025",
+  url: "https://www.theguardian.com/world/2025/oct/23/latest-eu-sanctions-against-russia-target-liquified-natural-gas",
+};
+
+const GUNVOR = {
+  label: "Gunvor, accord anticorruption 661 M USD",
+  url: "https://apnews.com/article/3470a90b5c66e1e774509b4ad8f950d7",
+};
+
+const VERIZON_DBIR = {
+  label: "Verizon DBIR 2026",
+  url: "https://www.verizon.com/business/resources/reports/dbir/",
+};
+
+const CHANGE_HEALTHCARE = {
+  label: "Change Healthcare, environ 190 M personnes",
+  url: "https://www.tomsguide.com/computing/online-security/over-190-million-hit-in-unitedhealth-data-breach-confirmed-largest-in-history",
+};
+
 const ENISA = {
   label: "ENISA Threat Landscape 2025",
   url: "https://www.enisa.europa.eu/sites/default/files/2025-10/ENISA%20Threat%20Landscape%202025%20Booklet.pdf",
@@ -46,25 +71,25 @@ export const SECTOR_THREAT_PROFILES: SectorThreatProfile[] = [
     exposure:
       "Obligations risk-based, surveillance des beneficiaires effectifs, sanctions et chaines de controle transfrontieres.",
     threats2026: [
-      "Structures interposees ou holdings en cascade",
-      "Exposition sanctions directe ou par proximite de graphe",
-      "Comptes de passage et contreparties recemment constituees",
+      "2026 : virements instantanes, mules KYC recrutees sur Telegram",
+      "Wirecard 2020 : 1,9 Md EUR de cash introuvable",
+      "AMLR 2024/1624 : holdings mixtes couverts des 2027",
     ],
     kybSignals: [
-      "UBO recalcule divergent du declaratif",
-      "Chemins courts vers une entite visee par une liste sanctions",
-      "Societe recente tres connectee a des dirigeants ou adresses pivots",
+      "UBO declare contre UBO calcule : ecart >25 %",
+      "IBAN pivot : trois societes, meme compte beneficiaire",
+      "Sanctions : deux sauts vers entite UE/OFAC",
     ],
     requiredEvidence: [
-      "RNE/INPI pour mandataires et beneficiaires declares",
-      "Sirene pour etat administratif, NAF et etablissement",
-      "Listes officielles gels et sanctions documentees",
+      "RNE/INPI : mandataires, UBO, dates de controle",
+      "Screening UE/OFAC/DG Tresor horodate, alias inclus",
+      "Origine des fonds et motif economique signes",
     ],
     limitations: [
-      "Un chemin de proximite n'etablit pas une relation juridique",
-      "Les homonymies sanctions exigent une revue humaine avant decision",
+      "Le risque reel ici : homonyme de sanctions.",
+      "Le graphe ne prouve pas le virement.",
     ],
-    officialSources: [AMLR, FATF_BO, TRACFIN],
+    officialSources: [AMLR, FATF_BO, TRACFIN, WIRECARD],
   },
   {
     slug: "immobilier",
@@ -72,23 +97,23 @@ export const SECTOR_THREAT_PROFILES: SectorThreatProfile[] = [
     exposure:
       "Actifs a forte valeur, intermediaires multiples, SCI, holdings patrimoniales et mouvements rapides de controle.",
     threats2026: [
-      "Beneficiaire effectif masque par empilement de societes",
-      "Changements de mandataires proches d'une operation sensible",
-      "Adresses partagees avec un reseau d'entites peu documentees",
+      "2025 : SCI familiales absorbent cash sans financement lisible",
+      "AMLR 2027 : UBO requis pour societes non-UE",
+      "AMLR 2027 : seuil EUR50 M pour patrimoine total",
     ],
     kybSignals: [
-      "Boucles de detention ou capital indirect concentre",
-      "Radiation, procedure ou changement recent dans la timeline",
-      "Adresse pivot utilisee par plusieurs societes liees",
+      "Acquisition via SCI sans dette bancaire coherente",
+      "Apport compte courant proche du prix d'achat",
+      "Beneficiaire non-UE absent du registre central",
     ],
     requiredEvidence: [
-      "RNE/INPI et annonces legales disponibles",
-      "Sirene pour etat et adresse du siege",
-      "Historique des liens de detention avec dates de validite",
+      "Acte notarie, prix, financement, origine des fonds",
+      "RNE/INPI, registre UBO, Kbis SCI",
+      "Evaluation actif et flux bancaires d'acquisition",
     ],
     limitations: [
-      "La valeur de l'actif n'est pas prouvee par le graphe KYB",
-      "Les donnees personnelles nominatives restent derriere auth et interet legitime",
+      "Le graphe ne valorise pas l'immeuble.",
+      "Un montage patrimonial peut rester licite.",
     ],
     officialSources: [AMLR, FATF_BO, TRACFIN],
   },
@@ -98,23 +123,23 @@ export const SECTOR_THREAT_PROFILES: SectorThreatProfile[] = [
     exposure:
       "Obligation de vigilance client, justification des diligences et revue documentee des signaux inhabituels.",
     threats2026: [
-      "Client avec controle indirect difficile a expliquer",
-      "Mandataires multi-societes sur un reseau dense",
-      "Sources incompletes ou declarations contradictoires",
+      "2025 : clients ecrans demandent domiciliation et facturation",
+      "AMLR 2024/1624 couvre comptables, auditeurs, fiscalistes",
+      "2026 : IA genere pieces KYC trop propres",
     ],
     kybSignals: [
-      "Score de qualite de preuve partiel ou manquant",
-      "Ecart entre UBO declare et UBO recalcule",
-      "Centralite forte d'une personne ou adresse dans plusieurs dossiers",
+      "Cabinet pivot sur reseaux de societes dormantes",
+      "Client refuse UBO malgre seuil 25 %",
+      "Pieces identiques sur dossiers sans lien economique",
     ],
     requiredEvidence: [
-      "Source record horodate et hash du payload",
-      "Pieces RNE/INPI, Sirene et BODACC citees dans le dossier",
-      "Export JSON/PDF avec statut computed, partial ou missing",
+      "Lettre de mission, KYC, PEP, sanctions",
+      "Source record horodate et hash du justificatif",
+      "Trace revue associe et decision d'acceptation",
     ],
     limitations: [
-      "KYB Graph documente des signaux, pas une conclusion disciplinaire",
-      "Une source fixture doit rester visible comme demonstration",
+      "Le signal ne vaut pas soupcon automatique.",
+      "Le secret professionnel borne l'exploitation graphe.",
     ],
     officialSources: [AMLR, FATF_BO, TRACFIN],
   },
@@ -124,25 +149,25 @@ export const SECTOR_THREAT_PROFILES: SectorThreatProfile[] = [
     exposure:
       "Dependance fournisseurs, sous-traitance, ransomware, risques cyber et continuite d'activite.",
     threats2026: [
-      "Fournisseur critique relie a une procedure ou radiation recente",
-      "Sous-traitant avec gouvernance opaque ou adresse pivot",
-      "Risque cyber supply-chain touchant un partenaire cle",
+      "2026 DBIR : ransomware dans 48 % des intrusions",
+      "2026 : faille logiciel depasse mot de passe vole",
+      "2025 : fournisseur SaaS devient point d'entree unique",
     ],
     kybSignals: [
-      "Timeline juridique defavorable sur une contrepartie",
-      "Mandataire dirigeant plusieurs societes du meme reseau",
-      "Proximite sanctions ou source live degradee",
+      "Fournisseur critique lie a procedure BODACC 12 mois",
+      "Dirigeant commun entre fournisseur et acheteur interne",
+      "Domaine cree <30 jours, IBAN change hors contrat",
     ],
     requiredEvidence: [
-      "BODACC pour evenements juridiques",
-      "Sirene pour etat actif et etablissement",
-      "Source cyber ou questionnaire interne rattache comme evidence manual",
+      "BODACC, Sirene, contrat, avenants et RIB successifs",
+      "Questionnaire cyber, assurance, preuves MFA et sauvegardes",
+      "Cartographie des sous-traitants de rang 2",
     ],
     limitations: [
-      "Le graphe juridique ne remplace pas une evaluation cyber technique",
-      "Les donnees de sous-traitance privees exigent une source interne autorisee",
+      "KYB ne remplace pas un pentest.",
+      "Le rang 3 reste souvent hors contrat.",
     ],
-    officialSources: [ENISA, AMLR, TRACFIN],
+    officialSources: [VERIZON_DBIR, ENISA, AMLR, TRACFIN],
   },
   {
     slug: "secteur-public",
@@ -150,23 +175,23 @@ export const SECTOR_THREAT_PROFILES: SectorThreatProfile[] = [
     exposure:
       "Besoin de justifier la selection de contreparties, le suivi sanctions et la prevention des conflits d'interets.",
     threats2026: [
-      "Beneficiaire ou dirigeant indirect difficile a etablir",
-      "Exposition a sanctions par entite reliee",
-      "Reseau de societes partageant dirigeants ou adresses",
+      "2025 : acheteurs publics ciblent UBO avant notification",
+      "AMLR 2027 : seuil UBO 25 % harmonise",
+      "2026 : conflits d'interets via dirigeants familiaux",
     ],
     kybSignals: [
-      "Chemin vers liste officielle gels ou OpenSanctions",
-      "Adresse partagee par plusieurs candidats ou fournisseurs",
-      "SourceHealth mixed ou failed sur dossier critique",
+      "Deux candidats partagent adresse, dirigeant ou conseil",
+      "Societe creee <90 jours avant appel d'offres",
+      "UBO non-UE absent avant signature contractuelle",
     ],
     requiredEvidence: [
-      "Journal des sources officielles consultees",
-      "Export PDF avec limites juridiques",
-      "Trace d'interet legitime avant exposition UBO nominative",
+      "DCE, AE, DC2, sous-traitants et avenants",
+      "RNE, registre UBO, declarations conflits d'interets",
+      "Journal horodate des consultations sanctions",
     ],
     limitations: [
-      "Une proximite de graphe doit etre qualifiee par un agent habilite",
-      "Les decisions d'achat requierent les regles internes et le contradictoire",
+      "Le graphe n'annule pas une procedure.",
+      "Le contradictoire reste une obligation.",
     ],
     officialSources: [AMLR, FATF_BO, TRACFIN],
   },
@@ -176,51 +201,51 @@ export const SECTOR_THREAT_PROFILES: SectorThreatProfile[] = [
     exposure:
       "Flux transfrontieres, intermediaires nombreux, sanctions, biens sensibles et dependances operationnelles.",
     threats2026: [
-      "Contournement de sanctions par chaines d'intermediaires",
-      "Societes recentes avec activite changeante ou peu lisible",
-      "Partenaires connectes a adresses ou dirigeants pivots",
+      "2025 : 117 navires ajoutes au paquet UE 19",
+      "2025 : faux pavillons et AIS coupe sur tankers",
+      "2026 : transitaires ecrans entre chargeur, fret, assureur",
     ],
     kybSignals: [
-      "Proximite sanctions par chemin court",
-      "NAF, siege ou evenement juridique incoherent avec l'operation",
-      "Densite de liens entre fournisseurs, transitaires et clients",
+      "IMO renomme, pavillon change, assureur hors P&I",
+      "Adresse transitaire partagee par concurrents sans lien public",
+      "Pays de chargement incompatible avec facture douaniere",
     ],
     requiredEvidence: [
-      "Sirene/RNE pour identite et mandataires",
-      "Listes gels et sanctions avec statut d'homonymie",
-      "BODACC pour changements ou procedures",
+      "Connaissement, AIS, certificat P&I, incoterm horodates",
+      "Listes UE/UK/OFAC jointes avec date de consultation",
+      "Beneficiaire payeur final rapproche du contrat freight-forwarder",
     ],
     limitations: [
-      "KYB Graph n'atteste pas la nature exacte des marchandises",
-      "Les listes sanctions requierent une revue des identifiants, pas seulement du nom",
+      "AIS coupe ne suffit jamais seul.",
+      "Le graphe ignore le contenu exact du conteneur.",
     ],
-    officialSources: [AMLR, FATF_TF, ENISA],
+    officialSources: [EU_RUSSIA_SANCTIONS_2025, AMLR, FATF_TF, ENISA],
   },
   {
     slug: "sante-pharma",
     sector: "Sante, pharma et medtech",
     exposure:
-      "Fournisseurs critiques, distributeurs, donnees sensibles, continuites de soins et risques cyber eleves.",
+      "Fournisseurs critiques, distributeurs, donnees sensibles, continuite des soins et ransomware documente.",
     threats2026: [
-      "Ransomware ou compromission supply-chain chez un partenaire",
-      "Distributeur ou prestataire avec controle indirect opaque",
-      "Changement juridique proche d'un contrat critique",
+      "2025 : Change Healthcare atteint environ 190 M personnes",
+      "2026 DBIR : ransomware dans 48 % des intrusions",
+      "2026 : distributeurs medtech concentrent donnees et facturation",
     ],
     kybSignals: [
-      "SourceHealth failed sur une source critique",
-      "Mandataires ou holdings interposees dans la chaine de controle",
-      "Evenement BODACC recent a revoir avant onboarding",
+      "Prestataire IT commun entre hopital, grossiste, medtech",
+      "Changement RIB fournisseur sans avenant signe",
+      "UBO offshore derriere distributeur de dispositifs",
     ],
     requiredEvidence: [
-      "Sirene, RNE/INPI et BODACC",
-      "Documentation interne tier risk rattachee en source manual",
-      "Export avec statut live, mixed ou fixture visible",
+      "Contrat HDS, DPA, PCA et attestation ISO",
+      "RNE/INPI, autorisations ANSM, pharmacien responsable",
+      "Logs changement RIB et validation double controle",
     ],
     limitations: [
-      "Le risque cyber doit etre complete par preuves techniques",
-      "Les donnees de sante ne doivent jamais etre injectees dans le graphe KYB public",
+      "Aucune donnee patient dans KYB public.",
+      "Le risque cyber exige preuves techniques.",
     ],
-    officialSources: [ENISA, AMLR, TRACFIN],
+    officialSources: [CHANGE_HEALTHCARE, VERIZON_DBIR, ENISA, AMLR, TRACFIN],
   },
   {
     slug: "btp-commodities",
@@ -228,25 +253,25 @@ export const SECTOR_THREAT_PROFILES: SectorThreatProfile[] = [
     exposure:
       "Chantiers en cascade, sous-traitance, matieres premieres, paiements internationaux et intermediaires locaux.",
     threats2026: [
-      "Sous-traitance en chaine avec UBO peu lisible",
-      "Exposition indirecte sanctions ou zone sensible",
-      "Societe recente fortement reliee a un reseau existant",
+      "2025 : sanctions energie russe contournent traders et tankers",
+      "Gunvor 2024 : 661 M USD payes sur dossier Ecuador",
+      "2026 : sous-traitance chantier empilee sur micro-societes",
     ],
     kybSignals: [
-      "Capital indirect concentre et liens inferes a confirmer",
-      "Adresse pivot entre plusieurs fournisseurs",
-      "Procedure collective ou radiation dans la timeline",
+      "Meme gerant sur trois lots et deux rangs",
+      "Marge fournisseur incoherente avec capital social",
+      "Adresse pivot entre depot, trader et sous-traitant",
     ],
     requiredEvidence: [
-      "Sirene/RNE pour identite, mandataires et etat",
-      "BODACC pour evenements juridiques",
-      "Listes officielles sanctions et gels",
+      "Contrat, bon livraison, facture, reception rapproches",
+      "RNE, BODACC, attestations sociales et fiscales",
+      "Sanctions UE/OFAC plus preuve d'origine produit",
     ],
     limitations: [
-      "Le graphe ne prouve pas la livraison ni la qualite contractuelle",
-      "Les liens inferes restent des hypotheses documentees",
+      "Le graphe ne valide pas la livraison.",
+      "Les prix spot exigent controle metier.",
     ],
-    officialSources: [AMLR, FATF_BO, FATF_TF, TRACFIN],
+    officialSources: [GUNVOR, EU_RUSSIA_SANCTIONS_2025, AMLR, FATF_BO, FATF_TF, TRACFIN],
   },
 ];
 
