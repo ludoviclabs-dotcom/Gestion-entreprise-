@@ -8,4 +8,5 @@ export const PUBLIC_NAV: NavItem[] = [
   { label: "Confidentialité", href: "/confidentialite" },
   { label: "Ressources", href: "/ressources" },
   { label: "Démo", href: "/demo" },
+  { label: "Lab", href: "/lab" },
 ];
