@@ -139,7 +139,7 @@ export default function FraudDetectiveGame() {
   const audioRef = useRef<AudioContext | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const flashTimerRef = useRef<number | null>(null);
-  const background = useMemo(bgGraph, []);
+  const background = useMemo(() => bgGraph(), []);
 
   const pushToast = useCallback((message: string) => {
     setToast(message);
@@ -874,7 +874,9 @@ export default function FraudDetectiveGame() {
                   Effacer
                 </button>
               </div>
-              <div className={styles.panelBody}>{renderInspector(game, selectedItem, toggleFlag)}</div>
+              <div className={styles.panelBody}>
+                <InspectorPanel game={game} selectedItem={selectedItem} onToggleFlag={toggleFlag} />
+              </div>
               <div className={styles.submission}>
                 <div className={styles.progressBar}>
                   <div
@@ -918,7 +920,18 @@ export default function FraudDetectiveGame() {
           </div>
 
           <div className={cx(styles.overlay, game.submitted && styles.overlayActive)}>
-            <div className={styles.modal}>{game.result ? renderResult(game, highScores, startGame, goHome, startReplay, downloadReport) : null}</div>
+            <div className={styles.modal}>
+              {game.result ? (
+                <ResultPanel
+                  game={game}
+                  highScores={highScores}
+                  onStartGame={startGame}
+                  onGoHome={goHome}
+                  onStartReplay={startReplay}
+                  onDownloadReport={downloadReport}
+                />
+              ) : null}
+            </div>
           </div>
         </section>
       )}
@@ -937,11 +950,13 @@ function selectedLabel(item: FraudNode | FraudEdge) {
   return `Compte bancaire ${item.id}`;
 }
 
-function renderInspector(
-  game: RuntimeGame,
-  selectedItem: FraudNode | FraudEdge | undefined,
-  toggleFlag: (id?: string | null) => void,
-) {
+type InspectorPanelProps = {
+  game: RuntimeGame;
+  selectedItem?: FraudNode | FraudEdge;
+  onToggleFlag: (id?: string | null) => void;
+};
+
+function InspectorPanel({ game, selectedItem, onToggleFlag }: InspectorPanelProps) {
   if (!selectedItem) {
     return (
       <>
@@ -999,7 +1014,7 @@ function renderInspector(
         <button
           className={cx(styles.flagBtn, flagged && styles.flagged)}
           type="button"
-          onClick={() => toggleFlag(selectedItem.id)}
+          onClick={() => onToggleFlag(selectedItem.id)}
         >
           {flagged ? "Retirer le signalement" : "Signaler ce lien"}
         </button>
@@ -1099,7 +1114,7 @@ function renderInspector(
       <button
         className={cx(styles.flagBtn, flagged && styles.flagged)}
         type="button"
-        onClick={() => toggleFlag(selectedItem.id)}
+        onClick={() => onToggleFlag(selectedItem.id)}
       >
         {flagged ? "Retirer le signalement" : "Signaler ce noeud"}
       </button>
@@ -1115,14 +1130,23 @@ function renderInspector(
   );
 }
 
-function renderResult(
-  game: RuntimeGame,
-  highScores: HighScore[],
-  startGame: () => void,
-  goHome: () => void,
-  startReplay: () => void,
-  downloadReport: () => void,
-) {
+type ResultPanelProps = {
+  game: RuntimeGame;
+  highScores: HighScore[];
+  onStartGame: () => void;
+  onGoHome: () => void;
+  onStartReplay: () => void;
+  onDownloadReport: () => void;
+};
+
+function ResultPanel({
+  game,
+  highScores,
+  onStartGame,
+  onGoHome,
+  onStartReplay,
+  onDownloadReport,
+}: ResultPanelProps) {
   const result = game.result;
   if (!result) return null;
   return (
@@ -1210,16 +1234,16 @@ function renderResult(
         </table>
       </div>
       <div className={styles.startActions}>
-        <button className={styles.primary} type="button" onClick={startGame}>
+        <button className={styles.primary} type="button" onClick={onStartGame}>
           {result.victory ? "Dossier suivant" : "Réessayer un dossier"}
         </button>
-        <button className={styles.secondary} type="button" onClick={startReplay}>
+        <button className={styles.secondary} type="button" onClick={onStartReplay}>
           Revoir la fraude
         </button>
-        <button className={styles.secondary} type="button" onClick={downloadReport}>
+        <button className={styles.secondary} type="button" onClick={onDownloadReport}>
           Télécharger rapport
         </button>
-        <button className={cx(styles.secondary, styles.danger)} type="button" onClick={goHome}>
+        <button className={cx(styles.secondary, styles.danger)} type="button" onClick={onGoHome}>
           Accueil
         </button>
       </div>
