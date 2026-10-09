@@ -131,7 +131,7 @@ export const CONTROLE_ACTIFS: LearningPath = {
       sourceIds: ["anssi-hygiene"],
     },
   ],
-  status: "en_preparation",
+  status: "disponible",
 };
 
 export const CRYPTO_FLUX: LearningPath = {

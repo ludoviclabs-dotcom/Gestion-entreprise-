@@ -237,6 +237,26 @@ function tierControl(link: OwnerLink, siblings: OwnerLink[]): UboControl {
   return "aucun";
 }
 
+/**
+ * Contrôle de chaque détenteur DIRECT d'une société, à partir de ses droits de
+ * vote (fractions 0..1) : majorité stricte, présomption L. 233-3 II, ou aucun.
+ * Réutilisé par les parcours du Lab pour les détenteurs qui ne sont pas des
+ * personnes physiques (fonds, sociétés).
+ */
+export function classifyDirectHolders<T extends { votes: number }>(
+  holders: T[],
+): (T & { control: UboControl })[] {
+  const links = holders.map((h, i) => ({
+    edgeId: String(i),
+    ownerId: String(i),
+    capital: h.votes,
+    votes: h.votes,
+    votesAssumed: false,
+    hypothetical: false,
+  }));
+  return holders.map((h, i) => ({ ...h, control: tierControl(links[i], links) }));
+}
+
 export function fmtFraction(fraction: number): string {
   // Tronque à un décimal SANS arrondir au-dessus (24,99 % → 24,9 %, pas 25,0 %).
   return `${(Math.floor(fraction * 1000 + EPS) / 10).toLocaleString("fr-FR")} %`;
