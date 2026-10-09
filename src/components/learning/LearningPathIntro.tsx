@@ -58,6 +58,13 @@ function NotionCard({ notion }: { notion: Notion }) {
                   {PRIMARY_SOURCE_KINDS.includes(s.kind) ? " · source primaire" : ""}
                   {" · consulté le "}
                   {frDate(s.consultedOn)}
+                  {" · "}
+                  <Link
+                    href={`/lab/sources#source-${s.id}`}
+                    className="underline decoration-border underline-offset-2 hover:decoration-violet"
+                  >
+                    fiche<span className="sr-only"> de la source {s.title}</span>
+                  </Link>
                 </span>
               </li>
             ))}
@@ -233,7 +240,12 @@ export function LearningPathIntro({ path }: { path: LearningPath }) {
             </h2>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
               Les textes et publications d'autorités établissent ; la presse et les études orientent une
-              recherche. Relisez toujours la version consolidée d'un texte avant de l'appliquer.
+              recherche. Relisez toujours la version consolidée d'un texte avant de l'appliquer. Dates,
+              limites et rythme de revue de chaque source :{" "}
+              <Link href="/lab/sources" className="text-foreground underline decoration-border underline-offset-2 hover:decoration-violet">
+                fiches sources
+              </Link>
+              .
             </p>
             <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {path.notions.map((n) => (

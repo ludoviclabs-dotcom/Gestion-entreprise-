@@ -11,8 +11,10 @@ import type {
   Scenario,
   ScenarioBranch,
   ScenarioStep,
+  SourceRecord,
   Verdict,
 } from "./schema";
+import { EVIDENCE_LEVEL_LABELS } from "./labels";
 import {
   UBO_POLICIES,
   classifyDirectHolders,
@@ -230,6 +232,16 @@ export function frAmount(value: string, unit: string): string {
 /** « 15/01/2025 ». */
 export function frDate(iso: string): string {
   return iso.split("-").reverse().join("/");
+}
+
+const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+/** Date de publication partielle : « 2017 », « mars 2025 » ou « 07/09/2026 ». */
+export function frPartialDate(value: string): string {
+  const [y, m, d] = value.split("-");
+  if (d) return frDate(value);
+  if (m) return `${MONTHS[Number(m) - 1]} ${y}`;
+  return y;
 }
 
 export const RELATION_KIND_LABELS: Record<RelationKind, string> = {
@@ -558,8 +570,8 @@ export function answeredExercises(scenario: Scenario, answers: Answers, branchId
 
 const NATURE_TITLES: Record<Claim["nature"], string> = {
   fait_documente: "Faits documentés",
-  allegation: "Allégations",
-  hypothese: "Hypothèses",
+  allegation: "Allégations (non établies)",
+  hypothese: "Hypothèses (non établies)",
   information_manquante: "Informations manquantes",
 };
 
@@ -583,11 +595,18 @@ export function verdictLabel(v: Verdict): string {
  * Carnet d'analyse en Markdown. Il porte toujours la mention « cas fictif » et
  * la date de l'état, pour qu'aucun extrait ne circule comme un dossier réel.
  */
+/**
+ * Synthèse pédagogique exportée (cadrage §12.3, « Export ») : mention de
+ * fiction, périmètre, affirmations rangées par statut, lecture par niveau,
+ * pièces, sources de référence et limites. Une hypothèse ou une allégation
+ * reste sous son titre, jamais parmi les faits.
+ */
 export function notebookMarkdown(
   scenario: Scenario,
   state: ScenarioState,
   answers: Answers,
   generatedOn: string,
+  references: SourceRecord[] = [],
 ): string {
   const lines: string[] = [
     `# Carnet d'analyse : ${scenario.title}`,
@@ -600,6 +619,16 @@ export function notebookMarkdown(
     `- Exporté le : ${frDate(generatedOn)}`,
     "",
   ].filter((l, i, a) => l !== "" || a[i - 1] !== "");
+
+  const pieces = scenario.evidence.filter((e) => state.evidenceIds.has(e.id));
+  lines.push(
+    "## Périmètre",
+    "",
+    `- Pièces examinées : ${pieces.length} sur ${scenario.evidence.length}, toutes fictives.`,
+    "- Données : inventées pour la formation, tenues dans le navigateur, sans requête externe.",
+    "- Une conclusion ne vaut que pour les pièces listées plus bas.",
+    "",
+  );
 
   for (const nature of Object.keys(NATURE_TITLES) as Claim["nature"][]) {
     const claims = scenario.claims.filter((c) => c.nature === nature && state.claimIds.has(c.id));
@@ -628,12 +657,45 @@ export function notebookMarkdown(
   }
 
   if (state.branch) {
+    if (state.branch.levels.length) {
+      lines.push("## Lecture par niveau", "");
+      for (const l of state.branch.levels) lines.push(`- **${EVIDENCE_LEVEL_LABELS[l.level].label}** : ${l.statement}`);
+      lines.push("");
+    }
     lines.push("## Conclusion", "", state.branch.conclusion, "");
     if (state.branch.openQuestions.length) {
       lines.push("### Ce qui reste ouvert", "", ...state.branch.openQuestions.map((q) => `- ${q}`), "");
     }
+    if (state.branch.recommendations.length) {
+      lines.push("### Recommandations", "", ...state.branch.recommendations.map((r) => `- ${r}`), "");
+    }
   }
 
-  lines.push("---", "", "Export du Lab KYB Graph. Cas fictif, à usage de formation uniquement.", "");
+  if (pieces.length) {
+    lines.push("## Pièces examinées", "");
+    for (const e of pieces) lines.push(`- ${e.title}${e.date ? ` (${frDate(e.date)})` : ""}, pièce fictive`);
+    lines.push("");
+  }
+
+  if (references.length) {
+    lines.push("## Sources de référence", "");
+    for (const r of references) {
+      const dates = [r.published ? `publié ${frPartialDate(r.published)}` : "", `consulté le ${frDate(r.consultedOn)}`].filter(Boolean);
+      lines.push(`- ${r.publisher}, ${r.title} (${dates.join(", ")})${r.url ? ` : ${r.url}` : ""}`);
+    }
+    lines.push("");
+  }
+
+  lines.push("## Limites", "");
+  if (state.boundary) lines.push(`- Frontière de connaissance : ${state.boundary}`);
+  lines.push(
+    "- Une allégation ou une hypothèse reste à son statut tant qu'une pièce ne l'établit pas.",
+    "- Ce carnet est un exercice : il ne qualifie aucune personne ni aucune entreprise réelle et ne remplace pas un examen juridique.",
+    "",
+    "---",
+    "",
+    "Export du Lab KYB Graph. Cas fictif, à usage de formation uniquement.",
+    "",
+  );
   return lines.join("\n");
 }

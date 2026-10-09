@@ -68,8 +68,11 @@ export const SourceRecord = z.object({
   supports: z.string().min(1),
   /** Limites de couverture ou de lecture. */
   limits: z.string().optional(),
+  /** Rythme de revue éditoriale (cadrage §2.3) ; à défaut, déduit du type de source. */
+  review: z.enum(["mensuelle", "trimestrielle", "annuelle"]).optional(),
 });
 export type SourceRecord = z.infer<typeof SourceRecord>;
+export type ReviewCadence = NonNullable<SourceRecord["review"]>;
 
 export const Origin = z.enum(["fictive", "reelle"]);
 
@@ -452,6 +455,8 @@ export const LearningPath = z.object({
   audience: z.array(z.string()).min(1),
   objectives: z.array(z.string()).min(1),
   durationMinutes: z.number().int().positive(),
+  /** Niveau et prérequis conseillés, affichés à l'accueil du Lab. */
+  level: z.string().min(1),
   /** Nom du démonstrateur fictif. */
   scenarioTitle: z.string().min(1),
   scenarioSummary: z.string().min(1),

@@ -29,6 +29,7 @@ export const CONTROLE_ACTIFS: LearningPath = {
     "Formuler plusieurs hypothèses, choisir les pièces utiles et accepter une conclusion indécidable.",
   ],
   durationMinutes: 35,
+  level: "Premier parcours conseillé, sans prérequis.",
   scenarioTitle: "Aster Photonique",
   scenarioSummary:
     "Aster Photonique développe un capteur industriel. Elle détient un brevet et un logiciel, contrôle un jeu de données et utilise un procédé confidentiel. Helix entre au capital, Orion finance une partie de l'activité, Meridian devient un client majeur et VectorLab intervient sur une prestation technique. Tous les noms, pièces et montants sont fictifs.",
@@ -154,6 +155,7 @@ export const CRYPTO_FLUX: LearningPath = {
     "Formuler une explication licite à côté de l'hypothèse de fraude, puis choisir les vérifications.",
   ],
   durationMinutes: 35,
+  level: "Après Aster, ou avec des bases sur les paiements et les cryptoactifs.",
   scenarioTitle: "Le paiement de Nova",
   scenarioSummary:
     "Nova, entreprise française, règle une prestation internationale. Elle achète un jeton stable fictif, S-EUR, auprès du prestataire fictif PorteX, l'envoie vers un compte externe, puis ne dispose que de documents partiels sur la conversion et le bénéficiaire final. Aucune adresse ni aucun identifiant réel.",

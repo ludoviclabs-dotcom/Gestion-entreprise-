@@ -10,11 +10,13 @@ import {
   evidenceById,
   frDate,
   notebookMarkdown,
+  objectLabel,
   resolutionLabel,
   stateAt,
   type Answers,
   type StateDiff,
 } from "@/lib/learning/projections";
+import { pathReferences } from "@/lib/learning/sources";
 import { FictionBanner } from "../FictionBanner";
 import { AssetsView } from "./AssetsView";
 import { ClaimItem } from "./ClaimItem";
@@ -153,7 +155,13 @@ export function ScenarioPlayer({
 
   const exportNotebook = () => {
     const today = new Date().toISOString().slice(0, 10);
-    download(`carnet-${scenario.id}-${today}.md`, notebookMarkdown(scenario, state, answers, today));
+    download(`carnet-${scenario.id}-${today}.md`, notebookMarkdown(scenario, state, answers, today, pathReferences(path)));
+  };
+
+  // Trouver un objet : il s'ouvre dans l'inspecteur et le graphe défile jusqu'à lui. Le focus reste sur la liste.
+  const findObject = (id: string) => {
+    setSelection(id ? { type: "object", id } : null);
+    if (id) document.querySelector(`[data-object="${id}"]`)?.scrollIntoView({ block: "nearest", inline: "center" });
   };
 
   const onTabKey = (e: KeyboardEvent, i: number) => {
@@ -406,15 +414,37 @@ export function ScenarioPlayer({
             {state.asOf ? <span className="font-normal text-muted-foreground"> État au {frDate(state.asOf)}.</span> : null}
           </p>
           {view === "graphe" ? (
-            <button
-              type="button"
-              onClick={() => setTable((t) => !t)}
-              aria-pressed={table}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-surface-2"
-            >
-              {table ? <Network size={13} aria-hidden /> : <Table2 size={13} aria-hidden />}
-              {table ? "Afficher le graphe" : "Afficher en tableau"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {!table ? (
+                <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  Trouver un objet
+                  <select
+                    value={sel?.type === "object" ? sel.id : ""}
+                    onChange={(e) => findObject(e.target.value)}
+                    className="max-w-[12rem] rounded-md border border-border bg-surface px-1.5 py-1 text-xs text-foreground"
+                  >
+                    <option value="">Choisir…</option>
+                    {[...state.objectIds]
+                      .map((id) => ({ id, label: objectLabel(scenario, id) }))
+                      .sort((a, b) => a.label.localeCompare(b.label, "fr"))
+                      .map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setTable((t) => !t)}
+                aria-pressed={table}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-surface-2"
+              >
+                {table ? <Network size={13} aria-hidden /> : <Table2 size={13} aria-hidden />}
+                {table ? "Afficher le graphe" : "Afficher en tableau"}
+              </button>
+            </div>
           ) : null}
         </div>
         {view === "graphe" ? (

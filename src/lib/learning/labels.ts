@@ -1,4 +1,4 @@
-import type { ActorKind, ClaimNature, ResourceKind, SourceKind, Verification } from "./schema";
+import type { ActorKind, ClaimNature, EvidenceLevel, ResourceKind, SourceKind, Verification } from "./schema";
 
 /** Libellés d'affichage des statuts d'affirmation (cadrage §3.2). */
 export const CLAIM_NATURE_LABELS: Record<ClaimNature, { label: string; hint: string; example: string }> = {
@@ -64,4 +64,12 @@ export const RESOURCE_KIND_LABELS: Record<ResourceKind, string> = {
   procede: "Procédé",
   systeme: "Système d'information",
   contrat: "Contrat",
+};
+
+/** Les quatre niveaux du débriefing (cadrage §6) : à ne pas confondre. */
+export const EVIDENCE_LEVEL_LABELS: Record<EvidenceLevel, { label: string; hint: string }> = {
+  signal_faible: { label: "Signal faible", hint: "Un élément inhabituel, à vérifier." },
+  facteur_risque: { label: "Facteur de risque", hint: "Une vulnérabilité, sans intention prêtée à quiconque." },
+  faisceau: { label: "Faisceau", hint: "Plusieurs éléments indépendants qui convergent." },
+  preuve: { label: "Preuve", hint: "Ce que les pièces établissent, et seulement cela." },
 };
