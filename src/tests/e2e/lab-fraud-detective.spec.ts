@@ -4,7 +4,9 @@ test("le Lab est accessible depuis la navigation publique et lance Fraud Detecti
   page,
 }) => {
   await page.goto("/");
-  const labNavLink = page.locator('header nav a[href="/lab"]');
+  // `:visible` : le landing rend ses deux directions (jour / nuit) et n'en
+  // affiche qu'une, selon le thème.
+  const labNavLink = page.locator('header nav a[href="/lab"]:visible');
   await expect(labNavLink).toBeVisible();
 
   await labNavLink.click();
