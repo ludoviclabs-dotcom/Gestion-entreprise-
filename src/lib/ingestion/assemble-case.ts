@@ -1,4 +1,4 @@
-import type { CaseBundle } from "@/lib/graph/graph-types";
+import type { CaseBundle, CaseEdge, CaseEntity } from "@/lib/graph/graph-types";
 import type { ConnectorResult, SourceRecordInput } from "@/lib/connectors/types";
 import type { SourceKind } from "@/lib/graph/source";
 import { sirene } from "@/lib/connectors/sirene";
@@ -11,13 +11,15 @@ import { vies } from "@/lib/connectors/vies";
 import { ban, banAddressFrom } from "@/lib/connectors/ban";
 import { gdelt } from "@/lib/connectors/gdelt";
 import { pappers } from "@/lib/connectors/pappers";
-import { isDemoMode } from "@/lib/env";
+import { companiesHouse } from "@/lib/connectors/companies-house";
+import { isCompaniesHouseEnabled, isDemoMode, isInpiUboExposed } from "@/lib/env";
 import { normalizeSirene, sireneAddress } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
 import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
-import { normalizeGleif } from "./normalize-gleif";
+import { companiesHouseParents, normalizeGleif } from "./normalize-gleif";
+import { normalizeCompaniesHouse } from "./normalize-companies-house";
 import { normalizeGdelt } from "./normalize-gdelt";
 import { normalizePappers, pappersDirigeants } from "./normalize-pappers";
 import { getEntityResolver } from "./resolver-backend";
@@ -193,6 +195,37 @@ export async function assembleCase(
     ? normalizeGleif(gleifRes.raw, companyId)
     : { entities: [], edges: [], subjectLei: null };
 
+  // Companies House — SECOND SAUT : dirigeants et personnes à contrôle significatif
+  // des sociétés mères BRITANNIQUES repérées par GLEIF (registre RA000585/586/587).
+  // Appelé seulement en mode live ET connecteur activé : sinon aucune consultation,
+  // donc aucune ligne source_records (la source n'a pas été interrogée).
+  const chParents =
+    !isDemoMode() && isCompaniesHouseEnabled() && usableResult(gleifRes)
+      ? companiesHouseParents(gleifRes.raw)
+      : [];
+  const chResults = await Promise.all(
+    chParents.map((p) => companiesHouse.byNumber(p.number)),
+  );
+  for (const r of chResults) sources.push(toSource("companies_house", r));
+  const chNorm: { entities: CaseEntity[]; edges: CaseEdge[] } = { entities: [], edges: [] };
+  chParents.forEach((parent, i) => {
+    const res = chResults[i];
+    // 404 (numéro inconnu) ou panne : rien à greffer, jamais une donnée inventée.
+    if (res.isFixture || res.httpStatus < 200 || res.httpStatus >= 300) return;
+    const parentId = `co:lei:${parent.lei}`;
+    const n = normalizeCompaniesHouse(res.raw, {
+      companyId: parentId,
+      // Garde-fou UBO : PSC personnes physiques exposées comme les UBO INPI.
+      exposeIndividualPsc: isInpiUboExposed(),
+    });
+    chNorm.entities.push(...n.entities);
+    chNorm.edges.push(...n.edges);
+    const parentNode = gleifNorm.entities.find((e) => e.id === parentId);
+    if (parentNode) {
+      parentNode.attributes = { ...parentNode.attributes, ...n.companyAttributes };
+    }
+  });
+
   // VIES — validation de la TVA intracommunautaire (corroboration d'identité,
   // pas un signal de risque : un `valid:false` est neutre pour une PME domestique).
   const viesData = usableResult(viesRes)
@@ -222,6 +255,7 @@ export async function assembleCase(
       ...gelsNorm.entities,
       ...osNorm.entities,
       ...pappersPeople.entities,
+      ...chNorm.entities,
     ]),
     edges: dedupeById([
       ...sireneNorm.edges,
@@ -230,6 +264,7 @@ export async function assembleCase(
       ...gelsNorm.edges,
       ...osNorm.edges,
       ...pappersPeople.edges,
+      ...chNorm.edges,
     ]),
   });
   const resolvedEntities = resolved.entities;

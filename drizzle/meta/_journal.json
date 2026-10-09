@@ -64,6 +64,13 @@
       "when": 1781876457416,
       "tag": "0008_concerned_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791590170221,
+      "tag": "0009_huge_serpent_society",
+      "breakpoints": true
     }
   ]
 }

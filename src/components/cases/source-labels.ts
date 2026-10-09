@@ -12,6 +12,7 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   ban: "Base Adresse Nationale",
   gdelt: "Presse (GDELT)",
   pappers: "Pappers",
+  companies_house: "Companies House (UK)",
   manual: "Manuel",
   fixture: "Fixture",
 };

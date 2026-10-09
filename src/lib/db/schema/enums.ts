@@ -37,6 +37,7 @@ export const sourceKind = pgEnum("source_kind", [
   "ban",
   "gdelt",
   "pappers",
+  "companies_house",
   "manual",
   "fixture",
 ]); // étendu au fil des connecteurs (cf. drizzle/ migrations)

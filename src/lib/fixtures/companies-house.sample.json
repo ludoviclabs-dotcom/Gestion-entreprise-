@@ -1,0 +1,42 @@
+{
+  "status": "ok",
+  "company": {
+    "number": "00000001",
+    "name": "EXEMPLE HOLDINGS LIMITED",
+    "status": "active",
+    "type": "ltd",
+    "createdOn": "2001-03-14",
+    "jurisdiction": "england-wales",
+    "sicCodes": ["64209"]
+  },
+  "officersTotal": 3,
+  "officersActive": 2,
+  "officers": [
+    {
+      "name": "Alice EXEMPLE",
+      "role": "director",
+      "corporate": false,
+      "appointedOn": "2015-06-01",
+      "resignedOn": null
+    },
+    {
+      "name": "EXEMPLE SECRETARIAL LIMITED",
+      "role": "corporate-secretary",
+      "corporate": true,
+      "appointedOn": "2010-01-10",
+      "resignedOn": null
+    }
+  ],
+  "pscTotal": 1,
+  "pscs": [
+    {
+      "name": "EXEMPLE GROUP PLC",
+      "kind": "corporate-entity-person-with-significant-control",
+      "corporate": true,
+      "natures": ["ownership-of-shares-75-to-100-percent"],
+      "notifiedOn": "2016-04-06",
+      "ceasedOn": null,
+      "registrationNumber": "00000002"
+    }
+  ]
+}

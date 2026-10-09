@@ -9,6 +9,7 @@ export type SourceKind =
   | "vies"
   | "ban"
   | "gdelt"
-  | "pappers"    
+  | "pappers"
+  | "companies_house"
   | "manual"
   | "fixture";
