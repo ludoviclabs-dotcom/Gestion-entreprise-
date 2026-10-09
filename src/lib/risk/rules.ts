@@ -319,7 +319,8 @@ export const PIVOT_SUSPECT: Rule = {
 /**
  * Compare les bénéficiaires effectifs DÉCLARÉS au registre (INPI/RBE, via
  * `bundle.declaredUbo`) avec ceux RECALCULÉS depuis les chaînes de capital
- * (`computeUbo`, seuil 25 % / contrôle majoritaire). Une divergence est un
+ * (`computeUbo` : bénéficiaires et personnes à examiner selon le référentiel
+ * daté). Une divergence est un
  * signal de vigilance : l'AMLR (Règlement (UE) 2024/1624) impose justement le
  * signalement des écarts de registre.
  *
@@ -343,7 +344,7 @@ export const ECART_UBO_DECLARE: Rule = {
         undefined,
         "high",
         this.category,
-        `Écart de bénéficiaire effectif : ${comparison.declares} déclaré(s) au registre, ${comparison.recalcules} recalculé(s) ≥ 25 % depuis le capital, ${comparison.divergences} divergence(s). Signalement de divergence de registre attendu (AMLR).`,
+        `Écart de bénéficiaire effectif : ${comparison.declares} déclaré(s) au registre, ${comparison.recalcules} recalculé(s) depuis le capital (bénéficiaires ou à examiner), ${comparison.divergences} divergence(s). Signalement de divergence de registre attendu (AMLR).`,
       ),
     ];
   },

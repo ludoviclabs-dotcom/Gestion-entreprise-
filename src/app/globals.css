@@ -229,6 +229,13 @@ body {
   letter-spacing: -0.005em;
   user-select: none;
 }
+/* Focus clavier d'un nœud : le halo de survol s'allume, sans cadre rectangulaire. */
+.graph-svg .node:focus {
+  outline: none;
+}
+.graph-svg .node:focus-visible circle:nth-child(2) {
+  opacity: 1;
+}
 @media (prefers-reduced-motion: reduce) {
   .graph-aurora::before,
   .graph-aurora::after {

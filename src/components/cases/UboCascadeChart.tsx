@@ -1,5 +1,4 @@
-import type { ComputedUbo } from "@/lib/graph/ubo";
-import { UBO_THRESHOLD } from "@/lib/graph/ubo";
+import type { ComputedUbo, UboPolicy } from "@/lib/graph/ubo";
 
 /**
  * Cascade de détention effective (computeUbo) — barres horizontales du %
@@ -9,16 +8,17 @@ import { UBO_THRESHOLD } from "@/lib/graph/ubo";
  */
 export default function UboCascadeChart({
   owners,
+  policy,
   showNames,
 }: {
   owners: ComputedUbo[];
+  policy: UboPolicy;
   showNames: boolean;
 }) {
   const top = [...owners]
     .sort((a, b) => b.effectivePct - a.effectivePct)
     .slice(0, 12);
   if (top.length === 0) return null;
-  const threshold = Math.round(UBO_THRESHOLD * 100);
 
   return (
     <section className="rounded-xl border border-border bg-surface p-5">
@@ -27,12 +27,17 @@ export default function UboCascadeChart({
       </h3>
       <p className="mt-1 text-xs text-muted-foreground">
         Détention recalculée depuis le capital (produit des pourcentages le long
-        des chaînes). Seuil bénéficiaire effectif : {threshold}&nbsp;%.
+        des chaînes). Seuil bénéficiaire effectif : {policy.thresholdLabel} ({policy.shortLabel}).
       </p>
       <ul className="mt-4 space-y-2.5">
         {top.map((o, i) => {
           const pct = Math.round(o.effectivePct * 100);
-          const isUbo = o.isBeneficialOwner;
+          const barColor =
+            o.qualification === "beneficiaire"
+              ? "#7c3aed"
+              : o.qualification === "a_examiner"
+                ? "#E69F00"
+                : "#94a3b8";
           return (
             <li key={o.personId}>
               <div className="flex items-center justify-between gap-3 text-sm">
@@ -49,7 +54,7 @@ export default function UboCascadeChart({
                   className="h-full rounded"
                   style={{
                     width: `${Math.max(2, Math.min(100, pct))}%`,
-                    background: isUbo ? "#7c3aed" : "#94a3b8",
+                    background: barColor,
                   }}
                 />
               </div>

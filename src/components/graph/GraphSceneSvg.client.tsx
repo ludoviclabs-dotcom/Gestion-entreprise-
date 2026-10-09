@@ -161,7 +161,17 @@ export default function GraphSceneSvg({
     let dragNode: EngineNode | null = null;
     let panning = false;
     let downPt = { x: 0, y: 0 };
+    let startPt = { x: 0, y: 0 };
     let moved = false;
+    // Cible du pointerdown, mémorisée : avec setPointerCapture, le pointerup est
+    // re-ciblé sur le <svg> et `e.target.closest(".node")` ne retrouverait plus
+    // le nœud cliqué (cause du clic qui fermait la fiche au lieu de l'ouvrir).
+    let downNodeId: string | null = null;
+    let downEdgeId: string | null = null;
+    // Mouvement réduit : particules masquées (le sens reste porté par le trait).
+    const reducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
     let t0 = performance.now();
     let rafId = 0;
     let soundOn = true;
@@ -197,9 +207,6 @@ export default function GraphSceneSvg({
 
     // ── mise en page : projette les coordonnées ForceAtlas2 dans le stage ──
     function computeLayout() {
-      const pad = { l: 92, r: 132, t: 48, b: 60 };
-      const w = Math.max(10, cssW - pad.l - pad.r);
-      const h = Math.max(10, cssH - pad.t - pad.b);
       const xs = dto.nodes.map((n) => n.x);
       const ys = dto.nodes.map((n) => n.y);
       const minX = Math.min(...xs);
@@ -208,6 +215,9 @@ export default function GraphSceneSvg({
       const maxY = Math.max(...ys);
       const spanX = maxX - minX || 1;
       const spanY = maxY - minY || 1;
+      const pad = labelPadding((minX + maxX) / 2, (minY + maxY) / 2);
+      const w = Math.max(10, cssW - pad.l - pad.r);
+      const h = Math.max(10, cssH - pad.t - pad.b);
       const s = Math.min(w / spanX, h / spanY); // échelle uniforme (pas de distorsion)
       const offX = pad.l + (w - spanX * s) / 2;
       const offY = pad.t + (h - spanY * s) / 2;
@@ -234,6 +244,38 @@ export default function GraphSceneSvg({
         const b = nodeById[e.target];
         if (a && b) e.rest = Math.hypot(a.ax - b.ax, a.ay - b.ay);
       });
+    }
+    /**
+     * Marges du cadrage calculées d'après la longueur réelle des libellés :
+     * un libellé placé à gauche d'un nœud du bord gauche ne doit pas sortir
+     * du cadre (libellés coupés observés dans la vue initiale). Largeur
+     * estimée à ~8,4 px par caractère (14 px, graisse 600), plafonnée pour
+     * garder de la place au graphe sur petit écran.
+     */
+    function labelPadding(cx: number, cy: number) {
+      const charW = 8.4;
+      const gap = 52; // rayon max du nœud + décalage du libellé + respiration
+      let l = 48;
+      let r = 48;
+      let t = 40;
+      let b = 48;
+      for (const n of dto.nodes) {
+        const dx = n.x - cx;
+        const dy = n.y - cy;
+        const wLbl = n.label.length * charW + gap;
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          if (dx >= 0) r = Math.max(r, wLbl);
+          else l = Math.max(l, wLbl);
+        } else if (dy >= 0) b = Math.max(b, 64);
+        else t = Math.max(t, 56);
+        // Libellé centré (haut/bas) : demi-largeur de chaque côté.
+        if (Math.abs(dx) < Math.abs(dy)) {
+          l = Math.max(l, (n.label.length * charW) / 2 + 24);
+          r = Math.max(r, (n.label.length * charW) / 2 + 24);
+        }
+      }
+      const cap = cssW * 0.3;
+      return { l: Math.min(l, cap), r: Math.min(r, cap), t, b };
     }
     function resize() {
       const r = svg!.getBoundingClientRect();
@@ -405,6 +447,21 @@ export default function GraphSceneSvg({
         g.style.cursor = "pointer";
         g.addEventListener("pointerenter", () => setHover(src.id));
         g.addEventListener("pointerleave", () => setHover(null));
+        // Accessibilité : chaque nœud est atteignable au clavier et ouvre sa
+        // fiche avec Entrée ou Espace.
+        g.setAttribute("tabindex", "0");
+        g.setAttribute("role", "button");
+        g.setAttribute("aria-label", `${src.label} : ouvrir la fiche`);
+        g.addEventListener("focus", () => setHover(src.id));
+        g.addEventListener("blur", () => setHover(null));
+        g.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            selectNode(src.id);
+          } else if (ev.key === "Escape") {
+            useGraphStore.getState().clearSelection();
+          }
+        });
       });
 
       edges.forEach((e) => {
@@ -666,7 +723,7 @@ export default function GraphSceneSvg({
 
         // particules orientées source → cible
         const lenNow = Math.hypot(ex - ax, ey - ay);
-        const show = appear > 0.98 && lenNow > 6 && e.dim > 0.02;
+        const show = !reducedMotion && appear > 0.98 && lenNow > 6 && e.dim > 0.02;
         const speed = (0.085 + (e.evidenceLevel === "confirmed" ? 0.04 : 0)) * (0.5 + MOTION);
         if (show) e.phase = (e.phase + speed / 60) % 1;
         e.parts.forEach((p, i) => {
@@ -772,17 +829,26 @@ export default function GraphSceneSvg({
     function onDown(e: PointerEvent) {
       const p = relPt(e);
       downPt = p;
+      startPt = p;
       moved = false;
       ensureAudio();
       const target = e.target as Element;
       const nodeEl = target.closest?.(".node");
-      if (nodeEl) dragNode = nodeById[nodeEl.getAttribute("data-id") || ""] || null;
+      const edgeEl = target.closest?.(".edge");
+      downNodeId = nodeEl?.getAttribute("data-id") || null;
+      downEdgeId = nodeEl ? null : edgeEl?.getAttribute("data-edge-id") || null;
+      if (nodeEl) dragNode = nodeById[downNodeId || ""] || null;
       else panning = true;
       svg!.style.cursor = "grabbing";
       svg!.setPointerCapture?.(e.pointerId);
     }
     function onMove(e: PointerEvent) {
       const p = relPt(e);
+      // Seuil de 4 px : un micro-déplacement pendant un clic (trackpad,
+      // tactile) ne doit pas transformer le clic en glisser-déposer.
+      if (!moved && (dragNode || panning)) {
+        if (Math.hypot(p.x - startPt.x, p.y - startPt.y) < 4) return;
+      }
       if (dragNode) {
         const w = screenToWorld(p.x, p.y);
         dragNode.vx = w.x - dragNode.posX;
@@ -801,18 +867,18 @@ export default function GraphSceneSvg({
         moved = true;
       }
     }
-    function onUp(e: PointerEvent) {
+    function onUp() {
+      if (!dragNode && !panning) return; // pointerup hors du graphe
       if (dragNode && moved) haptic(6);
       if (!moved) {
-        const target = e.target as Element;
-        const nodeEl = target.closest?.(".node");
-        const edgeEl = target.closest?.(".edge");
-        if (nodeEl) selectNode(nodeEl.getAttribute("data-id") || "");
-        else if (edgeEl) selectEdge(edgeEl.getAttribute("data-edge-id") || "");
+        if (downNodeId) selectNode(downNodeId);
+        else if (downEdgeId) selectEdge(downEdgeId);
         else useGraphStore.getState().clearSelection();
       }
       dragNode = null;
       panning = false;
+      downNodeId = null;
+      downEdgeId = null;
       svg!.style.cursor = hoverId ? "pointer" : "grab";
     }
     function selectNode(id: string) {

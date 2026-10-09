@@ -49,7 +49,12 @@ export type CaseEdge = {
   source: string;
   target: string;
   label?: string;
+  /** Pour `DETIENT` : part du capital (« 60 % »). */
   weight?: string;
+  /** Pour `DETIENT` : part des droits de vote si elle diffère du capital. */
+  votingWeight?: string;
+  /** Droits particuliers documentés (pacte, veto, nomination des organes…). */
+  specialRights?: string;
   evidenceLevel: EvidenceLevel;
   sourceLabel?: string;
   excerpt?: string;
