@@ -3,13 +3,13 @@
   "uniteLegale": {
     "siren": "552032534",
     "dateCreationUniteLegale": "1973-01-01",
-    "nicSiegeUniteLegale": "00046",
     "periodesUniteLegale": [
       {
         "dateDebut": "2020-01-01",
         "etatAdministratifUniteLegale": "A",
         "denominationUniteLegale": "DANONE",
-        "categorieJuridiqueUniteLegale": "5710",
+        "categorieJuridiqueUniteLegale": "5599",
+        "nicSiegeUniteLegale": "00046",
         "activitePrincipaleUniteLegale": "70.10Z",
         "nomenclatureActivitePrincipaleUniteLegale": "NAFRev2"
       }

@@ -7,10 +7,13 @@ type SirenePeriode = {
   categorieJuridiqueUniteLegale?: string | null;
   activitePrincipaleUniteLegale?: string | null;
   etatAdministratifUniteLegale?: string | null;
+  /** Réponse réelle (API 3.11) : le NIC du siège est porté par la PÉRIODE. */
+  nicSiegeUniteLegale?: string | null;
 };
 type SireneUniteLegale = {
   siren?: string;
   dateCreationUniteLegale?: string | null;
+  /** Historique / fixtures : niveau 1. Absent des réponses réelles. */
   nicSiegeUniteLegale?: string | null;
   periodesUniteLegale?: SirenePeriode[];
 };
@@ -23,16 +26,31 @@ type SireneAdresse = {
   codePostalEtablissement?: string | null;
   libelleCommuneEtablissement?: string | null;
 };
+type SireneEtab = { adresseEtablissement?: SireneAdresse };
+/**
+ * Deux formes : `/siret/{siret}` → `{ etablissement }` ; la recherche
+ * `/siret?q=…` → `{ etablissements: [...] }`. Les deux sont lues.
+ */
 type SireneEtabResponse = {
-  etablissement?: { adresseEtablissement?: SireneAdresse };
+  etablissement?: SireneEtab;
+  etablissements?: SireneEtab[];
 };
 
+/**
+ * Catégories juridiques INSEE (niveau III) les plus fréquentes → sigle usuel.
+ * Code inconnu → code brut affiché (jamais un libellé inventé).
+ */
 const FORMES: Record<string, string> = {
-  "5710": "SA",
-  "5499": "SARL",
-  "5599": "SAS",
+  "1000": "Entrepreneur individuel",
   "5202": "SNC",
+  "5498": "EURL",
+  "5499": "SARL",
+  "5599": "SA",
+  "5699": "SA",
+  "5710": "SAS",
+  "5720": "SASU",
   "6540": "SCI",
+  "9220": "Association déclarée",
 };
 const ETATS: Record<string, string> = { A: "Active", C: "Cessée" };
 
@@ -65,7 +83,8 @@ export type SireneAddress = {
 };
 
 export function sireneAddress(etabRaw: unknown): SireneAddress | null {
-  const adr = (etabRaw as SireneEtabResponse).etablissement?.adresseEtablissement;
+  const resp = (etabRaw && typeof etabRaw === "object" ? etabRaw : {}) as SireneEtabResponse;
+  const adr = (resp.etablissement ?? resp.etablissements?.[0])?.adresseEtablissement;
   if (!adr) return null;
   const ligne = [
     adr.numeroVoieEtablissement,
@@ -184,7 +203,8 @@ export function normalizeSirene(
     siren,
     companyId,
     denomination,
-    nic: ul.nicSiegeUniteLegale ?? null,
+    // Réponse réelle : le NIC est dans la période ; niveau 1 = fixtures/historique.
+    nic: period.nicSiegeUniteLegale ?? ul.nicSiegeUniteLegale ?? null,
     entities,
     edges,
   };

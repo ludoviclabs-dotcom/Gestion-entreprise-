@@ -101,16 +101,44 @@ export async function assembleCase(
   const sireneNorm = normalizeSirene(ul.raw, etab.raw, banAddr);
   const companyId = sireneNorm.companyId;
 
-  const bodaccRes = await bodacc.bySiren(siren);
-  sources.push(toSource("bodacc", bodaccRes));
+  // Sources INDÉPENDANTES les unes des autres (elles ne dépendent que du SIREN et
+  // de la dénomination) : appelées EN PARALLÈLE. La durée d'un dossier devient
+  // celle de la source la plus lente et non la somme (≈ 60 s auparavant). Chaque
+  // connecteur isole ses propres erreurs ; l'ordre des source_records ci-dessous
+  // reste déterministe.
+  const subjectLabel = sireneNorm.denomination ?? `SIREN ${siren}`;
+  const [bodaccRes, inpiRes, gelsRes, osRes, gleifRes, viesRes, pappersRes, gdeltRes] =
+    await Promise.all([
+      bodacc.bySiren(siren),
+      inpi.getRne(siren),
+      tresorGels.match({ siren, name: sireneNorm.denomination ?? undefined }),
+      // OpenSanctions — agrégat UE de listes sanctions/PEP. Le registre national
+      // (DG Trésor gels) reste en parallèle (déduplication via natural key).
+      openSanctions.match({
+        company: { schema: "Company", name: subjectLabel, identifier: siren },
+      }),
+      gleif.bySiren(siren),
+      vies.validateFr(siren),
+      pappers.bySiren(siren),
+      gdelt.byName(subjectLabel),
+    ]);
+  sources.push(
+    toSource("bodacc", bodaccRes),
+    toSource("inpi", inpiRes),
+    toSource("tresor_gels", gelsRes),
+    toSource("opensanctions", osRes),
+    toSource("gleif", gleifRes),
+    toSource("vies", viesRes),
+    toSource("pappers", pappersRes),
+    toSource("gdelt", gdeltRes),
+  );
+
   // Repli fixture (BODACC en panne) ou mode live : jamais d'annonces d'échantillon
   // sur un dossier réel.
   const events = usableResult(bodaccRes)
     ? normalizeBodacc(bodaccRes.raw, companyId)
     : [];
 
-  const inpiRes = await inpi.getRne(siren);
-  sources.push(toSource("inpi", inpiRes));
   // Sans identifiants INPI en mode live, `inpiRes` est la fixture (dirigeants
   // DANONE) : on ne l'applique pas à un dossier réel.
   const inpiUsable = usableResult(inpiRes);
@@ -146,54 +174,35 @@ export async function assembleCase(
     }))
     .filter((b) => b.label.length > 0);
 
-  const gelsRes = await tresorGels.match({
-    siren,
-    name: sireneNorm.denomination ?? undefined,
-  });
-  sources.push(toSource("tresor_gels", gelsRes));
+  // DG Trésor — rapprochement dénomination ↔ registre des gels (hypothèse, jamais
+  // un fait : cf. normalizeGels).
   const gelsNorm = usableResult(gelsRes)
     ? normalizeGels(gelsRes.raw, { companyId })
     : { entities: [], edges: [] };
 
-  // OpenSanctions — agrégat UE de listes sanctions/PEP. Le registre national
-  // (DG Trésor gels) reste en parallèle (déduplication via natural key).
-  const osRes = await openSanctions.match({
-    company: {
-      schema: "Company",
-      name: sireneNorm.denomination ?? `SIREN ${siren}`,
-      identifier: siren,
-    },
-  });
-  sources.push(toSource("opensanctions", osRes));
   const osNorm = usableResult(osRes)
     ? normalizeOpenSanctions(osRes.raw, {
         subjectId: companyId,
-        subjectLabel: sireneNorm.denomination ?? `SIREN ${siren}`,
+        subjectLabel,
       })
     : { entities: [], edges: [] };
 
   // GLEIF — structure de détention transfrontalière (sociétés mères de niveau 2).
   // Arêtes DETIENT structurelles (sans %, GLEIF ne publie pas de participations).
-  const gleifRes = await gleif.bySiren(siren);
-  sources.push(toSource("gleif", gleifRes));
   const gleifNorm = usableResult(gleifRes)
     ? normalizeGleif(gleifRes.raw, companyId)
     : { entities: [], edges: [], subjectLei: null };
 
   // VIES — validation de la TVA intracommunautaire (corroboration d'identité,
   // pas un signal de risque : un `valid:false` est neutre pour une PME domestique).
-  const viesRes = await vies.validateFr(siren);
-  sources.push(toSource("vies", viesRes));
   const viesData = usableResult(viesRes)
     ? (viesRes.raw as { vatNumber?: string | null; valid?: boolean | null })
     : { vatNumber: null, valid: null };
 
-  // Pappers — appelé AVANT la résolution : ses dirigeants rejoignent l'entrée du
-  // résolveur (un dirigeant vu par l'INPI ET Pappers est fusionné), et ses comptes
-  // annuels enrichissent ensuite le nœud société canonique. Une réponse en erreur
-  // (clé refusée, quota) est signalée par son statut HTTP : jamais exploitée.
-  const pappersRes = await pappers.bySiren(siren);
-  sources.push(toSource("pappers", pappersRes));
+  // Pappers — ses dirigeants rejoignent l'entrée du résolveur (un dirigeant vu par
+  // l'INPI ET Pappers est fusionné), et ses comptes annuels enrichissent ensuite
+  // le nœud société canonique. Une réponse en erreur (clé refusée, quota) est
+  // signalée par son statut HTTP : jamais exploitée.
   const pappersUsable = usableResult(pappersRes) && pappersRes.httpStatus < 400;
   const pappersPeople = pappersUsable
     ? pappersDirigeants(pappersRes.raw, companyId)
@@ -251,8 +260,6 @@ export async function assembleCase(
   }
 
   // GDELT — couverture médiatique (presse), appariée au graphe CANONIQUE.
-  const gdeltRes = await gdelt.byName(sireneNorm.denomination ?? `SIREN ${siren}`);
-  sources.push(toSource("gdelt", gdeltRes));
   const mediaEvents = usableResult(gdeltRes)
     ? normalizeGdelt(gdeltRes.raw, {
         subjectId: canonicalSubjectId,
