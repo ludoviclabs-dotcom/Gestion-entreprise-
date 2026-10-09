@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import KybGraph from "./KybGraph.client";
 import {
   ENT,
@@ -32,10 +32,18 @@ interface Ctx {
 
 const LandingCtx = createContext<Ctx>({ sel: "holding", select: () => {}, dir: null });
 
+const noopSubscribe = () => () => {};
+
+/** `false` au rendu serveur et à l'hydratation, `true` ensuite (pas de mismatch). */
+function useHydrated() {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
+
 export function LandingProvider({ children }: { children: ReactNode }) {
   const [sel, setSel] = useState("holding");
   const { resolvedTheme } = useTheme();
-  const dir: Direction | null = resolvedTheme === "light" ? "a" : resolvedTheme ? "b" : null;
+  const hydrated = useHydrated();
+  const dir: Direction | null = !hydrated ? null : resolvedTheme === "light" ? "a" : resolvedTheme ? "b" : null;
 
   useReveal(dir);
 
@@ -99,16 +107,17 @@ function useReveal(dir: Direction | null) {
 
 export function DirectionSwitch() {
   const { setTheme } = useTheme();
+  const { dir } = useContext(LandingCtx);
   const to = (theme: "light" | "dark") => () => {
     setTheme(theme);
     window.scrollTo(0, 0);
   };
   return (
     <div className="kgl-switch" role="group" aria-label="Mode d'affichage">
-      <button type="button" className="kgl-switch-a" onClick={to("light")}>
+      <button type="button" className="kgl-switch-a" aria-pressed={dir ? dir === "a" : undefined} onClick={to("light")}>
         1a · Registre
       </button>
-      <button type="button" className="kgl-switch-b" onClick={to("dark")}>
+      <button type="button" className="kgl-switch-b" aria-pressed={dir ? dir === "b" : undefined} onClick={to("dark")}>
         1b · Nuit
       </button>
     </div>

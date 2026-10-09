@@ -1015,9 +1015,12 @@ html:not(.light) .kgl-switch-b {
 .b-link-sm { font-size: 15px; }
 
 /* Hero plein cadre */
+/* Hero dans le flux (et non en absolu) : rendu identique à la maquette à
+   1440 px, mais il s'allonge au lieu de se chevaucher quand la légende et la
+   fiche passent sur deux lignes (≈ 1280 px). */
 .b-hero {
   position: relative;
-  height: 860px;
+  min-height: 860px;
   overflow: hidden;
 }
 .b-hero-graph {
@@ -1042,17 +1045,15 @@ html:not(.light) .kgl-switch-b {
 .b-hero-in {
   position: relative;
   max-width: 1440px;
-  height: 100%;
+  min-height: 860px;
   margin: 0 auto;
-  padding: 68px 96px 0;
+  padding: 150px 96px 36px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   pointer-events: none;
 }
 .b-hero-text {
-  position: absolute;
-  left: 96px;
-  right: 96px;
-  top: 150px;
   max-width: 640px;
   pointer-events: auto;
 }
@@ -1119,10 +1120,8 @@ html:not(.light) .kgl-switch-b {
 }
 
 .b-hero-foot {
-  position: absolute;
-  left: 96px;
-  right: 96px;
-  bottom: 36px;
+  margin-top: auto;
+  padding-top: 48px;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -1130,6 +1129,9 @@ html:not(.light) .kgl-switch-b {
   gap: 24px 48px;
 }
 .b-hero-legend {
+  flex: 1 1 300px;
+  min-width: 0;
+  max-width: 640px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1567,8 +1569,8 @@ html:not(.light) .kgl-switch-b {
     padding-right: 20px;
   }
   .b-header { margin-bottom: 0; }
-  .b-hero {
-    height: auto;
+  .b-hero,
+  .b-hero-in {
     min-height: 760px;
   }
   .b-hero-fade-x {
@@ -1577,12 +1579,8 @@ html:not(.light) .kgl-switch-b {
   .b-hero-in {
     padding: 72px 20px 36px;
   }
-  .b-hero-text,
   .b-hero-foot {
-    position: static;
-  }
-  .b-hero-foot {
-    margin-top: 72px;
+    padding-top: 72px;
   }
   .b-tl-row {
     grid-template-columns: 90px minmax(0, 1fr);

@@ -251,9 +251,9 @@ export default function DayLanding() {
                   </div>
                 ))}
                 <div className="kgl-threat-legend">
-                  <span><ThreatDot t="m" /><span>Modéré</span></span>
-                  <span><ThreatDot t="e" /><span>Élevé</span></span>
-                  <span className="kgl-threat-legend-c"><ThreatDot t="c" /><span>Critique</span></span>
+                  <span><ThreatDot t="m" decorative /><span>Modéré</span></span>
+                  <span><ThreatDot t="e" decorative /><span>Élevé</span></span>
+                  <span className="kgl-threat-legend-c"><ThreatDot t="c" decorative /><span>Critique</span></span>
                 </div>
               </div>
             </div>
