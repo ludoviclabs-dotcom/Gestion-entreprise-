@@ -88,6 +88,8 @@ export function getScoreStatus(
 
 function sourceFromText(text: string | undefined): SourceKind | null {
   const haystack = (text ?? "").toLowerCase();
+  // Avant INPI : « agrégé par Pappers » peut citer le RNE sans en être issu.
+  if (haystack.includes("pappers")) return "pappers";
   if (haystack.includes("sirene") || haystack.includes("insee")) return "sirene";
   if (haystack.includes("bodacc")) return "bodacc";
   if (haystack.includes("inpi") || haystack.includes("rne")) return "inpi";

@@ -26,4 +26,16 @@ describe("assembleCase (mode mock)", () => {
     // Traçabilité : un source_record par appel connecteur.
     expect(sources.length).toBeGreaterThanOrEqual(5);
   });
+
+  it("fusionne un dirigeant vu par l'INPI ET par Pappers (une seule personne)", async () => {
+    const { bundle } = await assembleCase("552032534");
+    const faber = bundle.entities.filter(
+      (e) => e.type === "person" && /faber/i.test(e.label),
+    );
+    expect(faber).toHaveLength(1);
+    const directEdges = bundle.edges.filter(
+      (e) => e.type === "DIRIGE" && e.source === faber[0].id,
+    );
+    expect(directEdges).toHaveLength(1);
+  });
 });
