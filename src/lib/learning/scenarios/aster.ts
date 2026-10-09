@@ -424,6 +424,10 @@ const aster = {
         multiple: true,
         minSelected: 2,
         prompt: "Retenez au moins deux hypothèses à vérifier, dont une explication licite.",
+        requireOneOf: {
+          optionIds: ["h1", "h3"],
+          hint: "La consigne demande une explication licite : la croissance financée légitimement ou l'accès prolongé par un avenant.",
+        },
         options: [
           { id: "h1", label: "La croissance d'Aster a été financée légitimement et les opérations sur le capital sont approuvées.", verdict: "juste", feedback: "Explication licite plausible au vu des pièces." },
           { id: "h2", label: "La dépendance à Meridian et le nantissement d'Orion créent une vulnérabilité contractuelle à gérer.", verdict: "juste", feedback: "Hypothèse sur la situation d'Aster, sans intention prêtée aux partenaires." },

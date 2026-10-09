@@ -415,6 +415,10 @@ const nova = {
         multiple: true,
         minSelected: 2,
         prompt: "Retenez au moins deux hypothèses à vérifier, dont une explication licite.",
+        requireOneOf: {
+          optionIds: ["h1", "h2"],
+          hint: "La consigne demande une explication licite : un mandat donné par Lumen ou une erreur documentaire.",
+        },
         options: [
           { id: "h1", label: "Lumen a mandaté Kappa Payments et changé d'adresse légitimement.", verdict: "juste", feedback: "Explication licite, à vérifier avec le mandat et une confirmation indépendante." },
           { id: "h2", label: "L'instruction contient une erreur documentaire.", verdict: "juste", feedback: "Explication licite, à vérifier auprès de Lumen." },
