@@ -2,8 +2,12 @@ import { Info, X } from "lucide-react";
 import type { Scenario } from "@/lib/learning/schema";
 import { ACTOR_KIND_LABELS, RESOURCE_KIND_LABELS } from "@/lib/learning/labels";
 import {
+  LAYER_LABELS,
   RELATION_KIND_LABELS,
+  STATUS_LABELS,
   evidenceById,
+  frDate,
+  legAmount,
   frAmount,
   frPct,
   knownClaimsAbout,
@@ -57,6 +61,60 @@ export function Inspector({
       <X size={15} aria-hidden />
     </button>
   );
+
+  if (selection.type === "event") {
+    const ev = state.events.find((x) => x.id === selection.id);
+    if (!ev) return null;
+    const claims = knownClaimsOf(scenario, state, ev);
+    const observers = scenario.observers.filter((o) => ev.visibleTo.includes(o.id));
+    const ROLE: Record<string, string> = {
+      envoi: "Envoi",
+      frais: "Frais",
+      conversion_entree: "Remis à l'échange",
+      conversion_sortie: "Reçu de l'échange",
+    };
+    return (
+      <div>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Opération · {LAYER_LABELS[ev.layer]}
+            </p>
+            <h3 className="text-base font-semibold">{ev.label}</h3>
+          </div>
+          {close}
+        </div>
+        <dl className="mt-2 divide-y divide-border/60">
+          <Row label="Date">{frDate(ev.occurredOn)}</Row>
+          {ev.network ? <Row label="Réseau">{ev.network}</Row> : null}
+          <Row label="Statut">{STATUS_LABELS[ev.status]}</Row>
+          <Row label="Vu par">
+            {observers.length ? observers.map((o) => o.label).join(", ") : "Aucun observateur simulé"}
+          </Row>
+        </dl>
+        <h4 className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Jambes, en unités exactes</h4>
+        <ul className="mt-1.5 space-y-1 text-sm">
+          {ev.legs.map((l, i) => (
+            <li key={i} className="flex flex-wrap gap-x-1.5">
+              <span className="text-xs text-muted-foreground">{ROLE[l.role]}</span>
+              <span className="font-medium tabular-nums">{legAmount(l)}</span>
+              <span className="text-muted-foreground">
+                {objectLabel(scenario, l.from)}
+                {l.to ? ` → ${objectLabel(scenario, l.to)}` : " (frais de réseau)"}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-1.5 text-xs text-muted-foreground">Des unités différentes ne s'additionnent pas.</p>
+        <h4 className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ce qui l'établit</h4>
+        <ul className="mt-2 space-y-2">
+          {claims.map((c) => (
+            <ClaimItem key={c.id} scenario={scenario} claim={c} resolution={state.resolutions.get(c.id)} />
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   if (selection.type === "relation") {
     const r = state.relations.find((x) => x.id === selection.id);
@@ -133,6 +191,14 @@ export function Inspector({
         ) : null}
         {o.type === "resource" && o.resource.identifier ? (
           <Row label="Identifiant">{o.resource.identifier}</Row>
+        ) : null}
+        {o.type === "resource" && o.resource.network ? <Row label="Réseau">{o.resource.network}</Row> : null}
+        {o.type === "resource" && o.resource.kind === "adresse" ? (
+          <Row label="Attention">
+            <span className="text-xs text-muted-foreground">
+              Une adresse est un identifiant sur un réseau : elle ne dit ni qui la détient ni où se trouve son détenteur.
+            </span>
+          </Row>
         ) : null}
       </dl>
       {relations.length > 0 ? (
