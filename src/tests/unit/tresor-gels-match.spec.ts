@@ -97,6 +97,29 @@ describe("matchGelsEntries", () => {
     expect(matchGelsEntries(short, { name: "abce" })).toHaveLength(1);
   });
 
+  it("rejette l'inclusion d'un mot dans un nom plus long (« DANONE » ≠ « DANONE INTERNATIONAL »)", () => {
+    const registry: GelsEntry[] = [
+      { nom: "DANONE INTERNATIONAL HOLDING LTD", nature: "Personne morale", aliases: [] },
+      { nom: "DANONE INTERNATIONAL", nature: "Personne morale", aliases: [] },
+    ];
+    expect(matchGelsEntries(registry, { name: "DANONE" })).toEqual([]);
+    expect(matchGelsEntries(registry, { name: "Danone France" })).toEqual([]);
+  });
+
+  it("garde l'égalité stricte d'un nom d'un seul mot", () => {
+    const registry: GelsEntry[] = [{ nom: "DANONE", nature: "Personne morale", aliases: [] }];
+    const m = matchGelsEntries(registry, { name: "Danone SA" });
+    expect(m).toHaveLength(1);
+    expect(m[0].matchType).toBe("exact");
+  });
+
+  it("rapproche encore une variante d'orthographe d'un nom d'un seul mot", () => {
+    const registry: GelsEntry[] = [{ nom: "ACMETRADINGS", nature: "Personne morale", aliases: [] }];
+    const m = matchGelsEntries(registry, { name: "ACMETRADING" });
+    expect(m).toHaveLength(1);
+    expect(m[0].matchType).toBe("approximatif");
+  });
+
   it("renvoie [] sans dénomination", () => {
     expect(matchGelsEntries(entries, { name: "  " })).toEqual([]);
     expect(matchGelsEntries(entries, {})).toEqual([]);

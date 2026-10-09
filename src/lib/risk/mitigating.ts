@@ -58,6 +58,13 @@ function rootCompanyCreation(bundle: CaseBundle): Date | null {
 export function computeMitigatingFactors(
   bundle: CaseBundle,
   now: Date = new Date(),
+  /**
+   * Couverture réelle des contrôles (cf. `getSourceCoverage`). Absente → tout est
+   * supposé couvert (démo, tests). Un facteur « aucun X » n'est émis que si le
+   * contrôle X a été mené : l'absence de résultat d'un contrôle non effectué
+   * n'est pas un fait rassurant.
+   */
+  coverage?: { bodacc: boolean; sanctions: boolean },
 ): MitigatingFactor[] {
   const factors: MitigatingFactor[] = [];
 
@@ -93,7 +100,7 @@ export function computeMitigatingFactors(
 
   // 3. Aucune entité sous sanction / PEP dans le périmètre cartographié.
   const hasSanction = bundle.entities.some((e) => e.type === "sanction");
-  if (!hasSanction) {
+  if (!hasSanction && coverage?.sanctions !== false) {
     factors.push({
       id: "AUCUNE_ENTITE_SIGNALEE",
       label: "Aucune entité signalée",
@@ -106,7 +113,7 @@ export function computeMitigatingFactors(
   const hasProcedure = bundle.events.some(
     (e) => e.kind === "procedure_collective" || e.kind === "radiation",
   );
-  if (!hasProcedure) {
+  if (!hasProcedure && coverage?.bodacc !== false) {
     factors.push({
       id: "PAS_DE_PROCEDURE",
       label: "Pas de procédure collective ni radiation",

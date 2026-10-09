@@ -1,4 +1,4 @@
-import { denominationSimilarity } from "@/lib/match/similarity";
+import { jaroWinkler } from "@/lib/match/similarity";
 import { normalizeName, stripLegalForms } from "@/lib/match/normalize";
 
 /**
@@ -42,6 +42,30 @@ export const GELS_APPROX_THRESHOLD = 0.93;
 const MIN_APPROX_LENGTH = 6;
 /** Borne le bruit : on ne remonte jamais plus de 5 candidats par dossier. */
 const MAX_MATCHES = 5;
+/**
+ * Part minimale des mots de la dénomination la plus longue qui doivent avoir un
+ * équivalent dans l'autre. Écarte l'inclusion : « DANONE » ne ressemble pas à
+ * « DANONE INTERNATIONAL » (1 mot sur 2), alors qu'une simple variante
+ * d'orthographe (holding / holdings) reste rapprochée.
+ */
+const MIN_TOKEN_COVERAGE = 0.6;
+/** Deux mots sont « équivalents » (pluriel, faute de frappe) au-dessus de ce seuil. */
+const TOKEN_EQUIVALENCE = 0.9;
+
+/**
+ * Part des mots (de la dénomination la plus longue) ayant un équivalent dans
+ * l'autre. Symétrique, contrairement à un score d'inclusion.
+ */
+function tokenCoverage(a: string, b: string): number {
+  const ta = a.split(" ").filter(Boolean);
+  const tb = b.split(" ").filter(Boolean);
+  if (ta.length === 0 || tb.length === 0) return 0;
+  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  const matched = short.filter((t) =>
+    long.some((u) => t === u || jaroWinkler(t, u) >= TOKEN_EQUIVALENCE),
+  ).length;
+  return matched / long.length;
+}
 
 /** Lecture d'une clé sans tenir compte de la casse (`Nom` / `nom` / `NOM`). */
 function pick(obj: unknown, ...names: string[]): unknown {
@@ -143,8 +167,14 @@ export function matchGelsEntries(
       if (target.length < MIN_APPROX_LENGTH || stripped.length < MIN_APPROX_LENGTH) {
         continue;
       }
-      const score = denominationSimilarity(name, candidate);
-      if (score >= GELS_APPROX_THRESHOLD && (!best || score > best.score)) {
+      // Jaro-Winkler sur la chaîne COMPLÈTE (pas de score d'inclusion de mots) ET
+      // couverture des mots : « DANONE » ≠ « DANONE INTERNATIONAL HOLDING ».
+      const score = jaroWinkler(target, stripped);
+      if (
+        score >= GELS_APPROX_THRESHOLD &&
+        tokenCoverage(target, stripped) >= MIN_TOKEN_COVERAGE &&
+        (!best || score > best.score)
+      ) {
         best = { score, exact: false };
       }
     }

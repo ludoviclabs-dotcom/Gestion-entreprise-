@@ -44,10 +44,25 @@ export type TresorGelsRaw = {
   query: { siren?: string; name?: string };
 };
 
+// Téléchargement en cours : les appels concurrents (démarrage à froid, rafale de
+// dossiers) partagent la même promesse au lieu de télécharger > 10 Mo chacun.
+let inflight: { endpoint: string; promise: Promise<CachedPublication> } | null = null;
+
 async function loadPublication(endpoint: string): Promise<CachedPublication> {
   if (cache && cache.endpoint === endpoint && Date.now() - cache.at < CACHE_TTL_MS) {
     return cache;
   }
+  if (inflight && inflight.endpoint === endpoint) return inflight.promise;
+
+  const promise: Promise<CachedPublication> = downloadPublication(endpoint).finally(() => {
+    // Libère le verrou, succès comme échec (un échec ne doit pas être figé).
+    if (inflight?.promise === promise) inflight = null;
+  });
+  inflight = { endpoint, promise };
+  return promise;
+}
+
+async function downloadPublication(endpoint: string): Promise<CachedPublication> {
   const { data, status } = await fetchJson<unknown>(endpoint, {
     headers: { Accept: "application/json", "User-Agent": USER_AGENT },
     timeoutMs: FETCH_TIMEOUT_MS,

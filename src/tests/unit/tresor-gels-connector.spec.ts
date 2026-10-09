@@ -102,6 +102,54 @@ describe("tresorGels.match (live)", () => {
     expect(mocks.captureMessage).toHaveBeenCalled();
   });
 
+  it("partage un seul téléchargement entre appels concurrents (démarrage à froid)", async () => {
+    let release: (v: { data: unknown; status: number }) => void = () => {};
+    mocks.fetchJson.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    const connector = await freshConnector();
+    const pending = Promise.all([
+      connector.match({ name: "Acme International Holding" }),
+      connector.match({ name: "Autre Entite Fictive" }),
+      connector.match({ name: "Troisieme Societe" }),
+    ]);
+    release({ data: publication, status: 200 });
+    const results = await pending;
+    expect(mocks.fetchJson).toHaveBeenCalledTimes(1);
+    expect(results.every((r) => (r.raw as { status: string }).status === "ok")).toBe(true);
+  });
+
+  it("un échec n'est pas figé : l'appel suivant retente le téléchargement", async () => {
+    mocks.fetchJson.mockRejectedValueOnce(new Error("ECONNRESET"));
+    mocks.fetchJson.mockResolvedValueOnce({ data: publication, status: 200 });
+    const connector = await freshConnector();
+    const first = await connector.match({ name: "Acme International Holding" });
+    const second = await connector.match({ name: "Acme International Holding" });
+    expect((first.raw as { status: string }).status).toBe("indisponible");
+    expect((second.raw as { status: string }).status).toBe("ok");
+    expect(mocks.fetchJson).toHaveBeenCalledTimes(2);
+  });
+
+  it("marque les consultations dégradées dans l'endpoint (santé de la source)", async () => {
+    const { isDegradedEndpoint } = await import("@/lib/connectors/degraded");
+    const connector = await freshConnector();
+
+    mocks.fetchJson.mockResolvedValueOnce({ data: { inattendu: true }, status: 200 });
+    const schema = await connector.match({ name: "Acme" });
+    expect(schema.httpStatus).toBe(200);
+    expect(isDegradedEndpoint(schema.endpoint)).toBe(true);
+
+    mocks.fetchJson.mockResolvedValueOnce({ data: { error: "x" }, status: 500 });
+    const http = await connector.match({ name: "Acme" });
+    expect(isDegradedEndpoint(http.endpoint)).toBe(true);
+
+    mocks.fetchJson.mockRejectedValueOnce(new Error("boom"));
+    const network = await connector.match({ name: "Acme" });
+    expect(isDegradedEndpoint(network.endpoint)).toBe(true);
+  });
+
   it("n'ajoute aucun secret à l'endpoint enregistré", async () => {
     mocks.fetchJson.mockResolvedValue({ data: publication, status: 200 });
     const res = await (await freshConnector()).match({ name: "Acme" });
