@@ -266,8 +266,14 @@ export const Exercise = z
     minSelected: z.number().int().positive().optional(),
     maxSelected: z.number().int().positive().optional(),
     options: z.array(ExerciseOption).min(2),
+    /** Choix exigé par la consigne (« dont une explication licite ») : sans lui, la réponse est partielle. */
+    requireOneOf: z.object({ optionIds: z.array(z.string()).min(1), hint: z.string().min(1) }).optional(),
   })
-  .refine((e) => e.options.some((o) => o.verdict === "juste"), "Au moins une réponse juste");
+  .refine((e) => e.options.some((o) => o.verdict === "juste"), "Au moins une réponse juste")
+  .refine(
+    (e) => !e.requireOneOf || e.requireOneOf.optionIds.every((id) => e.options.some((o) => o.id === id && o.verdict === "juste")),
+    "Le choix exigé désigne des réponses justes de l'exercice",
+  );
 export type Exercise = z.infer<typeof Exercise>;
 
 export const ScenarioStep = z.object({

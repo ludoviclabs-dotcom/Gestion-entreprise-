@@ -1,6 +1,6 @@
 import { CheckCircle2, CircleAlert, CircleHelp } from "lucide-react";
 import type { Exercise, Verdict } from "@/lib/learning/schema";
-import { canSubmit, gradeExercise, selectionBounds } from "@/lib/learning/projections";
+import { canSubmit, gradeExercise, missesRequired, selectionBounds } from "@/lib/learning/projections";
 
 export const VERDICT_STYLES: Record<Verdict, { label: string; className: string; Icon: typeof CheckCircle2 }> = {
   juste: { label: "Réponse juste", className: "border-emerald/50 bg-emerald/10", Icon: CheckCircle2 },
@@ -102,6 +102,9 @@ export function ExercisePanel({
             })()}
             {VERDICT_STYLES[verdict].label}
           </p>
+        ) : null}
+        {submitted && exercise.requireOneOf && missesRequired(exercise, submitted) ? (
+          <p className="mt-2 text-sm text-muted-foreground">{exercise.requireOneOf.hint}</p>
         ) : null}
       </div>
       {!locked ? (

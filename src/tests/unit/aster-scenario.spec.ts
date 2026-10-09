@@ -155,6 +155,8 @@ describe("exercices et carnet", () => {
 
   it("une accusation sans pièce rend la réponse partielle", () => {
     expect(gradeExercise(hyp, ["h1", "h4"])).toBe("juste");
+    // Deux hypothèses justes mais aucune explication licite : la consigne n'est pas remplie.
+    expect(gradeExercise(hyp, ["h2", "h4"])).toBe("partiel");
     expect(gradeExercise(hyp, ["h1", "h5"])).toBe("partiel");
     expect(gradeExercise(hyp, ["h5", "h6"])).toBe("faux");
   });
