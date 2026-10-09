@@ -431,9 +431,14 @@ export function canSubmit(exercise: Exercise, selected: string[]): boolean {
 export function gradeExercise(exercise: Exercise, selected: string[]): Verdict {
   const verdicts = exercise.options.filter((o) => selected.includes(o.id)).map((o) => o.verdict);
   if (verdicts.length === 0) return "faux";
-  if (verdicts.every((v) => v === "juste")) return "juste";
+  if (verdicts.every((v) => v === "juste")) return missesRequired(exercise, selected) ? "partiel" : "juste";
   if (verdicts.every((v) => v === "faux")) return "faux";
   return "partiel";
+}
+
+/** La consigne exige un choix (une explication licite…) que la sélection ne contient pas. */
+export function missesRequired(exercise: Exercise, selected: string[]): boolean {
+  return !!exercise.requireOneOf && !exercise.requireOneOf.optionIds.some((id) => selected.includes(id));
 }
 
 export type Answers = Record<string, string[]>;
