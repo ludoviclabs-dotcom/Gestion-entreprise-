@@ -325,3 +325,31 @@ body {
 .scenario-edge:focus-visible .edge-focus {
   stroke-opacity: 0.45;
 }
+
+/* Parcours animé des flux : point qui suit l'opération en cours, sur commande. */
+.flow-track {
+  position: relative;
+  height: 2px;
+  background: var(--border);
+  border-radius: 9999px;
+}
+.flow-dot {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #ea580c;
+  animation-name: flow-dot;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: forwards;
+}
+@keyframes flow-dot {
+  from {
+    left: 0;
+  }
+  to {
+    left: calc(100% - 10px);
+  }
+}

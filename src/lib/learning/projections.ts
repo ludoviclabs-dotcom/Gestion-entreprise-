@@ -3,6 +3,8 @@ import type {
   Claim,
   Evidence,
   Exercise,
+  FinancialEvent,
+  FinancialLeg,
   Relation,
   RelationKind,
   Resource,
@@ -28,7 +30,8 @@ import {
  * Deux filtres s'appliquent à une relation :
  *   - temporel : elle est valide à la date de l'étape (`asOf`) ;
  *   - de connaissance : au moins une de ses affirmations est connue, c'est-à-dire
- *     appuyée par une pièce déjà révélée ou soulevée par une étape déjà jouée.
+ *     appuyée par des pièces toutes révélées, ou soulevée par une étape déjà jouée.
+ * Les opérations financières suivent les mêmes règles.
  */
 
 // ── État à une position ───────────────────────────────────────────────────
@@ -48,6 +51,10 @@ export type ScenarioState = {
   claimIds: Set<string>;
   /** Relations visibles, dans l'ordre du scénario. */
   relations: Relation[];
+  /** Opérations financières connues à cette date, par date. */
+  events: FinancialEvent[];
+  /** Frontière de connaissance en vigueur, s'il y en a une. */
+  boundary?: string;
   /** Objets visibles (sujet + extrémités des relations visibles). */
   objectIds: string[];
   resolutions: Map<string, Resolution>;
@@ -75,23 +82,38 @@ export function stateAt(scenario: Scenario, stepIndex: number, branchId?: string
 
   const evidenceIds = new Set<string>([...steps.flatMap((s) => s.reveals), ...(branch?.reveals ?? [])]);
   const raised = new Set(steps.flatMap((s) => s.raises));
+  // Une affirmation qui combine plusieurs pièces n'est connue qu'une fois toutes révélées.
   const claimIds = new Set(
     scenario.claims
-      .filter((c) => raised.has(c.id) || c.evidenceIds.some((e) => evidenceIds.has(e)))
+      .filter((c) => raised.has(c.id) || (c.evidenceIds.length > 0 && c.evidenceIds.every((e) => evidenceIds.has(e))))
       .map((c) => c.id),
   );
+  const known = (ids: string[]) => ids.length === 0 || ids.some((c) => claimIds.has(c));
 
   const relations = scenario.relations.filter(
-    (r) =>
-      (!r.branchId || r.branchId === branch?.id) &&
-      isValidAt(r, asOf) &&
-      (r.claimIds.length === 0 || r.claimIds.some((c) => claimIds.has(c))),
+    (r) => (!r.branchId || r.branchId === branch?.id) && isValidAt(r, asOf) && known(r.claimIds),
   );
+  const events = scenario.events
+    .filter(
+      (e) => (!e.branchId || e.branchId === branch?.id) && (!asOf || e.occurredOn <= asOf) && known(e.claimIds),
+    )
+    .sort((a, b) => a.occurredOn.localeCompare(b.occurredOn));
+
+  let boundary: string | undefined;
+  for (const s of steps) if (s.boundary) boundary = s.boundary;
+  if (branch) boundary = branch.boundary;
 
   const visible = new Set<string>([scenario.subjectId]);
   for (const r of relations) {
     visible.add(r.source);
     visible.add(r.target);
+  }
+  for (const e of events) {
+    if (e.layer === "interne") continue;
+    for (const l of movementLegs(e)) {
+      visible.add(l.from);
+      visible.add(l.to);
+    }
   }
   const order = [...scenario.actors.map((a) => a.id), ...scenario.resources.map((r) => r.id)];
   const objectIds = order.filter((id) => visible.has(id));
@@ -99,10 +121,32 @@ export function stateAt(scenario: Scenario, stepIndex: number, branchId?: string
   const resolutions = new Map<string, Resolution>();
   for (const r of branch?.resolves ?? []) resolutions.set(r.claimId, { outcome: r.outcome, byClaimId: r.byClaimId });
 
-  return { stepIndex: index, step: scenario.steps[index], branch, asOf, evidenceIds, claimIds, relations, objectIds, resolutions };
+  return {
+    stepIndex: index,
+    step: scenario.steps[index],
+    branch,
+    asOf,
+    evidenceIds,
+    claimIds,
+    relations,
+    events,
+    boundary,
+    objectIds,
+    resolutions,
+  };
+}
+
+/** Jambes de mouvement d'une opération (hors frais), avec une destination. */
+export function movementLegs(e: FinancialEvent): (FinancialLeg & { to: string })[] {
+  return e.legs.filter((l): l is FinancialLeg & { to: string } => l.role !== "frais" && !!l.to && l.to !== l.from);
+}
+
+export function feeLegs(e: FinancialEvent): FinancialLeg[] {
+  return e.legs.filter((l) => l.role === "frais");
 }
 
 export type StateDiff = {
+  addedEventIds: string[];
   addedRelationIds: string[];
   endedRelationIds: string[];
   newEvidenceIds: string[];
@@ -113,7 +157,9 @@ export type StateDiff = {
 export function diffStates(prev: ScenarioState | null, next: ScenarioState): StateDiff {
   const prevRel = new Set(prev?.relations.map((r) => r.id) ?? []);
   const nextRel = new Set(next.relations.map((r) => r.id));
+  const prevEv = new Set(prev?.events.map((e) => e.id) ?? []);
   return {
+    addedEventIds: next.events.map((e) => e.id).filter((id) => !prevEv.has(id)),
     addedRelationIds: [...nextRel].filter((id) => !prevRel.has(id)),
     endedRelationIds: [...prevRel].filter((id) => !nextRel.has(id)),
     newEvidenceIds: [...next.evidenceIds].filter((id) => !prev?.evidenceIds.has(id)),
@@ -152,8 +198,8 @@ export function knownClaimsAbout(scenario: Scenario, state: ScenarioState, objec
   return scenario.claims.filter((c) => state.claimIds.has(c.id) && c.about.includes(objectId));
 }
 
-/** Affirmations connues d'une relation. */
-export function knownClaimsOf(scenario: Scenario, state: ScenarioState, relation: Relation): Claim[] {
+/** Affirmations connues d'une relation ou d'une opération. */
+export function knownClaimsOf(scenario: Scenario, state: ScenarioState, relation: { claimIds: string[] }): Claim[] {
   return relation.claimIds
     .filter((id) => state.claimIds.has(id))
     .map((id) => claimById(scenario, id))
@@ -163,16 +209,21 @@ export function knownClaimsOf(scenario: Scenario, state: ScenarioState, relation
 // ── Formats ───────────────────────────────────────────────────────────────
 
 const nf = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
-const nfAmount = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 
 /** « 38,5 % » à partir d'une chaîne décimale « 38.5 ». */
 export function frPct(pct: string | number): string {
   return `${nf.format(Number(pct))} %`;
 }
 
-/** « 3 600 000 € » ; une unité inconnue est affichée telle quelle. */
+/**
+ * « 3 600 000 € », « 0,0021 ALPHA » : formaté depuis la chaîne décimale, sans
+ * passer par un flottant, en gardant toutes les décimales écrites.
+ */
 export function frAmount(value: string, unit: string): string {
-  const n = nfAmount.format(Number(value));
+  const negative = value.startsWith("-");
+  const [int, dec] = value.replace(/^-/, "").split(".");
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, "\u202f");
+  const n = `${negative ? "-" : ""}${grouped}${dec ? `,${dec}` : ""}`;
   return unit === "EUR" ? `${n} €` : `${n} ${unit}`;
 }
 
@@ -396,19 +447,60 @@ export function assetsAt(scenario: Scenario, state: ScenarioState): AssetRights[
 
 export type TimelineEntry =
   | { type: "evidence"; date: string; evidence: Evidence }
+  | { type: "event"; date: string; event: FinancialEvent; knownAt?: string }
   | { type: "marker"; date: string; marker: string; title: string };
 
-/** Pièces révélées et repères d'étape, triés par date (les repères après les pièces du même jour). */
+const TIMELINE_ORDER: Record<TimelineEntry["type"], number> = { event: 0, evidence: 1, marker: 2 };
+
+/**
+ * Opérations, pièces révélées et repères d'étape, triés par date. Une
+ * opération porte aussi le repère de l'étape où elle est devenue connue :
+ * date de l'événement et date de connaissance restent distinctes.
+ */
 export function timelineAt(scenario: Scenario, state: ScenarioState): TimelineEntry[] {
   const entries: TimelineEntry[] = [];
   for (const id of state.evidenceIds) {
     const e = evidenceById(scenario, id);
     if (e?.date) entries.push({ type: "evidence", date: e.date, evidence: e });
   }
+  for (const event of state.events) {
+    let knownAt: string | undefined;
+    for (let i = 0; i <= state.stepIndex; i++) {
+      if (stateAt(scenario, i).events.some((x) => x.id === event.id)) {
+        knownAt = scenario.steps[i].marker;
+        break;
+      }
+    }
+    entries.push({ type: "event", date: event.occurredOn, event, knownAt: knownAt ?? state.branch?.label });
+  }
   scenario.steps.slice(0, state.stepIndex + 1).forEach((s) => {
     if (s.asOf) entries.push({ type: "marker", date: s.asOf, marker: s.marker, title: s.title });
   });
-  return entries.sort((a, b) => a.date.localeCompare(b.date) || (a.type === b.type ? 0 : a.type === "evidence" ? -1 : 1));
+  return entries.sort((a, b) => a.date.localeCompare(b.date) || TIMELINE_ORDER[a.type] - TIMELINE_ORDER[b.type]);
+}
+
+// ── Flux ──────────────────────────────────────────────────────────────────
+
+export const LAYER_LABELS: Record<FinancialEvent["layer"], string> = {
+  fiat: "Banque, monnaie ayant cours légal",
+  interne: "Écriture interne au prestataire, invisible sur la chaîne",
+  chaine: "Chaîne publique",
+};
+
+export const STATUS_LABELS: Record<FinancialEvent["status"], string> = {
+  confirme: "Confirmé par une pièce",
+  en_attente: "En attente",
+  inconnu: "Inconnu",
+};
+
+/** Montant d'une jambe : valeur exacte et unité, jamais convertie implicitement. */
+export function legAmount(l: FinancialLeg): string {
+  return frAmount(l.amount.value, l.amount.unit);
+}
+
+/** Unités distinctes d'une opération : on ne les additionne jamais entre elles. */
+export function unitsOf(e: FinancialEvent): string[] {
+  return [...new Set(e.legs.map((l) => l.amount.unit))];
 }
 
 // ── Exercices ─────────────────────────────────────────────────────────────

@@ -22,9 +22,11 @@ import { Debrief } from "./Debrief";
 import { DependenciesView } from "./DependenciesView";
 import { EvidenceCard } from "./EvidenceCard";
 import { ExercisePanel } from "./ExercisePanel";
+import { FlowView } from "./FlowView";
 import { Inspector } from "./Inspector";
 import { Notebook } from "./Notebook";
 import { OwnershipView } from "./OwnershipView";
+import { PerspectivesView } from "./PerspectivesView";
 import { RelationsTable } from "./RelationsTable";
 import { GraphLegend, ScenarioGraph, type Selection } from "./ScenarioGraph";
 import { TimelineView } from "./TimelineView";
@@ -35,15 +37,20 @@ type Stage =
   | { kind: "branch"; id: string }
   | { kind: "debrief"; id: string };
 
-type ViewId = "graphe" | "propriete" | "dependances" | "actifs" | "chronologie";
+export type ViewId = "graphe" | "propriete" | "dependances" | "actifs" | "chronologie" | "flux" | "perspectives";
 
-const VIEWS: { id: ViewId; title: string; question: string }[] = [
-  { id: "graphe", title: "Graphe", question: "Qui est relié à qui, à cette date ?" },
-  { id: "propriete", title: "Propriété et gouvernance", question: "Qui contrôle cette entreprise à cette date ?" },
-  { id: "dependances", title: "Dépendances", question: "De quel acteur dépend-elle, et dans quel périmètre ?" },
-  { id: "actifs", title: "Actifs stratégiques", question: "Qui dispose de quels droits sur chaque actif ?" },
-  { id: "chronologie", title: "Chronologie comparée", question: "Qu'est-ce qui a changé depuis T0 ?" },
-];
+/** Vues disponibles ; chaque parcours choisit les siennes et peut en reformuler la question. */
+const VIEW_DEFAULTS: Record<ViewId, { title: string; question: string }> = {
+  graphe: { title: "Graphe", question: "Qui est relié à qui, à cette date ?" },
+  propriete: { title: "Propriété et gouvernance", question: "Qui contrôle cette entreprise à cette date ?" },
+  dependances: { title: "Dépendances", question: "De quel acteur dépend-elle, et dans quel périmètre ?" },
+  actifs: { title: "Actifs stratégiques", question: "Qui dispose de quels droits sur chaque actif ?" },
+  chronologie: { title: "Chronologie comparée", question: "Qu'est-ce qui a changé depuis le début ?" },
+  flux: { title: "Parcours animé", question: "Qu'observe-t-on à chaque étape du paiement ?" },
+  perspectives: { title: "Perspectives", question: "Que voit chaque observateur, et que ne voit-il pas ?" },
+};
+
+export type ViewConfig = { id: ViewId; title?: string; question?: string };
 
 function download(name: string, text: string) {
   const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
@@ -57,14 +64,23 @@ function download(name: string, text: string) {
 
 const card = "rounded-lg border border-border bg-surface";
 
-const NO_DIFF: StateDiff = { addedRelationIds: [], endedRelationIds: [], newEvidenceIds: [], newClaimIds: [] };
+const NO_DIFF: StateDiff = { addedEventIds: [], addedRelationIds: [], endedRelationIds: [], newEvidenceIds: [], newClaimIds: [] };
 
 /**
  * Scénario jouable (cadrage §7) : étapes datées, quatre vues coordonnées,
  * inspecteur, carnet, deux branches et débriefing. Tout l'état vit en mémoire ;
  * rien n'est envoyé ni stocké.
  */
-export function ScenarioPlayer({ scenario, path }: { scenario: Scenario; path: LearningPath }) {
+export function ScenarioPlayer({
+  scenario,
+  path,
+  views: viewConfig = [{ id: "graphe" }, { id: "propriete" }, { id: "dependances" }, { id: "actifs" }, { id: "chronologie" }],
+}: {
+  scenario: Scenario;
+  path: LearningPath;
+  views?: ViewConfig[];
+}) {
+  const VIEWS = viewConfig.map((v) => ({ ...VIEW_DEFAULTS[v.id], ...v }));
   const last = scenario.steps.length - 1;
   const [stage, setStage] = useState<Stage>({ kind: "step", index: 0 });
   const [reached, setReached] = useState(0);
@@ -72,7 +88,7 @@ export function ScenarioPlayer({ scenario, path }: { scenario: Scenario; path: L
   const [answers, setAnswers] = useState<Answers>({});
   const [drafts, setDrafts] = useState<Answers>({});
   const [lastBranch, setLastBranch] = useState<string | null>(null);
-  const [view, setView] = useState<ViewId>("graphe");
+  const [view, setView] = useState<ViewId>(VIEWS[0].id);
   const [table, setTable] = useState(false);
   const [selection, setSelection] = useState<Selection>(null);
   const [focusTick, setFocusTick] = useState(0);
@@ -93,13 +109,21 @@ export function ScenarioPlayer({ scenario, path }: { scenario: Scenario; path: L
   // À la première étape, rien n'est « nouveau » : tout l'est.
   const diff = prev ? diffStates(prev, state) : NO_DIFF;
   const branch = state.branch;
+  const plural = (n: number, word: string, adj: string) => `${n} ${word}${n > 1 ? "s" : ""} ${adj}${n > 1 ? "s" : ""}`;
+  const changes = [
+    diff.addedRelationIds.length ? plural(diff.addedRelationIds.length, "relation", "nouvelle") : "",
+    diff.addedEventIds.length ? plural(diff.addedEventIds.length, "opération", "nouvelle") : "",
+    diff.endedRelationIds.length ? plural(diff.endedRelationIds.length, "relation", "terminée") : "",
+  ].filter(Boolean);
 
   // Une sélection qui n'existe plus à cette date est ignorée, sans effet de bord.
   const sel: Selection =
     selection &&
     (selection.type === "object"
       ? state.objectIds.includes(selection.id)
-      : state.relations.some((r) => r.id === selection.id))
+      : selection.type === "event"
+        ? state.events.some((e) => e.id === selection.id)
+        : state.relations.some((r) => r.id === selection.id))
       ? selection
       : null;
 
@@ -123,7 +147,7 @@ export function ScenarioPlayer({ scenario, path }: { scenario: Scenario; path: L
     setChoiceUnlocked(false);
     setLastBranch(null);
     setSelection(null);
-    setView("graphe");
+    setView(VIEWS[0].id);
     goTo({ kind: "step", index: 0 });
   };
 
@@ -208,12 +232,8 @@ export function ScenarioPlayer({ scenario, path }: { scenario: Scenario; path: L
       <>
         {heading(step.title, `${step.marker}${step.asOf ? ` · ${frDate(step.asOf)}` : ""}`)}
         <p className="mt-2 text-base leading-7">{step.question}</p>
-        {diff.addedRelationIds.length || diff.endedRelationIds.length ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            Dans le graphe : {diff.addedRelationIds.length} relation{diff.addedRelationIds.length > 1 ? "s" : ""} nouvelle
-            {diff.addedRelationIds.length > 1 ? "s" : ""}
-            {diff.endedRelationIds.length ? `, ${diff.endedRelationIds.length} terminée${diff.endedRelationIds.length > 1 ? "s" : ""}` : ""}.
-          </p>
+        {changes.length ? (
+          <p className="mt-2 text-xs text-muted-foreground">Dans le graphe : {changes.join(", ")}.</p>
         ) : null}
         {pieces.length ? (
           <section className="mt-4" aria-label="Nouvelles pièces">
@@ -409,7 +429,7 @@ export function ScenarioPlayer({ scenario, path }: { scenario: Scenario; path: L
                 <ScenarioGraph scenario={scenario} state={state} diff={diff} selection={sel} onSelect={setSelection} />
               </div>
               <div className="mt-3">
-                <GraphLegend />
+                <GraphLegend scenario={scenario} />
               </div>
             </>
           )
@@ -418,6 +438,16 @@ export function ScenarioPlayer({ scenario, path }: { scenario: Scenario; path: L
         {view === "dependances" ? <DependenciesView scenario={scenario} state={state} onSelect={setSelection} /> : null}
         {view === "actifs" ? <AssetsView scenario={scenario} state={state} onSelect={setSelection} /> : null}
         {view === "chronologie" ? <TimelineView scenario={scenario} state={state} /> : null}
+        {view === "flux" ? (
+          <FlowView
+            key={`${stepIndex}-${branchId ?? ""}`}
+            scenario={scenario}
+            state={state}
+            selection={sel}
+            onSelect={setSelection}
+          />
+        ) : null}
+        {view === "perspectives" ? <PerspectivesView scenario={scenario} state={state} onSelect={setSelection} /> : null}
       </div>
     </section>
   );

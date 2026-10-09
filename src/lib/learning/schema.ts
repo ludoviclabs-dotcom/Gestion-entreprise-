@@ -202,12 +202,29 @@ export const Relation = z.object({
 });
 export type Relation = z.infer<typeof Relation>;
 
-export const FinancialLeg = z.object({
-  from: z.string().min(1),
-  to: z.string().min(1),
-  amount: Amount,
-  role: z.enum(["envoi", "frais", "conversion_entree", "conversion_sortie"]),
+export const FinancialLeg = z
+  .object({
+    from: z.string().min(1),
+    /** Destination ; absente seulement pour des frais de réseau (pas d'objet destinataire). */
+    to: z.string().min(1).optional(),
+    amount: Amount,
+    role: z.enum(["envoi", "frais", "conversion_entree", "conversion_sortie"]),
+  })
+  .refine((l) => l.to !== undefined || l.role === "frais", "Seuls des frais peuvent n'avoir pas de destination");
+export type FinancialLeg = z.infer<typeof FinancialLeg>;
+
+/** Couche où une opération s'inscrit : chaque observateur n'en voit qu'une partie (cadrage §4.5). */
+export const FlowLayer = z.enum(["fiat", "interne", "chaine"]);
+export type FlowLayer = z.infer<typeof FlowLayer>;
+
+/** Observateur simulé : ce qu'il voit et la limite affichée à l'écran. */
+export const Observer = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  sees: z.string().min(1),
+  limit: z.string().min(1),
 });
+export type Observer = z.infer<typeof Observer>;
 
 /** Événement financier à plusieurs jambes ; un lien inconnu reste inconnu. */
 export const FinancialEvent = z.object({
@@ -215,8 +232,13 @@ export const FinancialEvent = z.object({
   label: z.string().min(1),
   occurredOn: IsoDate,
   network: z.string().optional(),
+  layer: FlowLayer,
   legs: z.array(FinancialLeg).min(1),
   status: z.enum(["confirme", "en_attente", "inconnu"]),
+  /** Observateurs qui voient l'opération dans leur périmètre. */
+  visibleTo: z.array(z.string()).default([]),
+  /** Opération propre à une branche. */
+  branchId: z.string().optional(),
   claimIds: z.array(z.string()).default([]),
 });
 export type FinancialEvent = z.infer<typeof FinancialEvent>;
@@ -263,6 +285,8 @@ export const ScenarioStep = z.object({
   asOf: IsoDate.optional(),
   /** Explication attendue, révélée après validation. */
   explanation: z.string().min(1),
+  /** Frontière de connaissance à ce stade : où l'information s'arrête. */
+  boundary: z.string().optional(),
   exercise: Exercise.optional(),
 });
 export type ScenarioStep = z.infer<typeof ScenarioStep>;
@@ -296,6 +320,8 @@ export const ScenarioBranch = z.object({
   openQuestions: z.array(z.string()).default([]),
   /** Protections ou vérifications recommandées. */
   recommendations: z.array(z.string()).default([]),
+  /** Frontière de connaissance dans cette branche ; absente si le parcours est documenté jusqu'au bout. */
+  boundary: z.string().optional(),
   exercise: Exercise.optional(),
 });
 export type ScenarioBranch = z.infer<typeof ScenarioBranch>;
@@ -317,6 +343,10 @@ export const Scenario = z
         z.object({ x: z.number(), y: z.number(), label: z.enum(["above", "below"]).optional() }),
       )
       .default({}),
+    /** Bandes horizontales du graphe à couches (acteurs, comptes, infrastructures). */
+    bands: z.array(z.object({ label: z.string().min(1), y: z.number() })).default([]),
+    /** Observateurs simulés (vue « Perspectives »). */
+    observers: z.array(Observer).default([]),
     actors: z.array(Actor),
     resources: z.array(Resource).default([]),
     relations: z.array(Relation).default([]),
@@ -364,12 +394,16 @@ export const Scenario = z
         issue(`Relation ${r.id} : validFrom postérieur à validTo`, ["relations", i]);
       r.claimIds.forEach((c) => claims.has(c) || issue(`Relation ${r.id} : affirmation inconnue ${c}`, ["relations", i]));
     });
-    s.events.forEach((e, i) =>
+    const observers = new Set(s.observers.map((o) => o.id));
+    s.events.forEach((e, i) => {
       e.legs.forEach((l) => {
         if (!objects.has(l.from)) issue(`Événement ${e.id} : origine inconnue ${l.from}`, ["events", i]);
-        if (!objects.has(l.to)) issue(`Événement ${e.id} : destination inconnue ${l.to}`, ["events", i]);
-      }),
-    );
+        if (l.to && !objects.has(l.to)) issue(`Événement ${e.id} : destination inconnue ${l.to}`, ["events", i]);
+      });
+      if (e.branchId && !branches.has(e.branchId)) issue(`Événement ${e.id} : branche inconnue ${e.branchId}`, ["events", i]);
+      e.visibleTo.forEach((o) => observers.has(o) || issue(`Événement ${e.id} : observateur inconnu ${o}`, ["events", i]));
+      e.claimIds.forEach((c) => claims.has(c) || issue(`Événement ${e.id} : affirmation inconnue ${c}`, ["events", i]));
+    });
     s.claims.forEach((c, i) => {
       c.evidenceIds.forEach((e) => evidence.has(e) || issue(`Affirmation ${c.id} : pièce inconnue ${e}`, ["claims", i]));
       // Un fait documenté s'appuie toujours sur au moins une pièce.

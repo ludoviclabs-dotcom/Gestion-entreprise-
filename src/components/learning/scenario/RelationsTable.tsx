@@ -1,6 +1,10 @@
 import type { Scenario } from "@/lib/learning/schema";
 import {
+  LAYER_LABELS,
   RELATION_KIND_LABELS,
+  frDate,
+  legAmount,
+  movementLegs,
   knownClaimsOf,
   objectLabel,
   relationShortLabel,
@@ -73,6 +77,43 @@ export function RelationsTable({
           })}
         </tbody>
       </table>
+      {state.events.length > 0 ? (
+        <table className="mt-5 w-full min-w-[560px] text-left text-sm">
+          <caption className="mb-1 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Mouvements de valeur
+          </caption>
+          <thead className="text-xs text-muted-foreground">
+            <tr className="border-b border-border">
+              <th scope="col" className="py-2 pr-3 font-medium">Date</th>
+              <th scope="col" className="py-2 pr-3 font-medium">Opération</th>
+              <th scope="col" className="py-2 pr-3 font-medium">Montants</th>
+              <th scope="col" className="py-2 font-medium">Couche</th>
+            </tr>
+          </thead>
+          <tbody>
+            {state.events.map((ev) => {
+              const selected = selection?.type === "event" && selection.id === ev.id;
+              return (
+                <tr key={ev.id} className={`border-b border-border/60 align-top ${selected ? "bg-surface-2" : ""}`}>
+                  <td className="py-2 pr-3 text-xs text-muted-foreground">{frDate(ev.occurredOn)}</td>
+                  <td className="py-2 pr-3">
+                    <button
+                      type="button"
+                      className="text-left underline decoration-border underline-offset-2 hover:decoration-violet"
+                      aria-pressed={selected}
+                      onClick={() => onSelect({ type: "event", id: ev.id })}
+                    >
+                      {ev.label}
+                    </button>
+                  </td>
+                  <td className="py-2 pr-3 tabular-nums">{movementLegs(ev).map(legAmount).join(" ; ")}</td>
+                  <td className="py-2 text-xs text-muted-foreground">{LAYER_LABELS[ev.layer]}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : null}
       {diff.endedRelationIds.length > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
           Terminé depuis l'étape précédente :{" "}

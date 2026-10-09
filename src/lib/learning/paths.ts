@@ -247,7 +247,7 @@ export const CRYPTO_FLUX: LearningPath = {
       sourceIds: [],
     },
   ],
-  status: "en_preparation",
+  status: "disponible",
 };
 
 export const LEARNING_PATHS: LearningPath[] = [CONTROLE_ACTIFS, CRYPTO_FLUX];
