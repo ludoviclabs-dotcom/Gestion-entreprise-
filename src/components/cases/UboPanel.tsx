@@ -1,34 +1,37 @@
-import type { ComputedUbo } from "@/lib/graph/ubo";
+import type { UboAnalysis } from "@/lib/graph/ubo";
+import { fmtFraction as fmtPct } from "@/lib/graph/ubo";
 import type { ProofEvent } from "@/lib/audit/journal";
 
-/** Tronque à un décimal SANS arrondir au-dessus (24,99 % → 24,9 %, pas 25,0 %). */
-function fmtPct(fraction: number): string {
-  return `${(Math.floor(fraction * 1000) / 10).toLocaleString("fr-FR")} %`;
-}
+const QUALIFICATION_STYLE = {
+  beneficiaire: { label: "Bénéficiaire effectif", color: "#10b981" },
+  a_examiner: { label: "À examiner", color: "#E69F00" },
+} as const;
 
 /**
  * Panneau « Bénéficiaires effectifs » — affiche l'UBO RECALCULÉ depuis le
- * capital (détention effective + contrôle majoritaire, seuil 25 % AMLR).
- * `showNames` (gating CJUE 2022) : nominatif en démo / si UBO exposés, sinon
- * anonymisé. Composant serveur (le calcul est fait par la page).
+ * capital et les droits de vote, selon le référentiel daté applicable (droit
+ * français actuel ou AMLR à partir du 10 juillet 2027), avec les limites du
+ * calcul. `showNames` (gating CJUE 2022) : nominatif en démo / si UBO exposés,
+ * sinon anonymisé. Composant serveur (le calcul est fait par la page).
  * `ecartHistory` : événements `ecart_ubo_detecte` du journal de preuve —
  * l'historique horodaté soutient le signalement AMLR (divergences sous 14 j).
  */
 export default function UboPanel({
-  owners,
+  analysis,
   showNames,
   ecartExplanation,
   ecartHistory = [],
 }: {
-  owners: ComputedUbo[];
+  analysis: UboAnalysis;
   showNames: boolean;
   ecartExplanation?: string;
   ecartHistory?: ProofEvent[];
 }) {
+  const { owners, policy, limits, asOf } = analysis;
   if (owners.length === 0) return null;
 
-  const beneficial = owners.filter((o) => o.isBeneficialOwner);
-  const minors = owners.length - beneficial.length;
+  const listed = owners.filter((o) => o.qualification !== "sous_le_seuil");
+  const minors = owners.length - listed.length;
 
   return (
     <section className="rounded-xl border border-border bg-surface p-5">
@@ -36,55 +39,90 @@ export default function UboPanel({
         <h3 className="font-[family-name:var(--font-display)] text-sm font-semibold">
           Bénéficiaires effectifs (recalculés)
         </h3>
-        <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-          seuil 25 % · AMLR
-        </span>
+        <a
+          href={policy.url}
+          target="_blank"
+          rel="noreferrer"
+          title={policy.reference}
+          className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+        >
+          {policy.thresholdLabel} · {policy.shortLabel}
+        </a>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        Détention effective remontée des chaînes de capital. Le contrôle
-        majoritaire (≥ 50 % à chaque étage) vaut bénéficiaire effectif même
-        sous 25 %.
+        Référentiel appliqué{asOf ? ` au ${asOf.split("-").reverse().join("/")}` : ""} : {policy.label}.
+        La détention de capital, les droits de vote et le contrôle sont calculés séparément.
+        Un résultat « à examiner » appelle des pièces, pas une conclusion.
       </p>
 
       <ul className="mt-4 space-y-2">
-        {beneficial.map((o, i) => (
-          <li
-            key={o.personId}
-            className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background/40 p-3"
-          >
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">
-                {showNames ? o.label : `Bénéficiaire effectif #${i + 1}`}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {fmtPct(o.effectivePct)} de détention effective
-                {o.pathsCount > 1 ? ` · ${o.pathsCount} chemins` : ""}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <span
-                className="rounded px-2 py-0.5 text-[10px] font-semibold uppercase"
-                style={{ background: "#10b98122", color: "#10b981" }}
-              >
-                Bénéficiaire effectif
-              </span>
-              {o.hasControl ? (
-                <span
-                  className="rounded px-2 py-0.5 text-[10px] font-semibold uppercase"
-                  style={{ background: "#E69F0022", color: "#E69F00" }}
-                >
-                  Contrôle
-                </span>
+        {listed.map((o, i) => {
+          const style = QUALIFICATION_STYLE[o.qualification as keyof typeof QUALIFICATION_STYLE];
+          return (
+            <li
+              key={o.personId}
+              className="rounded-lg border border-border bg-background/40 p-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {showNames ? o.label : `Personne #${i + 1}`}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Capital {fmtPct(o.effectivePct)}
+                    {o.votesAssumed ? "" : ` · votes ${fmtPct(o.effectiveVotingPct)}`}
+                    {o.documentedPct < o.effectivePct - 1e-9
+                      ? ` · dont documenté ${fmtPct(o.documentedPct)}`
+                      : ""}
+                    {o.pathsCount > 1 ? ` · ${o.pathsCount} chemins` : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <span
+                    className="rounded px-2 py-0.5 text-[10px] font-semibold uppercase"
+                    style={{ background: `${style.color}22`, color: style.color }}
+                  >
+                    {style.label}
+                  </span>
+                  {o.hasControl ? (
+                    <span
+                      className="rounded px-2 py-0.5 text-[10px] font-semibold uppercase"
+                      style={{ background: "#56B4E922", color: "#56B4E9" }}
+                    >
+                      Contrôle
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              {o.reasons.length > 0 ? (
+                <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                  {o.reasons.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
               ) : null}
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
 
       {minors > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          + {minors} détenteur(s) sous le seuil de 25 %.
+          + {minors} détenteur(s) sous le seuil ({policy.thresholdLabel}).
         </p>
+      ) : null}
+
+      {limits.length > 0 ? (
+        <div className="mt-4 rounded-lg border border-border bg-background/40 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Limites du calcul
+          </p>
+          <ul className="mt-1.5 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+            {limits.map((l) => (
+              <li key={`${l.kind}-${l.subjectIds.join(",")}`}>{l.message}</li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {ecartExplanation ? (

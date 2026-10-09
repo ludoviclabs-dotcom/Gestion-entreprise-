@@ -25,9 +25,9 @@ export const ALGORITHM_EXPLAINERS = {
     title: "Détention indirecte & dilution",
     fn: "computeUbo — src/lib/graph/ubo.ts",
     proves:
-      "Multiplie les participations le long de chaque chaîne et somme les chemins parallèles pour obtenir le pourcentage effectif. Identifie les bénéficiaires effectifs au seuil de 25 % ou en contrôle majoritaire.",
+      "Multiplie les participations le long de chaque chaîne et somme les chemins parallèles, séparément pour le capital et les droits de vote. Applique le référentiel en vigueur à la date d'analyse : plus de 25 % en droit français actuel (CMF R. 561-1), 25 % ou plus sous l'AMLR à partir du 10 juillet 2027. Le contrôle majoritaire exige strictement plus de 50 % des votes à chaque étage.",
     limit:
-      "Reflète les participations déclarées disponibles : une chaîne incomplète ou non documentée peut sous-estimer la détention réelle.",
+      "Reflète les participations disponibles : une chaîne incomplète, un pourcentage absent ou un lien inféré produit une limite affichée ou un résultat « à examiner », jamais une certitude. Le contrôle par pacte ou droits de nomination ne se déduit pas du graphe.",
   },
   "ecart-ubo": {
     id: "ecart-ubo",

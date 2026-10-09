@@ -1,7 +1,13 @@
 import Link from "next/link";
-import { ArrowRight, FlaskConical, Network, ShieldAlert } from "lucide-react";
+import { ArrowRight, Coins, FlaskConical, Landmark, Network, ShieldAlert } from "lucide-react";
 import { SitePageHeader } from "@/components/site/SitePageHeader";
 import { PublicFooter } from "@/components/site/PublicFooter";
+import { CONTROLE_ACTIFS, CRYPTO_FLUX } from "@/lib/learning/paths";
+
+const GUIDED_PATHS = [
+  { path: CONTROLE_ACTIFS, icon: Landmark },
+  { path: CRYPTO_FLUX, icon: Coins },
+];
 
 export const metadata = {
   title: "Lab KYB — KYB Graph",
@@ -93,6 +99,48 @@ export default function LabPage() {
                   ne constitue jamais, seule, une preuve de fraude.
                 </p>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="px-6 pb-14" aria-labelledby="parcours-guides">
+          <div className="mx-auto max-w-6xl">
+            <h2
+              id="parcours-guides"
+              className="font-[family-name:var(--font-display)] text-2xl font-semibold"
+            >
+              Parcours guidés
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm leading-7 text-muted-foreground">
+              Deux cas fictifs pour apprendre à relier chaque affirmation à une pièce, à formuler plusieurs
+              hypothèses et à reconnaître une explication licite ou une conclusion indécidable.
+            </p>
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              {GUIDED_PATHS.map(({ path, icon: Icon }) => (
+                <Link
+                  key={path.slug}
+                  href={`/lab/${path.slug}`}
+                  className="group flex flex-col rounded-lg border border-border bg-surface p-6 transition hover:-translate-y-0.5 hover:border-violet/60"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <Icon className="text-violet" size={22} aria-hidden />
+                    <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] text-muted-foreground">
+                      {path.status === "disponible" ? "Jouable" : "Introduction · scénario en préparation"}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 font-[family-name:var(--font-display)] text-xl font-semibold">
+                    {path.title}
+                  </h3>
+                  <p className="mt-1 text-sm font-medium text-foreground">{path.question}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Démonstrateur : {path.scenarioTitle}. {path.notions.length} notions sourcées, environ{" "}
+                    {path.durationMinutes} min.
+                  </p>
+                  <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-violet">
+                    Découvrir le parcours <ArrowRight size={16} className="transition group-hover:translate-x-0.5" />
+                  </span>
+                </Link>
+              ))}
             </div>
           </div>
         </section>

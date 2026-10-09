@@ -9,7 +9,7 @@ import { AlgorithmExplainer } from "@/components/cases/AlgorithmExplainer";
 import { InvestigationFiche } from "@/components/cases/InvestigationFiche";
 import VigilanceRadar from "@/components/cases/VigilanceRadar";
 import { GlossaryTerm } from "@/components/ui/GlossaryTerm";
-import { computeUbo } from "@/lib/graph/ubo";
+import { analyzeUbo } from "@/lib/graph/ubo";
 import {
   computeConvergence,
   explainVigilance,
@@ -50,8 +50,12 @@ export default async function RisquesTab(props: {
 
   const signals = detail.bundle.riskSignals;
 
-  // Bénéficiaires effectifs recalculés depuis le capital (pur, sans clé).
-  const ubo = computeUbo(detail.bundle);
+  // Bénéficiaires effectifs recalculés depuis le capital (pur, sans clé), à
+  // la date du jour : relations en vigueur et référentiel applicable.
+  const uboAnalysis = analyzeUbo(detail.bundle, {
+    asOf: new Date().toISOString().slice(0, 10),
+  });
+  const ubo = uboAnalysis.owners;
   // Garde-fou CJUE 2022 : nominatif si données de démonstration anonymisées
   // (toutes les sources sont des fixtures), en mode démo, ou si UBO exposés ;
   // sinon (vraies personnes en live) → anonymisé.
@@ -123,13 +127,17 @@ export default async function RisquesTab(props: {
       {ubo.length > 0 ? (
         <div className="mt-6">
           <UboPanel
-            owners={ubo}
+            analysis={uboAnalysis}
             showNames={showUboNames}
             ecartExplanation={ecartSignal?.explanation}
             ecartHistory={ecartHistory}
           />
           <div className="mt-4">
-            <UboCascadeChart owners={ubo} showNames={showUboNames} />
+            <UboCascadeChart
+              owners={ubo}
+              policy={uboAnalysis.policy}
+              showNames={showUboNames}
+            />
           </div>
           <AlgorithmExplainer id="detention-indirecte" />
           <AlgorithmExplainer id="ecart-ubo" />

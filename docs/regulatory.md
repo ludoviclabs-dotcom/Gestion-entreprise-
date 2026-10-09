@@ -7,7 +7,8 @@ KYB Graph s'inscrit dans le cadre de la lutte contre le blanchiment et le financ
 **« Single rulebook »** anti-blanchiment, signé le 31 mai 2024, publié au JOUE le 19 juin 2024.
 
 - **Applicabilité directe** dans tous les États membres à partir du **10 juillet 2027**.
-- **Seuil du bénéficiaire effectif** harmonisé à **25 %** de détention ou de contrôle.
+- **Seuil du bénéficiaire effectif** harmonisé à **25 % ou plus** du capital, des droits de vote ou d'une autre participation, ou contrôle par d'autres moyens.
+- Jusqu'au 9 juillet 2027, le droit français (CMF art. R. 561-1) retient **plus de 25 %** : exactement 25 % ne suffit pas. Le moteur `analyzeUbo` (`src/lib/graph/ubo.ts`) choisit le référentiel selon la date d'analyse.
 - **Signalement des divergences** entre déclaration et registre sous **14 jours**.
 - Renforcement des obligations de vigilance pour les entités assujetties (banques, notaires, comptables, agents immobiliers, plateformes crypto).
 - Obligation de **conserver la piste d'audit** des décisions de vigilance.

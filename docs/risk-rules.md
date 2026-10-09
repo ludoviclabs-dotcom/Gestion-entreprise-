@@ -86,7 +86,7 @@ Les entités de type `address` et `event` sont exclues (rôle structurel par nat
 | Déclencheur | bénéficiaires effectifs déclarés disponibles ET divergence avec l'UBO recalculé depuis le capital |
 | Sévérité | high |
 | Justification | L'AMLR impose une vigilance renforcée sur les écarts de registre. KYB Graph compare le déclaratif RNE/INPI au contrôle indirect recalculé. |
-| Format FR | « Écart de bénéficiaire effectif : {n} déclaré(s), {m} recalculé(s) ≥ 25 %, {d} divergence(s). » |
+| Format FR | « Écart de bénéficiaire effectif : {n} déclaré(s), {m} recalculé(s) depuis le capital (bénéficiaires ou à examiner), {d} divergence(s). » |
 
 Le signal reste agrégé: l'exposition nominative de vrais UBO doit rester derrière authentification, rôles et journal d'intérêt légitime.
 

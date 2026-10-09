@@ -7,9 +7,10 @@ import type { CaseBundle, CaseEdge, CaseEntity } from "@/lib/graph/graph-types";
  * des arêtes et un diff d'évolution T0 → T1.
  *
  * Sujet : OPTIMA FRANCE SAS (s). Capital : h1 49 % + hc 51 %.
- *  - Hélène MOREAU (pa) : 60 % de h1 → 29,4 % effectif → UBO simple (≥ 25 %).
+ *  - Hélène MOREAU (pa) : 60 % de h1 → 29,4 % effectif → UBO simple (plus de 25 %).
  *  - Karim BENALI (pb) : 40 % de h1 (19,6 %) + 49 % de hb→hc (12,7 %)
- *      → 32,3 % par chemins PARALLÈLES (aucun ≥ 25 % seul).
+ *      → 32,3 % par chemins PARALLÈLES (aucun au-dessus de 25 % seul). Le
+ *      second lien est INFÉRÉ : seuls 19,6 % sont documentés → « à examiner ».
  *  - Sofia HADDAD (pc) : 51 % de hb → 51 % de hc → 51 % de s : 13,3 % effectif
  *      mais CONTRÔLE majoritaire à chaque étage → UBO par contrôle (< 25 %).
  *  - co-détenteur minoritaire (pf) : 24,99 % → sous le seuil, non UBO.
@@ -114,11 +115,11 @@ export const holdingUboBundle: CaseBundle = {
       severity: "high",
       category: "vigilance",
       explanation:
-        "Écart de bénéficiaire effectif : 3 déclaré(s) au registre, 3 recalculé(s) ≥ 25 % depuis le capital, 2 divergence(s). Signalement de divergence de registre attendu (AMLR).",
+        "Écart de bénéficiaire effectif : 3 déclaré(s) au registre, 3 recalculé(s) depuis le capital (bénéficiaires ou à examiner), 2 divergence(s). Signalement de divergence de registre attendu (AMLR).",
     },
   ],
   declaredUbo: [
-    { label: "Hélène MOREAU", nom: "MOREAU", prenoms: "Hélène", modaliteControle: "Détention directe ≥ 25 %", sourceEndpoint: "fixture:inpi" },
+    { label: "Hélène MOREAU", nom: "MOREAU", prenoms: "Hélène", modaliteControle: "Détention indirecte de plus de 25 %", sourceEndpoint: "fixture:inpi" },
     { label: "Sofia HADDAD", nom: "HADDAD", prenoms: "Sofia", modaliteControle: "Contrôle", sourceEndpoint: "fixture:inpi" },
     { label: "Vincent LEROY", nom: "LEROY", prenoms: "Vincent", modaliteControle: "Déclaré", sourceEndpoint: "fixture:inpi" },
   ],

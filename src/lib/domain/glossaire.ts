@@ -19,8 +19,8 @@ export const GLOSSARY = {
   ubo: {
     term: "Bénéficiaire effectif",
     definition:
-      "Personne physique qui, en dernier ressort, détient ou contrôle une entité — seuil de 25 % de détention ou contrôle équivalent.",
-    ref: "Règlement (UE) 2024/1624 (AMLR), applicable au 10/07/2027",
+      "Personne physique qui, en dernier ressort, détient ou contrôle une entité : plus de 25 % du capital ou des droits de vote en droit français actuel, 25 % ou plus sous l'AMLR à partir du 10/07/2027, ou contrôle par un autre moyen.",
+    ref: "CMF art. R. 561-1 ; Règlement (UE) 2024/1624 (AMLR), applicable au 10/07/2027",
   },
   "detention-effective": {
     term: "Détention effective",

@@ -69,10 +69,13 @@ describe("computeUbo — fixture holding-ubo (3 mécanismes)", () => {
     expect(by["Hélène MOREAU"].hasControl).toBe(false);
   });
 
-  it("UBO par chemins parallèles (Karim BENALI ≈ 32,3 %, 2 chemins, aucun ≥ 25 % seul)", () => {
+  it("chemins parallèles (Karim BENALI ≈ 32,3 %, 2 chemins) : à examiner, car le seuil n'est atteint qu'avec un lien inféré", () => {
     expect(pct(by["Karim BENALI"])).toBeCloseTo(32.3, 0);
     expect(by["Karim BENALI"].pathsCount).toBe(2);
-    expect(by["Karim BENALI"].isBeneficialOwner).toBe(true);
+    // Seul le lien documenté (40 % × 49 % = 19,6 %) est établi.
+    expect(Math.round(by["Karim BENALI"].documentedPct * 1000) / 10).toBeCloseTo(19.6, 1);
+    expect(by["Karim BENALI"].qualification).toBe("a_examiner");
+    expect(by["Karim BENALI"].isBeneficialOwner).toBe(false);
     expect(by["Karim BENALI"].hasControl).toBe(false);
   });
 
