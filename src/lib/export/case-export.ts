@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
+import {
+  getScoreStatus,
+  getSourceCoverage,
+  getSourceHealth,
+} from "@/lib/data/case-quality";
 import { CaseReport } from "@/components/reports/CaseReport";
 import {
   SCORE_MODEL_VERSION,
@@ -94,7 +98,11 @@ export function buildExportMeta(
 export function buildCaseAnalytics(detail: CaseDetail, now: Date) {
   const signals = detail.bundle.riskSignals;
   return {
-    mitigatingFactors: computeMitigatingFactors(detail.bundle, now),
+    mitigatingFactors: computeMitigatingFactors(
+      detail.bundle,
+      now,
+      getSourceCoverage(detail.sources),
+    ),
     faisceau: computeConvergence(signals, DEFAULT_THRESHOLDS.convergence.k),
     vigilance: explainVigilance(signals),
   };
