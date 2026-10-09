@@ -1530,6 +1530,28 @@ html:not(.light) .kgl-switch-b {
 .kgl-root .b-legal a { color: var(--accent); }
 .kgl-root .b-legal a:hover { color: var(--ink); }
 
+/* ── En-tête compact : comme l'ancien landing, la navigation passe au pied
+   de page dès qu'elle ne tient plus sur une ligne (1120 px en jour, 1240 px
+   en nuit, dont les gouttières sont plus larges) et « Connexion » disparaît
+   sous 640 px — l'en-tête collant reste sur une seule ligne. */
+
+@media (max-width: 1119px) {
+  .a-header-nav {
+    display: none;
+  }
+}
+@media (max-width: 1239px) {
+  .b-header-nav {
+    display: none;
+  }
+}
+@media (max-width: 639px) {
+  .a-login,
+  .b-login {
+    display: none;
+  }
+}
+
 /* ── Petits écrans ───────────────────────────────────────────────────
    La maquette est pensée desktop ; on resserre les gouttières et on remet
    le hero « Nuit » dans le flux pour éviter les chevauchements. */

@@ -85,7 +85,7 @@ export default function DayLanding() {
       <header className="a-header">
         <div className="a-header-in">
           <Brand size="lg" />
-          <nav className="a-nav" aria-label="Navigation principale">
+          <nav className="a-nav a-header-nav" aria-label="Navigation principale">
             {PUBLIC_NAV.map((i) => (
               <Link key={i.href} href={i.href}>
                 {i.label}

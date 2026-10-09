@@ -68,7 +68,7 @@ function Cta() {
 
 function Nav({ footer }: { footer?: boolean }) {
   return (
-    <nav className={footer ? "b-nav b-footer-nav" : "b-nav"} aria-label={footer ? "Pied de page" : "Navigation principale"}>
+    <nav className={footer ? "b-nav b-footer-nav" : "b-nav b-header-nav"} aria-label={footer ? "Pied de page" : "Navigation principale"}>
       {PUBLIC_NAV.map((i) => (
         <Link key={i.href} href={i.href}>
           {i.label}
