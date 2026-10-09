@@ -125,6 +125,37 @@ describe("contrôle", () => {
     expect(kinds(a)).not.toContain("votes_supposes");
   });
 
+  it("votes documentés sur un étage, supposés sur l'autre : à examiner, pas bénéficiaire", () => {
+    // H détient 60 % des votes de S (documentés) ; P détient 50 % de H sans pièce sur les votes.
+    const b = bundle(
+      [co("s"), co("h"), pe("p"), pe("x")],
+      [
+        own("e1", "h", "s", "40 %", { votingWeight: "60 %" }),
+        own("e2", "x", "s", "60 %", { votingWeight: "40 %" }),
+        own("e3", "p", "h", "50 %"),
+      ],
+    );
+    const a = analyzeUbo(b, { rootId: "s", asOf: FR_DATE });
+    const p = owner(a, "p");
+    expect(p.effectivePct).toBeCloseTo(0.2);
+    expect(p.effectiveVotingPct).toBeCloseTo(0.3);
+    expect(p.qualification).toBe("a_examiner");
+    expect(p.reasons.join(" ")).toMatch(/en supposant les votes égaux au capital/);
+    expect(kinds(a)).toContain("votes_supposes");
+  });
+
+  it("votes documentés à chaque étage : la qualification par les votes tient", () => {
+    const b = bundle(
+      [co("s"), co("h"), pe("p"), pe("x")],
+      [
+        own("e1", "h", "s", "40 %", { votingWeight: "60 %" }),
+        own("e2", "x", "s", "60 %", { votingWeight: "40 %" }),
+        own("e3", "p", "h", "50 %", { votingWeight: "50 %" }),
+      ],
+    );
+    expect(owner(analyzeUbo(b, { rootId: "s", asOf: FR_DATE }), "p").qualification).toBe("beneficiaire");
+  });
+
   it("plus de 40 % des votes sans détenteur supérieur : présomption à examiner, pas une certitude", () => {
     // Personne P à 20 % via H (H détient 45 % de S) : sous le seuil de capital.
     const b = bundle(

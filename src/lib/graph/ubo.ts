@@ -296,6 +296,8 @@ export function analyzeUbo(
     votes: number;
     docCap: number;
     docVotes: number;
+    /** Votes documentés à chaque étage : aucun n'est supposé égal au capital. */
+    explicitVotes: number;
     docControl: UboControl;
     anyControl: UboControl;
     paths: number;
@@ -341,6 +343,7 @@ export function analyzeUbo(
           votes: 0,
           docCap: 0,
           docVotes: 0,
+          explicitVotes: 0,
           docControl: "aucun",
           anyControl: "aucun",
           paths: 0,
@@ -352,6 +355,7 @@ export function analyzeUbo(
         if (!nHyp) {
           cur.docCap += nCap;
           cur.docVotes += nVotes;
+          if (!nAssumed) cur.explicitVotes += nVotes;
           cur.docControl = bestControl(cur.docControl, nControl);
         }
         cur.anyControl = bestControl(cur.anyControl, nControl);
@@ -374,7 +378,10 @@ export function analyzeUbo(
   for (const [personId, v] of acc) {
     const reasons: string[] = [];
     const docCapOk = meetsThreshold(v.docCap, policy);
-    const docVotesOk = meetsThreshold(v.docVotes, policy);
+    // Un seuil de votes qui n'est atteint qu'en supposant les votes égaux au capital
+    // sur un étage ne qualifie pas : il se signale, à examiner.
+    const docVotesOk = meetsThreshold(v.explicitVotes, policy);
+    const assumedVotesOk = !docVotesOk && meetsThreshold(v.docVotes, policy);
     const anyCapOk = meetsThreshold(v.cap, policy);
     const anyVotesOk = meetsThreshold(v.votes, policy);
 
@@ -391,7 +398,11 @@ export function analyzeUbo(
         reasons.push("Majorité des droits de vote à chaque étage de la chaîne");
       }
     } else {
-      if (anyCapOk || anyVotesOk) {
+      if (assumedVotesOk) {
+        reasons.push(
+          `Seuil des droits de vote atteint (${fmtFraction(v.docVotes)}) seulement en supposant les votes égaux au capital sur un étage`,
+        );
+      } else if (anyCapOk || anyVotesOk) {
         reasons.push(
           `Seuil atteint (${fmtFraction(Math.max(v.cap, v.votes))}) seulement en comptant un lien inféré ou simulé`,
         );

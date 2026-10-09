@@ -26,6 +26,7 @@ import {
 import { payloadHash, sha256 } from "@/lib/audit/hash-chain";
 import { fixtureSourceRecordDetails } from "./source-records";
 import { journalStore } from "./in-memory-store";
+import { edgeAttributes, readEdgeAttributes } from "./edge-attributes";
 import {
   buildBundleEvidence,
   inferEdgeSource,
@@ -320,7 +321,7 @@ export class DbCasesRepository implements CasesRepository {
     });
 
     const bundleEdges: CaseEdge[] = edgeRows.map((e) => {
-      const attrs = (e.attributes ?? {}) as { label?: string; excerpt?: string };
+      const attrs = readEdgeAttributes(e.attributes);
       return {
         id: e.id,
         type: e.type as EdgeKind,
@@ -328,6 +329,8 @@ export class DbCasesRepository implements CasesRepository {
         target: e.targetId,
         label: attrs.label,
         weight: e.weight ?? undefined,
+        votingWeight: attrs.votingWeight,
+        specialRights: attrs.specialRights,
         evidenceLevel: e.evidenceLevel as EvidenceLevel,
         excerpt: attrs.excerpt,
         validFrom: e.validFrom ?? undefined,
@@ -613,7 +616,7 @@ export class DbCasesRepository implements CasesRepository {
             weight: edge.weight ?? null,
             validFrom: edge.validFrom ?? null,
             validTo: edge.validTo ?? null,
-            attributes: { label: edge.label, excerpt: edge.excerpt },
+            attributes: edgeAttributes(edge),
           })
           .returning();
         await db.insert(evidence).values({
