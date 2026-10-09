@@ -1,4 +1,4 @@
-import type { SourceRecord } from "./schema";
+import type { LearningPath, ReviewCadence, SourceKind, SourceRecord } from "./schema";
 
 /**
  * Registre des sources réelles des parcours du Lab.
@@ -96,6 +96,7 @@ export const LEARNING_SOURCES = {
     consultedOn: CONSULTED,
     supports: "Indicateurs qui orientent une vérification sur les actifs virtuels.",
     limits: "Un indicateur isolé ne démontre ni blanchiment ni financement du terrorisme.",
+    review: "mensuelle",
   },
   "gafi-2026": {
     id: "gafi-2026",
@@ -107,6 +108,7 @@ export const LEARNING_SOURCES = {
     consultedOn: CONSULTED,
     supports:
       "État de la mise en œuvre des standards, supervision, usages illicites observés et coopération.",
+    review: "mensuelle",
   },
   "cmf-r561-1": {
     id: "cmf-r561-1",
@@ -179,6 +181,7 @@ export const LEARNING_SOURCES = {
     consultedOn: CONSULTED,
     supports: "Illustrations et préconisations préventives contre l'ingérence économique.",
     limits: "Cas illustratifs, sans valeur de fréquence pour toutes les entreprises ou nationalités.",
+    review: "mensuelle",
   },
   "anssi-hygiene": {
     id: "anssi-hygiene",
@@ -210,6 +213,7 @@ export const LEARNING_SOURCES = {
     consultedOn: CONSULTED,
     supports: "Contexte institutionnel et tendances publiées par la cellule de renseignement financier.",
     limits: "Aucun accès aux dossiers de Tracfin n'est supposé.",
+    review: "mensuelle",
   },
   "mica-2023-1114": {
     id: "mica-2023-1114",
@@ -229,4 +233,59 @@ export type LearningSourceId = keyof typeof LEARNING_SOURCES;
 
 export function getSource(id: string): SourceRecord | undefined {
   return (LEARNING_SOURCES as Record<string, SourceRecord>)[id];
+}
+
+/**
+ * Rythme de revue proposé par le cadrage (§2.3) : textes et publications
+ * d'autorités chaque trimestre, notions stables chaque année, veille mensuelle
+ * des publications de risque (signalées fiche par fiche). Règle éditoriale,
+ * pas obligation légale.
+ */
+const DEFAULT_REVIEW: Record<SourceKind, ReviewCadence> = {
+  texte_officiel: "trimestrielle",
+  publication_autorite: "trimestrielle",
+  guide: "annuelle",
+  documentation_technique: "annuelle",
+  etude: "mensuelle",
+  presse: "mensuelle",
+  piece_fictive: "annuelle",
+};
+
+const REVIEW_MONTHS: Record<ReviewCadence, number> = { mensuelle: 1, trimestrielle: 3, annuelle: 12 };
+
+export function reviewCadence(source: SourceRecord): ReviewCadence {
+  return source.review ?? DEFAULT_REVIEW[source.kind];
+}
+
+/** Date avant laquelle la fiche doit être relue : consultation + rythme de revue. */
+export function nextReviewDate(source: SourceRecord): string {
+  const [y, m, d] = source.consultedOn.split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + REVIEW_MONTHS[reviewCadence(source)], 1));
+  // Un 31 devient le dernier jour du mois cible plutôt que de déborder sur le suivant.
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, last));
+  return target.toISOString().slice(0, 10);
+}
+
+export type SourceUse = { pathSlug: string; pathTitle: string; notionId: string; term: string };
+
+/** Notions des parcours qui citent chaque source, pour les renvois des fiches. */
+export function sourceUses(paths: LearningPath[]): Map<string, SourceUse[]> {
+  const uses = new Map<string, SourceUse[]>();
+  for (const path of paths) {
+    for (const notion of path.notions) {
+      for (const id of notion.sourceIds) {
+        const list = uses.get(id) ?? [];
+        list.push({ pathSlug: path.slug, pathTitle: path.title, notionId: notion.id, term: notion.term });
+        uses.set(id, list);
+      }
+    }
+  }
+  return uses;
+}
+
+/** Sources réelles citées par les notions d'un parcours, sans doublon, dans l'ordre des notions. */
+export function pathReferences(path: LearningPath): SourceRecord[] {
+  const ids = [...new Set(path.notions.flatMap((n) => n.sourceIds))];
+  return ids.map(getSource).filter((s): s is SourceRecord => s !== undefined);
 }

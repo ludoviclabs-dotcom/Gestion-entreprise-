@@ -110,6 +110,8 @@ test("le scénario se joue jusqu'aux deux débriefings et s'exporte", async ({ p
   const md = await readFile((await download.path())!, "utf8");
   expect(md).toContain("Cas fictif, formation.");
   expect(md).toContain(branchB.label);
+  expect(md).toContain("## Sources de référence");
+  expect(md).toContain(`Frontière de connaissance : ${branchB.boundary}`);
 
   // Branche A : le reversement à Lumen apparaît et le parcours va jusqu'au bénéficiaire.
   await page.getByRole("button", { name: /Jouer l'autre suite/ }).click();

@@ -1,14 +1,13 @@
 import { Download, GitBranch, RotateCcw } from "lucide-react";
 import type { EvidenceLevel, Scenario, ScenarioBranch } from "@/lib/learning/schema";
 import { answeredExercises, type Answers } from "@/lib/learning/projections";
+import { EVIDENCE_LEVEL_LABELS } from "@/lib/learning/labels";
 import { VERDICT_STYLES } from "./ExercisePanel";
 
-const LEVELS: { level: EvidenceLevel; label: string; hint: string }[] = [
-  { level: "signal_faible", label: "Signal faible", hint: "Un élément inhabituel, à vérifier." },
-  { level: "facteur_risque", label: "Facteur de risque", hint: "Une vulnérabilité, sans intention prêtée à quiconque." },
-  { level: "faisceau", label: "Faisceau", hint: "Plusieurs éléments indépendants qui convergent." },
-  { level: "preuve", label: "Preuve", hint: "Ce que les pièces établissent, et seulement cela." },
-];
+const LEVELS = (Object.keys(EVIDENCE_LEVEL_LABELS) as EvidenceLevel[]).map((level) => ({
+  level,
+  ...EVIDENCE_LEVEL_LABELS[level],
+}));
 
 /** Débriefing d'une branche : lecture par niveau, questions ouvertes, et réponses comparées aux réponses argumentées. */
 export function Debrief({
