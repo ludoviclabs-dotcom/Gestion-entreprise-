@@ -19,7 +19,7 @@ import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
 import { normalizeGleif } from "./normalize-gleif";
 import { normalizeGdelt } from "./normalize-gdelt";
-import { normalizePappers } from "./normalize-pappers";
+import { normalizePappers, pappersDirigeants } from "./normalize-pappers";
 import { getEntityResolver } from "./resolver-backend";
 import { SourceError } from "./errors";
 import { buildGraph } from "@/lib/graph/build-graph";
@@ -188,6 +188,17 @@ export async function assembleCase(
     ? (viesRes.raw as { vatNumber?: string | null; valid?: boolean | null })
     : { vatNumber: null, valid: null };
 
+  // Pappers — appelé AVANT la résolution : ses dirigeants rejoignent l'entrée du
+  // résolveur (un dirigeant vu par l'INPI ET Pappers est fusionné), et ses comptes
+  // annuels enrichissent ensuite le nœud société canonique. Une réponse en erreur
+  // (clé refusée, quota) est signalée par son statut HTTP : jamais exploitée.
+  const pappersRes = await pappers.bySiren(siren);
+  sources.push(toSource("pappers", pappersRes));
+  const pappersUsable = usableResult(pappersRes) && pappersRes.httpStatus < 400;
+  const pappersPeople = pappersUsable
+    ? pappersDirigeants(pappersRes.raw, companyId)
+    : { entities: [], edges: [] };
+
   // Résolution d'entité : dédoublonnage INTER-SOURCES (une même société/personne
   // vue par Sirene, INPI et GLEIF est fusionnée ; arêtes re-pointées vers l'id
   // canonique, preuve la plus forte conservée). AVANT enrichissement/GDELT :
@@ -201,6 +212,7 @@ export async function assembleCase(
       ...gleifNorm.entities,
       ...gelsNorm.entities,
       ...osNorm.entities,
+      ...pappersPeople.entities,
     ]),
     edges: dedupeById([
       ...sireneNorm.edges,
@@ -208,6 +220,7 @@ export async function assembleCase(
       ...gleifNorm.edges,
       ...gelsNorm.edges,
       ...osNorm.edges,
+      ...pappersPeople.edges,
     ]),
   });
   const resolvedEntities = resolved.entities;
@@ -249,11 +262,9 @@ export async function assembleCase(
 
   // Pappers — comptes annuels (CA, résultat net, capitaux propres) du dernier
   // exercice publié. Enrichit le nœud société CANONIQUE en place (la
-  // normalisation mute `subject.attributes`, comme LEI/TVA). Gaté par
-  // usableResult : aucun enrichissement d'un dossier réel avec la fixture.
-  const pappersRes = await pappers.bySiren(siren);
-  sources.push(toSource("pappers", pappersRes));
-  if (usableResult(pappersRes)) {
+  // normalisation mute `subject.attributes`, comme LEI/TVA). Même garde que les
+  // dirigeants : aucun enrichissement d'un dossier réel avec la fixture ou une erreur.
+  if (pappersUsable) {
     normalizePappers(pappersRes.raw, canonicalSubjectId, resolvedEntities);
   }
 

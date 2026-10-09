@@ -12,6 +12,23 @@ export type PappersFinance = {
   effectif: number | null;
 };
 
+/**
+ * Dirigeant / représentant d'une réponse Pappers. Tous les champs sont optionnels :
+ * l'API v2 publie la liste sous `representants` (personnes physiques ET morales,
+ * `personne_morale: true`) alors que la fixture historique l'appelle `dirigeants`.
+ * Les deux sont lus (cf. `pappersDirigeants`).
+ */
+export type PappersPerson = {
+  nom?: string | null;
+  prenom?: string | null;
+  nom_complet?: string | null;
+  denomination?: string | null;
+  siren?: string | null;
+  qualite?: string | null;
+  personne_morale?: boolean | null;
+  date_de_naissance_formate?: string | null;
+};
+
 export type PappersResult = {
   siren: string;
   nom_entreprise: string | null;
@@ -24,12 +41,8 @@ export type PappersResult = {
     code_postal?: string | null;
     ville?: string | null;
   } | null;
-  dirigeants: {
-    nom: string | null;
-    prenom: string | null;
-    qualite: string | null;
-    date_de_naissance_formate: string | null;
-  }[];
+  dirigeants?: PappersPerson[];
+  representants?: PappersPerson[];
   beneficiaires_effectifs: {
     nom: string | null;
     prenom: string | null;
@@ -64,19 +77,33 @@ export const pappers = {
       `?siren=${encodeURIComponent(siren)}` +
       `&extrait_kbis=0&publications_bodacc=0`;
     const url = `${endpoint}&api_token=${env.PAPPERS_API_KEY}`;
+    const empty = {
+      siren,
+      nom_entreprise: null,
+      dirigeants: [],
+      representants: [],
+      beneficiaires_effectifs: [],
+      finances: [],
+    };
     try {
       const { data, status } = await fetchJson<PappersResult>(url, { limiter });
+      // Réponse en erreur (clé refusée 401, quota 403/429, SIREN inconnu 404) :
+      // le corps est un JSON d'erreur, jamais une donnée. On le remplace par un
+      // résultat vide et on conserve le statut HTTP pour la santé de la source.
+      if (status < 200 || status >= 300) {
+        Sentry.captureMessage(`Pappers: HTTP ${status}`, "warning");
+        return {
+          raw: empty,
+          endpoint: `${endpoint} (erreur ${status})`,
+          httpStatus: status,
+          isFixture: false,
+        };
+      }
       return { raw: data, endpoint, httpStatus: status, isFixture: false };
     } catch (error) {
       Sentry.captureException(error);
       return {
-        raw: {
-          siren,
-          nom_entreprise: null,
-          dirigeants: [],
-          beneficiaires_effectifs: [],
-          finances: [],
-        },
+        raw: empty,
         endpoint: `${endpoint} (exception)`,
         httpStatus: 0,
         isFixture: false,
