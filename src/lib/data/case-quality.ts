@@ -7,6 +7,7 @@ import type {
   CaseScores,
 } from "@/lib/graph/graph-types";
 import type { SourceKind } from "@/lib/graph/source";
+import { isDegradedEndpoint } from "@/lib/connectors/degraded";
 import type {
   CaseOrigin,
   CaseStatus,
@@ -20,12 +21,53 @@ export function getSourceHealth(sources: SourceRow[]): SourceHealth {
   const total = sources.length;
   const fixture = sources.filter((s) => s.isFixture).length;
   const live = sources.filter((s) => !s.isFixture).length;
-  const failed = sources.filter((s) => s.httpStatus >= 400).length;
+  // Échec = erreur HTTP OU consultation dégradée (exception, schéma non reconnu) :
+  // un HTTP 200 inexploitable n'est pas une consultation réussie.
+  const failed = sources.filter(
+    (s) => s.httpStatus >= 400 || (!s.isFixture && isDegradedEndpoint(s.endpoint)),
+  ).length;
   let origin: CaseOrigin = "unknown";
   if (total > 0 && fixture === total) origin = "fixture";
   else if (total > 0 && live === total) origin = "live";
   else if (total > 0) origin = "mixed";
   return { origin, total, live, fixture, failed };
+}
+
+/**
+ * Couverture des contrôles dont l'ABSENCE de résultat est présentée comme un
+ * fait rassurant (« aucune entité signalée », « aucune procédure collective »).
+ */
+export type SourceCoverage = {
+  /** BODACC consulté avec succès : « aucune procédure publiée » est alors un fait. */
+  bodacc: boolean;
+  /** Au moins un contrôle sanctions/PEP (DG Trésor, OpenSanctions) mené à terme. */
+  sanctions: boolean;
+};
+
+function completedLive(s: SourceRow): boolean {
+  return (
+    !s.isFixture &&
+    s.httpStatus >= 200 &&
+    s.httpStatus < 300 &&
+    !isDegradedEndpoint(s.endpoint)
+  );
+}
+
+/**
+ * Un dossier « réel » (au moins une source consultée en direct) ne peut déduire
+ * une absence que d'un contrôle réellement mené : un connecteur désactivé, en
+ * panne ou en repli fixture n'a RIEN vérifié. Un dossier 100 % fixture
+ * (démonstration) garde son comportement : la fixture y est la donnée voulue.
+ */
+export function getSourceCoverage(sources: SourceRow[]): SourceCoverage {
+  const realCase = sources.some((s) => !s.isFixture);
+  if (!realCase) return { bodacc: true, sanctions: true };
+  const done = (kinds: SourceKind[]) =>
+    sources.some((s) => kinds.includes(s.source) && completedLive(s));
+  return {
+    bodacc: done(["bodacc"]),
+    sanctions: done(["tresor_gels", "opensanctions"]),
+  };
 }
 
 export function getScoreStatus(

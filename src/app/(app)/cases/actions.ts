@@ -10,6 +10,7 @@ import {
   SirenSchema,
 } from "@/lib/server/validate";
 import { validateSynthesisReferences } from "@/lib/synthesis/validate";
+import { SourceError } from "@/lib/ingestion/errors";
 import {
   reviewStateFromEvents,
   reviewTransitionError,
@@ -47,8 +48,15 @@ export async function createCaseAction(
   if (!isValidSiren(clean)) {
     return { ok: false, error: "SIREN invalide (clé de Luhn incorrecte)." };
   }
-  const summary = await getCasesRepository().createCaseFromSiren(clean);
-  return { ok: true, id: summary.id };
+  try {
+    const summary = await getCasesRepository().createCaseFromSiren(clean);
+    return { ok: true, id: summary.id };
+  } catch (error) {
+    // Source indispensable indisponible (ex. clé Sirene absente en mode live) :
+    // message explicite plutôt qu'une erreur technique ou un dossier d'échantillon.
+    if (error instanceof SourceError) return { ok: false, error: error.message };
+    throw error;
+  }
 }
 
 /**

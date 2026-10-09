@@ -21,6 +21,7 @@ import { normalizeGleif } from "./normalize-gleif";
 import { normalizeGdelt } from "./normalize-gdelt";
 import { normalizePappers } from "./normalize-pappers";
 import { getEntityResolver } from "./resolver-backend";
+import { SourceError } from "./errors";
 import { buildGraph } from "@/lib/graph/build-graph";
 import { computeRisk } from "@/lib/risk/engine";
 import { payloadHash } from "@/lib/audit/hash-chain";
@@ -68,6 +69,24 @@ export async function assembleCase(
 
   const ul = await sirene.getUniteLegale(siren);
   sources.push(toSource("sirene", ul));
+  // Sirene fonde l'identité du dossier : sans elle (clé absente → fixture, ou
+  // réponse en erreur), un dossier « réel » porterait l'identité d'un échantillon
+  // ou des données d'erreur. On refuse explicitement plutôt que de fabriquer.
+  if (!usableResult(ul)) {
+    throw new SourceError(
+      "sirene",
+      "Création impossible : la clé INSEE Sirene n'est pas configurée (INSEE_SIRENE_API_KEY). Aucun dossier réel ne peut être construit sans identité légale vérifiable.",
+    );
+  }
+  if (ul.httpStatus === 404) {
+    throw new SourceError("sirene", `SIREN ${siren} introuvable dans le répertoire Sirene (INSEE).`);
+  }
+  if (ul.httpStatus >= 400) {
+    throw new SourceError(
+      "sirene",
+      `L'API INSEE Sirene a refusé la requête (HTTP ${ul.httpStatus}) : vérifier la clé et la souscription à l'API Sirene.`,
+    );
+  }
   const nic = normalizeSirene(ul.raw, {}).nic;
 
   const etab = await sirene.getEtablissementSiege(siren, nic);
@@ -84,22 +103,33 @@ export async function assembleCase(
 
   const bodaccRes = await bodacc.bySiren(siren);
   sources.push(toSource("bodacc", bodaccRes));
-  const events = normalizeBodacc(bodaccRes.raw, companyId);
+  // Repli fixture (BODACC en panne) ou mode live : jamais d'annonces d'échantillon
+  // sur un dossier réel.
+  const events = usableResult(bodaccRes)
+    ? normalizeBodacc(bodaccRes.raw, companyId)
+    : [];
 
   const inpiRes = await inpi.getRne(siren);
   sources.push(toSource("inpi", inpiRes));
-  const inpiNorm = normalizeInpi(inpiRes.raw, companyId);
+  // Sans identifiants INPI en mode live, `inpiRes` est la fixture (dirigeants
+  // DANONE) : on ne l'applique pas à un dossier réel.
+  const inpiUsable = usableResult(inpiRes);
+  const inpiNorm = inpiUsable
+    ? normalizeInpi(inpiRes.raw, companyId)
+    : { entities: [], edges: [] };
   // Bénéficiaires effectifs DÉCLARÉS (pour l'écart UBO) — toujours extraits pour
   // le calcul ; l'affichage nominatif reste gaté (CJUE) côté panneau/règle.
-  const declaredUboRaw = (
-    inpiRes.raw as {
-      beneficiairesEffectifs?: {
-        nom?: string;
-        prenoms?: string;
-        modaliteControle?: string;
-      }[];
-    }
-  ).beneficiairesEffectifs;
+  const declaredUboRaw = inpiUsable
+    ? (
+        inpiRes.raw as {
+          beneficiairesEffectifs?: {
+            nom?: string;
+            prenoms?: string;
+            modaliteControle?: string;
+          }[];
+        }
+      ).beneficiairesEffectifs
+    : undefined;
   // Trace de provenance commune : endpoint INPI + empreinte du payload brut
   // (corrobore source_records.payload_hash et le journal de preuve).
   const inpiTrace = {
@@ -121,7 +151,9 @@ export async function assembleCase(
     name: sireneNorm.denomination ?? undefined,
   });
   sources.push(toSource("tresor_gels", gelsRes));
-  const gelsNorm = normalizeGels(gelsRes.raw, { companyId });
+  const gelsNorm = usableResult(gelsRes)
+    ? normalizeGels(gelsRes.raw, { companyId })
+    : { entities: [], edges: [] };
 
   // OpenSanctions — agrégat UE de listes sanctions/PEP. Le registre national
   // (DG Trésor gels) reste en parallèle (déduplication via natural key).
@@ -133,10 +165,12 @@ export async function assembleCase(
     },
   });
   sources.push(toSource("opensanctions", osRes));
-  const osNorm = normalizeOpenSanctions(osRes.raw, {
-    subjectId: companyId,
-    subjectLabel: sireneNorm.denomination ?? `SIREN ${siren}`,
-  });
+  const osNorm = usableResult(osRes)
+    ? normalizeOpenSanctions(osRes.raw, {
+        subjectId: companyId,
+        subjectLabel: sireneNorm.denomination ?? `SIREN ${siren}`,
+      })
+    : { entities: [], edges: [] };
 
   // GLEIF — structure de détention transfrontalière (sociétés mères de niveau 2).
   // Arêtes DETIENT structurelles (sans %, GLEIF ne publie pas de participations).

@@ -18,6 +18,7 @@ import {
 } from "@/lib/risk/engine";
 import { computeVigilanceProfile } from "@/lib/risk/vigilance-profile";
 import { computeMitigatingFactors } from "@/lib/risk/mitigating";
+import { getSourceCoverage } from "@/lib/data/case-quality";
 import { computeStructuralIndicators } from "@/lib/risk/indicators";
 import { buildGraph } from "@/lib/graph/build-graph";
 import IndicatorsPanel from "@/components/cases/IndicatorsPanel";
@@ -67,7 +68,12 @@ export default async function RisquesTab(props: {
   // Faisceau d'indices : un signal isolé n'est jamais une alerte (§7.3).
   const faisceau = computeConvergence(signals, DEFAULT_THRESHOLDS.convergence.k);
   // Garde-fou faux positifs : éléments rassurants à afficher avec les signaux.
-  const mitigating = computeMitigatingFactors(detail.bundle);
+  // Un facteur « aucun X » n'est émis que si le contrôle X a réellement été mené.
+  const mitigating = computeMitigatingFactors(
+    detail.bundle,
+    new Date(),
+    getSourceCoverage(detail.sources),
+  );
   // Fiches d'investigation par règle/typologie réellement présente (M11).
   const ruleLabels = new Map(DEFAULT_RULES.map((r) => [r.id, r.label]));
   const presentRules = [...new Set(signals.map((s) => s.ruleId))];
