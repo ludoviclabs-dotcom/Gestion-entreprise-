@@ -269,3 +269,13 @@ describe("temporalité", () => {
     expect(kinds(after)).toContain("hors_periode");
   });
 });
+
+describe("classifyDirectHolders", () => {
+  it("classe majorité, présomption et absence de contrôle", async () => {
+    const { classifyDirectHolders } = await import("@/lib/graph/ubo");
+    const t1 = classifyDirectHolders([{ votes: 0.45 }, { votes: 0.385 }, { votes: 0.165 }]);
+    expect(t1.map((h) => h.control)).toEqual(["presomption", "aucun", "aucun"]);
+    const t2 = classifyDirectHolders([{ votes: 0.55 }, { votes: 0.315 }, { votes: 0.135 }]);
+    expect(t2.map((h) => h.control)).toEqual(["majorite", "aucun", "aucun"]);
+  });
+});

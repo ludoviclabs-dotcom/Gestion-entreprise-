@@ -1,4 +1,4 @@
-import type { ClaimNature, SourceKind, Verification } from "./schema";
+import type { ActorKind, ClaimNature, ResourceKind, SourceKind, Verification } from "./schema";
 
 /** Libellés d'affichage des statuts d'affirmation (cadrage §3.2). */
 export const CLAIM_NATURE_LABELS: Record<ClaimNature, { label: string; hint: string; example: string }> = {
@@ -39,4 +39,29 @@ export const SOURCE_KIND_LABELS: Record<SourceKind, string> = {
   etude: "Étude (source secondaire)",
   presse: "Presse (source secondaire)",
   piece_fictive: "Pièce fictive",
+};
+
+export const ACTOR_KIND_LABELS: Record<ActorKind, string> = {
+  entreprise: "Entreprise",
+  personne: "Personne physique",
+  investisseur: "Investisseur",
+  prestataire_crypto: "Prestataire sur cryptoactifs",
+  banque: "Banque",
+  prestataire_technique: "Prestataire technique",
+  client: "Client",
+  preteur: "Prêteur",
+  autorite: "Autorité",
+};
+
+export const RESOURCE_KIND_LABELS: Record<ResourceKind, string> = {
+  compte_bancaire: "Compte bancaire",
+  compte_prestataire: "Compte chez un prestataire",
+  adresse: "Adresse",
+  contrat_intelligent: "Contrat intelligent",
+  brevet: "Brevet",
+  logiciel: "Logiciel",
+  donnees: "Données",
+  procede: "Procédé",
+  systeme: "Système d'information",
+  contrat: "Contrat",
 };

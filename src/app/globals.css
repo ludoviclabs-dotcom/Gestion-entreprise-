@@ -317,3 +317,11 @@ body {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Graphe des parcours : focus clavier visible sur nœuds et relations. */
+.scenario-node:focus-visible .node-focus {
+  opacity: 1;
+}
+.scenario-edge:focus-visible .edge-focus {
+  stroke-opacity: 0.45;
+}

@@ -121,6 +121,7 @@ export const ActorKind = z.enum([
   "preteur",
   "autorite",
 ]);
+export type ActorKind = z.infer<typeof ActorKind>;
 
 export const Actor = z.object({
   id: z.string().min(1),
@@ -142,8 +143,10 @@ export const ResourceKind = z.enum([
   "logiciel",
   "donnees",
   "procede",
+  "systeme", // système d'information, espace documentaire
   "contrat",
 ]);
+export type ResourceKind = z.infer<typeof ResourceKind>;
 
 export const Resource = z.object({
   id: z.string().min(1),
@@ -157,6 +160,7 @@ export const Resource = z.object({
 export type Resource = z.infer<typeof Resource>;
 
 export const RelationKind = z.enum([
+  "titularite", // titulaire juridique d'un actif
   "detention", // capital et/ou votes
   "controle", // droits de contrôle documentés hors capital (pacte, nomination)
   "direction",
@@ -164,6 +168,7 @@ export const RelationKind = z.enum([
   "acces",
   "dependance", // client, fournisseur, prêteur
   "financement",
+  "surete", // bénéficiaire d'une sûreté (nantissement…) sur un actif
   "prestation",
   "titulaire_compte", // attribution d'un compte à un acteur
 ]);
@@ -179,8 +184,20 @@ export const Relation = z.object({
   votingPct: PercentString.optional(),
   /** Droits particuliers ou périmètre (licence, accès…). */
   rights: z.string().optional(),
+  /** Mesure d'une dépendance : numérateur, dénominateur, période et périmètre (cadrage §6.3). */
+  measure: z
+    .object({
+      numerator: Amount,
+      denominator: Amount,
+      period: z.string().min(1),
+      scope: z.string().min(1),
+    })
+    .refine((m) => m.numerator.unit === m.denominator.unit, "Numérateur et dénominateur dans la même unité")
+    .optional(),
   validFrom: IsoDate.optional(),
   validTo: IsoDate.optional(),
+  /** Relation propre à une branche : visible seulement si cette branche est jouée. */
+  branchId: z.string().optional(),
   claimIds: z.array(z.string()).default([]),
 });
 export type Relation = z.infer<typeof Relation>;
@@ -206,28 +223,88 @@ export type FinancialEvent = z.infer<typeof FinancialEvent>;
 
 // ── Déroulé pédagogique ───────────────────────────────────────────────────
 
+/** Verdict d'une réponse : une réponse « partielle » est défendable mais incomplète. */
+export const Verdict = z.enum(["juste", "partiel", "faux"]);
+export type Verdict = z.infer<typeof Verdict>;
+
+export const ExerciseOption = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  verdict: Verdict,
+  feedback: z.string().min(1),
+});
+
+/** Exercice d'une étape : qualification, hypothèses ou choix de vérifications. */
+export const Exercise = z
+  .object({
+    id: z.string().min(1),
+    kind: z.enum(["qualification", "hypotheses", "verifications", "conclusion"]),
+    prompt: z.string().min(1),
+    multiple: z.boolean().default(false),
+    minSelected: z.number().int().positive().optional(),
+    maxSelected: z.number().int().positive().optional(),
+    options: z.array(ExerciseOption).min(2),
+    /** Choix exigé par la consigne (« dont une explication licite ») : sans lui, la réponse est partielle. */
+    requireOneOf: z.object({ optionIds: z.array(z.string()).min(1), hint: z.string().min(1) }).optional(),
+  })
+  .refine((e) => e.options.some((o) => o.verdict === "juste"), "Au moins une réponse juste")
+  .refine(
+    (e) => !e.requireOneOf || e.requireOneOf.optionIds.every((id) => e.options.some((o) => o.id === id && o.verdict === "juste")),
+    "Le choix exigé désigne des réponses justes de l'exercice",
+  );
+export type Exercise = z.infer<typeof Exercise>;
+
 export const ScenarioStep = z.object({
   id: z.string().min(1),
+  /** Repère court (« T0 », « Hypothèses »…). */
+  marker: z.string().min(1),
   title: z.string().min(1),
   /** Question posée à l'apprenant à cette étape. */
   question: z.string().min(1),
   /** Pièces révélées à cette étape. */
   reveals: z.array(z.string()).default([]),
+  /** Affirmations sans pièce (informations manquantes, hypothèses) soulevées à cette étape. */
+  raises: z.array(z.string()).default([]),
   /** Date de l'état affiché (projection temporelle), si l'étape en dépend. */
   asOf: IsoDate.optional(),
   /** Explication attendue, révélée après validation. */
   explanation: z.string().min(1),
+  exercise: Exercise.optional(),
 });
 export type ScenarioStep = z.infer<typeof ScenarioStep>;
+
+/** Les quatre niveaux du débriefing (cadrage §3.3) : on ne saute pas de l'un à l'autre. */
+export const EvidenceLevel = z.enum(["signal_faible", "facteur_risque", "faisceau", "preuve"]);
+export type EvidenceLevel = z.infer<typeof EvidenceLevel>;
 
 export const ScenarioBranch = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
+  /** Date de l'état affiché dans la branche. */
+  asOf: IsoDate.optional(),
   reveals: z.array(z.string()).default([]),
+  /** Ce que les pièces de la branche répondent aux informations manquantes et hypothèses. */
+  resolves: z
+    .array(
+      z.object({
+        claimId: z.string().min(1),
+        outcome: z.enum(["renseignee", "confirmee", "infirmee"]),
+        byClaimId: z.string().min(1),
+      }),
+    )
+    .default([]),
+  /** Lecture finale par niveau : ce qui relève du signal, du facteur, du faisceau, de la preuve. */
+  levels: z
+    .array(z.object({ level: EvidenceLevel, statement: z.string().min(1), claimIds: z.array(z.string()).default([]) }))
+    .default([]),
   conclusion: z.string().min(1),
   /** Ce qui reste indécidable même dans cette branche. */
   openQuestions: z.array(z.string()).default([]),
+  /** Protections ou vérifications recommandées. */
+  recommendations: z.array(z.string()).default([]),
+  exercise: Exercise.optional(),
 });
+export type ScenarioBranch = z.infer<typeof ScenarioBranch>;
 
 export const Scenario = z
   .object({
@@ -237,6 +314,15 @@ export const Scenario = z
     /** Tout scénario du MVP est fictif et affiché comme tel. */
     fiction: z.literal(true),
     summary: z.string().min(1),
+    /** Objet central du scénario (l'entreprise étudiée). */
+    subjectId: z.string().min(1),
+    /** Disposition préétablie et stable des objets (0–1000 × 0–600). */
+    layout: z
+      .record(
+        z.string(),
+        z.object({ x: z.number(), y: z.number(), label: z.enum(["above", "below"]).optional() }),
+      )
+      .default({}),
     actors: z.array(Actor),
     resources: z.array(Resource).default([]),
     relations: z.array(Relation).default([]),
@@ -247,11 +333,16 @@ export const Scenario = z
     branches: z.array(ScenarioBranch).default([]),
   })
   .superRefine((s, ctx) => {
+    const issue = (message: string, path: (string | number)[]) =>
+      ctx.addIssue({ code: "custom", message, path });
     const objects = new Set([...s.actors.map((a) => a.id), ...s.resources.map((r) => r.id)]);
     const evidence = new Set(s.evidence.map((e) => e.id));
     const claims = new Set(s.claims.map((c) => c.id));
-    const issue = (message: string, path: (string | number)[]) =>
-      ctx.addIssue({ code: "custom", message, path });
+
+    if (!objects.has(s.subjectId)) issue(`Objet central inconnu : ${s.subjectId}`, ["subjectId"]);
+    for (const id of Object.keys(s.layout)) {
+      if (!objects.has(id)) issue(`Disposition : objet inconnu ${id}`, ["layout"]);
+    }
 
     const allIds = [
       ...s.actors,
@@ -269,7 +360,10 @@ export const Scenario = z
       seen.add(id);
     }
 
+    const branches = new Set(s.branches.map((b) => b.id));
     s.relations.forEach((r, i) => {
+      if (r.branchId && !branches.has(r.branchId))
+        issue(`Relation ${r.id} : branche inconnue ${r.branchId}`, ["relations", i]);
       if (!objects.has(r.source)) issue(`Relation ${r.id} : source inconnue ${r.source}`, ["relations", i]);
       if (!objects.has(r.target)) issue(`Relation ${r.id} : cible inconnue ${r.target}`, ["relations", i]);
       if (r.validFrom && r.validTo && r.validFrom > r.validTo)
@@ -291,6 +385,17 @@ export const Scenario = z
     [...s.steps, ...s.branches].forEach((st, i) =>
       st.reveals.forEach((e) => evidence.has(e) || issue(`${st.id} : pièce révélée inconnue ${e}`, ["steps", i])),
     );
+    s.steps.forEach((st, i) =>
+      st.raises.forEach((c) => claims.has(c) || issue(`${st.id} : affirmation soulevée inconnue ${c}`, ["steps", i])),
+    );
+    s.branches.forEach((b, i) => {
+      for (const r of b.resolves) {
+        if (!claims.has(r.claimId)) issue(`${b.id} : affirmation résolue inconnue ${r.claimId}`, ["branches", i]);
+        if (!claims.has(r.byClaimId)) issue(`${b.id} : affirmation de résolution inconnue ${r.byClaimId}`, ["branches", i]);
+      }
+      for (const l of b.levels)
+        l.claimIds.forEach((c) => claims.has(c) || issue(`${b.id} : affirmation inconnue ${c}`, ["branches", i]));
+    });
   });
 export type Scenario = z.infer<typeof Scenario>;
 

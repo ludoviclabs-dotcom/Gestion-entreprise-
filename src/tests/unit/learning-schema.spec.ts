@@ -38,7 +38,8 @@ const minimal = {
   relations: [{ id: "r1", kind: "detention", source: "b", target: "a", capitalPct: "45", votingPct: "45" }],
   evidence: [{ id: "p1", title: "Pacte", origin: "fictive", excerpt: "Article 3 : …" }],
   claims: [{ id: "c1", statement: "B détient 45 %", nature: "fait_documente", verification: "declare", evidenceIds: ["p1"] }],
-  steps: [{ id: "t0", title: "T0", question: "Qui détient A ?", reveals: ["p1"], explanation: "…" }],
+  subjectId: "a",
+  steps: [{ id: "t0", marker: "T0", title: "T0", question: "Qui détient A ?", reveals: ["p1"], explanation: "…" }],
 };
 
 describe("schéma de scénario", () => {
