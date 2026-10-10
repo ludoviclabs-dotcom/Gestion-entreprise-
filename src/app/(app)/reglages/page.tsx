@@ -1,3 +1,6 @@
+import { connection } from "next/server";
+import ImportFreshness from "@/components/cases/ImportFreshness";
+import { getImportFreshness } from "@/lib/data/import-freshness";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { isDemoMode } from "@/lib/env";
@@ -8,7 +11,9 @@ export const metadata = { title: "Réglages — KYB Graph" };
 const EMERALD = "#10b981";
 const AMBER = "#f59e0b";
 
-export default function ReglagesPage() {
+export default async function ReglagesPage() {
+  await connection();
+  const imports = await getImportFreshness();
   const demo = isDemoMode();
   const statuses = getConnectorStatuses();
 
@@ -72,6 +77,7 @@ export default function ReglagesPage() {
           ))}
         </ul>
       </Card>
+      <ImportFreshness imports={imports} />
     </div>
   );
 }

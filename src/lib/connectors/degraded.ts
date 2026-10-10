@@ -9,7 +9,7 @@
  * absence avérée).
  */
 const DEGRADED_SUFFIX =
-  /\((?:exception|erreur \d+|schéma non reconnu|délai dépassé)\)\s*$/;
+  /\((?:exception|erreur \d+|schéma non reconnu|délai dépassé|source non importée)\)\s*$/;
 
 export function isDegradedEndpoint(endpoint: string): boolean {
   return DEGRADED_SUFFIX.test(endpoint);

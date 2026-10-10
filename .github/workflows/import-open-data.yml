@@ -1,0 +1,40 @@
+name: Import open data
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Jeu à importer (D0 vérifie uniquement le socle)
+        required: true
+        type: choice
+        default: check
+        options: [check, all]
+  schedule:
+    - cron: '17 3 4 * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: import-open-data
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.OPEN_DATA_IMPORTS_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Installer les dépendances
+        run: npm ci --legacy-peer-deps
+      - name: Vérifier ou importer
+        env:
+          DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
+          IMPORT_SOURCE: ${{ inputs.source || 'all' }}
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npx --no-install tsx scripts/import/run.ts "$IMPORT_SOURCE"
