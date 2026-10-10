@@ -12,7 +12,14 @@ import { ban, banAddressFrom } from "@/lib/connectors/ban";
 import { gdelt } from "@/lib/connectors/gdelt";
 import { pappers } from "@/lib/connectors/pappers";
 import { companiesHouse } from "@/lib/connectors/companies-house";
-import { isCompaniesHouseEnabled, isDemoMode, isInpiUboExposed } from "@/lib/env";
+import { rechercheEntreprises } from "@/lib/connectors/recherche-entreprises";
+import { isDegradedEndpoint } from "@/lib/connectors/degraded";
+import {
+  isCompaniesHouseEnabled,
+  isDemoMode,
+  isInpiUboExposed,
+  isRechercheEntreprisesEnabled,
+} from "@/lib/env";
 import { normalizeSirene, sireneAddress } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
@@ -20,6 +27,10 @@ import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
 import { companiesHouseParents, normalizeGleif } from "./normalize-gleif";
 import { normalizeCompaniesHouse } from "./normalize-companies-house";
+import {
+  rechercheAttributes,
+  rechercheDirigeants,
+} from "./normalize-recherche-entreprises";
 import { normalizeGdelt } from "./normalize-gdelt";
 import { normalizePappers, pappersDirigeants } from "./normalize-pappers";
 import { getEntityResolver } from "./resolver-backend";
@@ -109,7 +120,20 @@ export async function assembleCase(
   // connecteur isole ses propres erreurs ; l'ordre des source_records ci-dessous
   // reste déterministe.
   const subjectLabel = sireneNorm.denomination ?? `SIREN ${siren}`;
-  const [bodaccRes, inpiRes, gelsRes, osRes, gleifRes, viesRes, pappersRes, gdeltRes] =
+  // « Recherche d'entreprises » : appelée seulement en live ET activée — sinon
+  // aucune consultation, donc aucune ligne source_records (source non interrogée).
+  const rechercheOn = !isDemoMode() && isRechercheEntreprisesEnabled();
+  const [
+    bodaccRes,
+    inpiRes,
+    gelsRes,
+    osRes,
+    gleifRes,
+    viesRes,
+    pappersRes,
+    gdeltRes,
+    rechercheRes,
+  ] =
     await Promise.all([
       bodacc.bySiren(siren),
       inpi.getRne(siren),
@@ -123,6 +147,7 @@ export async function assembleCase(
       vies.validateFr(siren),
       pappers.bySiren(siren),
       gdelt.byName(subjectLabel),
+      rechercheOn ? rechercheEntreprises.bySiren(siren) : Promise.resolve(null),
     ]);
   sources.push(
     toSource("bodacc", bodaccRes),
@@ -134,6 +159,7 @@ export async function assembleCase(
     toSource("pappers", pappersRes),
     toSource("gdelt", gdeltRes),
   );
+  if (rechercheRes) sources.push(toSource("recherche_entreprises", rechercheRes));
 
   // Repli fixture (BODACC en panne) ou mode live : jamais d'annonces d'échantillon
   // sur un dossier réel.
@@ -241,6 +267,22 @@ export async function assembleCase(
     ? pappersDirigeants(pappersRes.raw, companyId)
     : { entities: [], edges: [] };
 
+  // Recherche d'entreprises (DINUM) — dirigeants publiés au RNE + derniers
+  // comptes + indicateurs publics. Source ouverte, sans clé : prend le relais de
+  // l'INPI (accès API restreint) et de Pappers (crédits). Utilisée seulement si la
+  // consultation a RÉUSSI : un échec ou une absence ne produit rien (jamais « aucun
+  // dirigeant »). Les attributs sont greffés après résolution.
+  const rechercheUsable =
+    rechercheRes != null &&
+    !rechercheRes.isFixture &&
+    rechercheRes.httpStatus >= 200 &&
+    rechercheRes.httpStatus < 300 &&
+    !isDegradedEndpoint(rechercheRes.endpoint);
+  const recherchePeople =
+    rechercheUsable && rechercheRes
+      ? rechercheDirigeants(rechercheRes.raw, companyId)
+      : { entities: [], edges: [] };
+
   // Résolution d'entité : dédoublonnage INTER-SOURCES (une même société/personne
   // vue par Sirene, INPI et GLEIF est fusionnée ; arêtes re-pointées vers l'id
   // canonique, preuve la plus forte conservée). AVANT enrichissement/GDELT :
@@ -255,6 +297,7 @@ export async function assembleCase(
       ...gelsNorm.entities,
       ...osNorm.entities,
       ...pappersPeople.entities,
+      ...recherchePeople.entities,
       ...chNorm.entities,
     ]),
     edges: dedupeById([
@@ -264,6 +307,7 @@ export async function assembleCase(
       ...gelsNorm.edges,
       ...osNorm.edges,
       ...pappersPeople.edges,
+      ...recherchePeople.edges,
       ...chNorm.edges,
     ]),
   });
@@ -290,6 +334,15 @@ export async function assembleCase(
         ...subject.attributes,
         "TVA intracommunautaire": viesData.vatNumber,
         "Statut TVA (VIES)": statut,
+      };
+    }
+    // Comptes publiés, indicateurs publics, commissaires aux comptes, fraîcheur du
+    // RNE (Recherche d'entreprises). Appliqués AVANT Pappers : si Pappers répond,
+    // ses comptes (plus complets) prennent le pas.
+    if (rechercheUsable && rechercheRes) {
+      subject.attributes = {
+        ...subject.attributes,
+        ...rechercheAttributes(rechercheRes.raw),
       };
     }
   }

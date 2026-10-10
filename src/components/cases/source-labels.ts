@@ -13,6 +13,7 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   gdelt: "Presse (GDELT)",
   pappers: "Pappers",
   companies_house: "Companies House (UK)",
+  recherche_entreprises: "Recherche d'entreprises (DINUM)",
   manual: "Manuel",
   fixture: "Fixture",
 };

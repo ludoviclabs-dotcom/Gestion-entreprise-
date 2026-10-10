@@ -56,6 +56,12 @@ const serverSchema = z.object({
   COMPANIES_HOUSE_BASE_URL: z
     .string()
     .default("https://api.company-information.service.gov.uk"),
+  // Recherche d'entreprises (DINUM / annuaire-entreprises) — API ouverte, SANS clé :
+  // dirigeants (issus du RNE), derniers comptes, labels publics. 7 req/s/IP. Opt-in.
+  RECHERCHE_ENTREPRISES_ENABLED: z.enum(["true", "false"]).default("false"),
+  RECHERCHE_ENTREPRISES_BASE_URL: z
+    .string()
+    .default("https://recherche-entreprises.api.gouv.fr"),
   // Résolution d'entités : `builtin` (TS in-process, défaut) ou `splink`
   // (sidecar Python probabiliste, à raccorder). Cf. resolver-backend.ts.
   RESOLVER_BACKEND: z.enum(["builtin", "splink"]).default("builtin"),
@@ -82,6 +88,8 @@ export const isBanEnabled = (): boolean => env.BAN_ENABLED === "true";
 export const isGdeltEnabled = (): boolean => env.GDELT_ENABLED === "true";
 export const isPappersEnabled = (): boolean =>
   env.PAPPERS_ENABLED === "true" && Boolean(env.PAPPERS_API_KEY);
+export const isRechercheEntreprisesEnabled = (): boolean =>
+  env.RECHERCHE_ENTREPRISES_ENABLED === "true";
 export const isCompaniesHouseEnabled = (): boolean =>
   env.COMPANIES_HOUSE_ENABLED === "true" && Boolean(env.COMPANIES_HOUSE_API_KEY);
 export const hasOpenSanctionsKey = (): boolean =>
