@@ -55,8 +55,9 @@ export function postgresImportStore<T>(db: Sql, writer: DatasetWriter<T>): Impor
         return result as R;
       } catch {
         // Après rollback : métadonnées d'échec uniquement, jamais l'erreur brute.
-        await db`insert into open_data_imports (id, source, version, source_url, status, started_at)
-          values (${id}, ${identity.source}, ${identity.version}, ${identity.sourceUrl}, 'failed', ${startedAt})`.catch(() => {});
+        // Classer la tentative à sa fin : elle a pu attendre un import précédent.
+        await db`insert into open_data_imports (id, source, version, source_url, status, started_at, checked_at)
+          values (${id}, ${identity.source}, ${identity.version}, ${identity.sourceUrl}, 'failed', ${startedAt}, clock_timestamp())`.catch(() => {});
         throw new Error("IMPORT_FAILED_PREVIOUS_DATA_PRESERVED");
       }
     },

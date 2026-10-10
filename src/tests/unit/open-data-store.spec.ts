@@ -66,4 +66,14 @@ describe("publication Postgres des imports", () => {
     expect(JSON.stringify(h.calls)).not.toContain("secret-database-error");
     expect(h.calls.some(c => c.query.includes("set status = 'ok'"))).toBe(false);
   });
+  it("date l'échec à sa fin, même après avoir attendu un import réussi", async () => {
+    const h = harness([{ id: "previous", sha256: sha, version: "v1" }], true);
+    await expect(runImport(identity, open, h.store)).rejects.toThrow("IMPORT_FAILED_PREVIOUS_DATA_PRESERVED");
+    const failed = h.calls.at(-1)!;
+    // La date de démarrage précède potentiellement checked_at de l'import précédent.
+    // Le classement coalesce(checked_at, started_at) doit utiliser l'heure de fin SQL.
+    expect(failed.query).toContain("status, started_at, checked_at)");
+    expect(failed.query).toContain("'failed', ?, clock_timestamp())");
+    expect(h.events.at(-1)).toBe("rollback");
+  });
 });

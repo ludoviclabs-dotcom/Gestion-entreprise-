@@ -39,6 +39,8 @@ Un fichier national vide est refusé. Une entreprise absente d'un fichier valid�
 un résultat vide ; une source sans import validé est **source non importée**, consultation
 dégradée, jamais une absence. Une panne ne crée aucun résultat rassurant.
 Les erreurs de pilotes et les lignes brutes ne sont jamais journalisées.
+Les tentatives échouées portent aussi une date de fin (checked_at), afin qu'un échec
+après attente du verrou soit classé après le succès qui l'a précédé.
 
 ## Activation D0 — aucune commande locale nécessaire
 
@@ -59,6 +61,10 @@ Les erreurs de pilotes et les lignes brutes ne sont jamais journalisées.
 Aucun nouveau flag Vercel n'est nécessaire pour D0. La base déjà configurée suffit pour
 afficher les états dans Réglages. Les flags des sources n'arrivent qu'avec D1/D2 :
 **SQL → fusion → premier import réussi → flag Production → redéploiement**.
+
+La livraison du code peut avancer avant l'activation : D0 affiche un état indisponible
+si sa table manque ; D1/D2 doivent rester désactivés tant que leurs migrations et imports
+ne sont pas validés. Une fusion seule ne constitue donc pas une activation des jeux.
 
 ## Limites de validation
 
