@@ -108,5 +108,53 @@ describe("normalizePappers (comptes annuels)", () => {
     );
     expect(res.finances?.annee).toBe(2022);
     expect(entities[0].attributes?.["Résultat net"]).toContain("(2022)");
+    expect(entities[0].attributes?.["Source des comptes"]).toBe("Pappers");
+  });
+
+  it("remplace les comptes d'une autre source ET sa mention de provenance (aucun mélange)", () => {
+    const entities: CaseEntity[] = [
+      {
+        id: COMPANY,
+        type: "company",
+        label: "SOCIETE",
+        evidenceLevel: "declared",
+        attributes: {
+          "CA (dernier exercice)": "9 € (2024)",
+          "Résultat net": "9 € (2024)",
+          "Source des comptes": "Recherche d'entreprises (DINUM)",
+          "Indicateurs publics": "Qualiopi",
+        },
+      },
+    ];
+    // Pappers ne publie PAS de résultat net : l'ancien (DINUM, 2024) ne doit pas rester.
+    normalizePappers(
+      { finances: [{ annee: 2023, chiffre_affaires: 5000, resultat_net: null, capitaux_propres: 1000, effectif: 3 }] },
+      COMPANY,
+      entities,
+    );
+    const a = entities[0].attributes ?? {};
+    expect(a["Source des comptes"]).toBe("Pappers");
+    expect(a["CA (dernier exercice)"]).toContain("(2023)");
+    expect(a["Résultat net"]).toBeUndefined();
+    // Les attributs sans rapport avec les comptes sont conservés.
+    expect(a["Indicateurs publics"]).toBe("Qualiopi");
+  });
+
+  it("sans comptes Pappers : ne touche pas aux comptes d'une autre source", () => {
+    const entities: CaseEntity[] = [
+      {
+        id: COMPANY,
+        type: "company",
+        label: "SOCIETE",
+        evidenceLevel: "declared",
+        attributes: {
+          "CA (dernier exercice)": "9 € (2024)",
+          "Source des comptes": "Recherche d'entreprises (DINUM)",
+        },
+      },
+    ];
+    normalizePappers({ finances: [] }, COMPANY, entities);
+    expect(entities[0].attributes?.["Source des comptes"]).toBe("Recherche d'entreprises (DINUM)");
+    expect(entities[0].attributes?.["CA (dernier exercice)"]).toBe("9 € (2024)");
   });
 });

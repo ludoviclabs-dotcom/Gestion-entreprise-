@@ -24,7 +24,31 @@ vi.mock("@/lib/connectors/sirene", () => ({
   },
 }));
 
-const state = vi.hoisted(() => ({ httpStatus: 200, calls: 0 }));
+const state = vi.hoisted(() => ({ httpStatus: 200, calls: 0, pappersLive: false }));
+
+// Pappers : désactivé par défaut (fixture → ignorée en live) ; activable par test.
+vi.mock("@/lib/connectors/pappers", () => ({
+  pappers: {
+    async bySiren(siren: string) {
+      if (!state.pappersLive) {
+        return { raw: {}, endpoint: `fixture:pappers:${siren}`, httpStatus: 0, isFixture: true };
+      }
+      return {
+        raw: {
+          siren,
+          dirigeants: [],
+          beneficiaires_effectifs: [],
+          finances: [
+            { annee: 2023, chiffre_affaires: 5000, resultat_net: 400, capitaux_propres: 1000, effectif: 3 },
+          ],
+        },
+        endpoint: `https://pappers.test/entreprise?siren=${siren}`,
+        httpStatus: 200,
+        isFixture: false,
+      };
+    },
+  },
+}));
 
 vi.mock("@/lib/connectors/recherche-entreprises", () => ({
   rechercheEntreprises: {
@@ -65,6 +89,28 @@ describe("assembleCase — Recherche d'entreprises", () => {
     delete process.env.NEXT_PUBLIC_DEMO_MODE;
     state.httpStatus = 200;
     state.calls = 0;
+    state.pappersLive = false;
+  });
+
+  it("Pappers prend le pas sur les comptes ET sur la mention de provenance", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    state.pappersLive = true;
+    const { bundle } = await assembleCase("552032534");
+    const subject = bundle.entities.find((e) => e.id === "co:552032534");
+    const a = subject?.attributes ?? {};
+    expect(a["Source des comptes"]).toBe("Pappers");
+    expect(a["CA (dernier exercice)"]).toContain("(2023)"); // exercice Pappers, pas 2024 (DINUM)
+    expect(a["Capitaux propres"]).toBeDefined();
+    // Les autres apports de Recherche d'entreprises restent.
+    expect(a["Indicateurs publics"]).toBe("Qualiopi");
+  });
+
+  it("sans Pappers : les comptes restent attribués à Recherche d'entreprises", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    const { bundle } = await assembleCase("552032534");
+    const subject = bundle.entities.find((e) => e.id === "co:552032534");
+    expect(subject?.attributes?.["Source des comptes"]).toBe("Recherche d'entreprises (DINUM)");
+    expect(subject?.attributes?.["CA (dernier exercice)"]).toContain("(2024)");
   });
 
   it("greffe dirigeants, comptes, indicateurs ; les commissaires aux comptes ne dirigent pas", async () => {

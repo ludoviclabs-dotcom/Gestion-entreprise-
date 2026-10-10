@@ -130,10 +130,27 @@ export function normalizePappers(
     }
   }
 
-  // Enrichir le nœud sujet canonique avec les attributs financiers
+  // Enrichir le nœud sujet canonique avec les attributs financiers.
+  // Pappers PREND LE PAS sur d'éventuels comptes déjà greffés par une autre source
+  // (ex. Recherche d'entreprises) : on retire d'abord les valeurs et la mention de
+  // provenance de cette source, pour ne jamais afficher des chiffres Pappers sous
+  // le libellé d'une autre source ni mélanger deux exercices.
   const subject = entities.find((e) => e.id === subjectCompanyId);
   if (subject && Object.keys(financialAttributes).length > 0) {
-    subject.attributes = { ...subject.attributes, ...financialAttributes };
+    const {
+      "CA (dernier exercice)": _ca,
+      "Résultat net": _rn,
+      "Source des comptes": _src,
+      ...rest
+    } = subject.attributes ?? {};
+    void _ca;
+    void _rn;
+    void _src;
+    subject.attributes = {
+      ...rest,
+      ...financialAttributes,
+      "Source des comptes": "Pappers",
+    };
   }
 
   return { finances: latest, financialAttributes };
