@@ -8,12 +8,18 @@ import type {
 } from "@/lib/graph/graph-types";
 import { familyForRule } from "@/lib/graph/graph-types";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
+import { structuralDegree } from "@/lib/graph/build-graph";
 import { DEFAULT_RULES } from "./rules";
 import { DEFAULT_THRESHOLDS } from "./types";
 import type { Rule, Thresholds } from "./types";
 
-/** Version publique du modèle de scoring utilisé dans les dossiers et exports. */
-export const SCORE_MODEL_VERSION = "kyb-risk-2026.1";
+/**
+ * Version publique du modèle de scoring utilisé dans les dossiers et exports.
+ *
+ * 2026.2 — la complexité ne compte plus les annonces rattachées (nœuds
+ * événement) dans le degré maximal : seule la structure compte.
+ */
+export const SCORE_MODEL_VERSION = "kyb-risk-2026.2";
 
 /** Poids appliqué à chaque sévérité dans le score de vigilance. */
 export const SEVERITY_WEIGHT: Record<Severity, number> = {
@@ -139,7 +145,9 @@ export type ComplexiteExplanation = {
 /**
  * Décompose le score de complexité structurelle en ses 3 termes (densité,
  * taille, degré max) — rend le chiffre auditable plutôt qu'opaque. Calibré pour
- * qu'un dossier solo soit < 20, un réseau dense > 70.
+ * qu'un dossier solo soit < 20, un réseau dense > 70. Le degré max est
+ * STRUCTUREL (voir `structuralDegree`) : le volume d'annonces publiées n'entre
+ * pas dans la complexité.
  */
 export function explainComplexite(
   bundle: CaseBundle,
@@ -147,9 +155,10 @@ export function explainComplexite(
 ): ComplexiteExplanation {
   const n = bundle.entities.length;
   const e = bundle.edges.length;
+  // Degré STRUCTUREL : les annonces rattachées (nœuds événement) ne comptent pas.
   let maxDegree = 0;
   graph.forEachNode((node) => {
-    const d = graph.degree(node);
+    const d = structuralDegree(graph, node);
     if (d > maxDegree) maxDegree = d;
   });
   const density = n === 0 ? 0 : e / Math.max(n - 1, 1);

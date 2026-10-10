@@ -103,10 +103,12 @@ Les homonymies et chemins de proximité sont des signaux à confirmer. Un chemin
 
 ## Scoring (3 axes)
 
-Calculé dans `engine.ts:computeRisk`. Version publique persistée dans les métadonnées et exports: `SCORE_MODEL_VERSION = "kyb-risk-2026.1"`.
+Calculé dans `engine.ts:computeRisk`. Version publique persistée dans les métadonnées et exports: `SCORE_MODEL_VERSION = "kyb-risk-2026.2"`.
 
 ### Complexité (0–100)
 Score structurel : `clamp(densité × 22 + log2(n+1) × 8 + log2(maxDegree+1) × 8)`.
+
+Le degré max est **structurel** (modèle 2026.2) : seuls comptent les liens de structure (dirigeants, détention, siège, adresse partagée…). Les annonces rattachées à une société (BODACC, BALO, BOAMP, JOAFE, DCA — arêtes « a publié ») n'y entrent pas : leur nombre reflète l'ancienneté et la taille de l'entreprise, pas la complexité de son organisation. Même règle pour « Société récente très liée ».
 
 - Dossier solo (1 société, 0 lien) → < 20.
 - Réseau dense (5+ sociétés, 15+ liens, degré max ≥ 8) → > 70.

@@ -3,6 +3,22 @@ import type { CaseBundle } from "./graph-types";
 import { NODE_COLORS } from "./graph-types";
 
 /**
+ * Degré STRUCTUREL d'un nœud : nombre de liens de structure (dirigeants,
+ * détention, siège, adresse partagée…), SANS les arêtes « a publié » qui relient
+ * une société à ses annonces. Le nombre de publications (BODACC, BALO, BOAMP…)
+ * dépend de l'ancienneté et de la taille de l'entreprise, pas de la complexité de
+ * son organisation : le compter ferait paraître « complexe » une société simple
+ * mais très publiée.
+ */
+export function structuralDegree(graph: Graph, node: string): number {
+  let published = 0;
+  graph.forEachEdge(node, (_edge, attributes) => {
+    if (attributes.edgeKind === "A_PUBLIE") published += 1;
+  });
+  return graph.degree(node) - published;
+}
+
+/**
  * Transforme un dossier (entities + edges + events) en graphe Graphology.
  * Les événements deviennent des nœuds de type "event" reliés par A_PUBLIE.
  * Fonction pure et exécutable côté serveur (Node) comme côté client.
