@@ -71,22 +71,45 @@ function liteFrom(rec: LeiRecord | undefined | null): GleifEntityLite | null {
   };
 }
 
+type ParentOutcome = {
+  lite: GleifEntityLite | null;
+  /** Suffixe d'endpoint si la consultation a ÉCHOUÉ (≠ absence de mère). */
+  failure: string | null;
+};
+
 async function fetchParent(
   base: string,
   lei: string,
   rel: "direct-parent" | "ultimate-parent",
-): Promise<GleifEntityLite | null> {
+): Promise<ParentOutcome> {
   try {
     const { data, status } = await fetchJson<{ data?: LeiRecord | null }>(
       `${base}/lei-records/${lei}/${rel}`,
       { limiter },
     );
     // 404 = aucune mère reportée pour ce niveau (cas normal, pas une erreur).
-    if (status === 404 || !data?.data) return null;
-    return liteFrom(data.data);
+    if (status === 404) return { lite: null, failure: null };
+    // Autre erreur HTTP (429, 5xx…) : on ne sait PAS s'il y a une mère. Ne pas la
+    // confondre avec « aucune mère » : la consultation est signalée dégradée.
+    if (status < 200 || status >= 300) {
+      return { lite: null, failure: `(erreur ${status})` };
+    }
+    if (!data?.data) return { lite: null, failure: null };
+    return { lite: liteFrom(data.data), failure: null };
   } catch {
-    return null; // mère absente / réseau → silencieux, n'interrompt pas l'assemblage.
+    return { lite: null, failure: "(exception)" };
   }
+}
+
+/**
+ * GLEIF stocke un SIREN français sous DEUX formes selon l'entité : « 552032534 »
+ * (registre RA000189) ou « 552 081 317 » avec espaces (ex. RA000192). Les deux
+ * sont interrogées, sinon des sociétés comme EDF ou HSBC restent introuvables.
+ */
+export function sirenVariants(siren: string): string[] {
+  const digits = siren.replace(/\D/g, "");
+  if (digits.length !== 9) return [siren];
+  return [digits, `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`];
 }
 
 export const gleif = {
@@ -100,26 +123,53 @@ export const gleif = {
       };
     }
     const base = env.GLEIF_BASE_URL;
-    const searchUrl = `${base}/lei-records?filter[entity.registeredAs]=${encodeURIComponent(
-      siren,
-    )}`;
+    const urlFor = (v: string) =>
+      `${base}/lei-records?filter[entity.registeredAs]=${encodeURIComponent(v)}`;
+    const variants = sirenVariants(siren);
+    const searchUrl = urlFor(variants[0]);
     try {
-      const { data, status } = await fetchJson<{ data?: LeiRecord[] }>(searchUrl, {
-        limiter,
-      });
+      // Les deux graphies en parallèle ; une graphie en échec ne masque pas l'autre.
+      const settled = await Promise.allSettled(
+        variants.map((v) =>
+          fetchJson<{ data?: LeiRecord[] }>(urlFor(v), { limiter }),
+        ),
+      );
+      const fulfilled = settled.flatMap((s) => (s.status === "fulfilled" ? [s.value] : []));
+      if (fulfilled.length === 0) {
+        // Toutes les requêtes ont échoué : vraie panne (pas « LEI absent »).
+        throw (settled[0] as PromiseRejectedResult).reason;
+      }
+      const hit = fulfilled.find((r) => r.data?.data?.[0]);
+      const { data, status } = hit ?? fulfilled[0];
       const rec = data?.data?.[0];
       const lite = liteFrom(rec);
       const subject = lite
         ? { ...lite, registeredAs: rec?.attributes?.entity?.registeredAs ?? siren }
         : null;
-      const [directParent, ultimateParent] = subject
+      const [direct, ultimate] = subject
         ? await Promise.all([
             fetchParent(base, subject.lei, "direct-parent"),
             fetchParent(base, subject.lei, "ultimate-parent"),
           ])
-        : [null, null];
-      const raw: GleifSimplified = { subject, directParent, ultimateParent };
-      return { raw, endpoint: searchUrl, httpStatus: status, isFixture: false };
+        : [
+            { lite: null, failure: null },
+            { lite: null, failure: null },
+          ];
+      const raw: GleifSimplified = {
+        subject,
+        directParent: direct.lite,
+        ultimateParent: ultimate.lite,
+      };
+      // Une recherche partielle (une graphie en échec) ou une mère non récupérée
+      // rend la consultation DÉGRADÉE : jamais un « aucune mère » présumé.
+      const partial = fulfilled.length < variants.length && !hit ? "(exception)" : null;
+      const failure = direct.failure ?? ultimate.failure ?? partial;
+      return {
+        raw,
+        endpoint: failure ? `${searchUrl} ${failure}` : searchUrl,
+        httpStatus: status,
+        isFixture: false,
+      };
     } catch (error) {
       Sentry.captureException(error);
       return {
