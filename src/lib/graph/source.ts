@@ -20,5 +20,7 @@ export type SourceKind =
   | "agence_bio"
   | "alim_confiance"
   | "qualiopi"
+  | "georisques"
+  | "annuaire_administration"
   | "manual"
   | "fixture";

@@ -22,6 +22,8 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   agence_bio: "Agence BIO",
   alim_confiance: "Alim'confiance (DGAL)",
   qualiopi: "Organismes de formation (DGEFP)",
+  georisques: "Géorisques (installations classées)",
+  annuaire_administration: "Annuaire de l'administration",
   manual: "Manuel",
   fixture: "Fixture",
 };

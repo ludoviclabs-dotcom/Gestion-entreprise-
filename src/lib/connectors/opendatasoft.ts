@@ -85,9 +85,11 @@ export async function odsFetch(url: string, label: string): Promise<OdsOutcome> 
       }
       // Opendatasoft : { total_count, results } · data-fair (ADEME) : { total,
       // results } · Agence BIO : { nbTotal (texte), items }.
+      // Géorisques : { results: <nombre>, data: [...] }.
       const obj = json as {
         results?: unknown;
         items?: unknown;
+        data?: unknown;
         total_count?: unknown;
         total?: unknown;
         nbTotal?: unknown;
@@ -98,7 +100,9 @@ export async function odsFetch(url: string, label: string): Promise<OdsOutcome> 
             ? obj.results
             : Array.isArray(obj.items)
               ? obj.items
-              : null
+              : Array.isArray(obj.data)
+                ? obj.data
+                : null
           : null;
       if (rows === null) {
         Sentry.captureMessage(`${label}: schéma inattendu`, "warning");
@@ -107,7 +111,7 @@ export async function odsFetch(url: string, label: string): Promise<OdsOutcome> 
       const records = rows.filter(
         (r): r is OdsRecord => !!r && typeof r === "object" && !Array.isArray(r),
       );
-      const total = [obj.total_count, obj.total, obj.nbTotal]
+      const total = [obj.total_count, obj.total, obj.nbTotal, obj.results]
         .map((v) => (typeof v === "string" && v.trim() ? Number(v) : v))
         .find((v): v is number => typeof v === "number" && Number.isFinite(v));
       return { ok: true, status: res.status, total: total ?? records.length, records };
