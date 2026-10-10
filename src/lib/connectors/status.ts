@@ -23,6 +23,7 @@ import {
   isQualiopiEnabled,
   isGeorisquesEnabled,
   isCaminoEnabled,
+  isIcpeImportEnabled,
   isAnnuaireAdministrationEnabled,
 } from "@/lib/env";
 
@@ -267,7 +268,9 @@ export function getConnectorStatuses(): ConnectorStatus[] {
       live: !demo && isGeorisquesEnabled(),
       detail:
         !demo && isGeorisquesEnabled()
-          ? "Installations classées (ICPE) du siège et des établissements ouverts (si peu nombreux)."
+          ? isIcpeImportEnabled()
+            ? "Import national ICPE par SIREN ; repli direct si aucun import réussi."
+            : "Installations classées (ICPE) du siège et des établissements ouverts (si peu nombreux)."
           : isGeorisquesEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "GEORISQUES_ENABLED non activé → inactif.",

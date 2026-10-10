@@ -149,3 +149,87 @@ le quota occupé et la latence cible < 100 ms restent à mesurer après configur
 sécurisée. Aucun secret local périmé n'a été utilisé et aucun flag n'a été activé.
 
 Relecture D1 : les événements enregistrés référencent explicitement la source Camino et sa preuve. Le filtrage des événements informatifs est partagé par le moteur de risque, les métriques de l’onglet Analyse et le repository de requêtes de graphe ; les anciennes annonces restent inchangées. Tests de régression dédiés.
+
+## D2 — ICPE nationales (Géorisques)
+
+L'import consomme les pages HTTPS fixes de l'API installations_classees (page_size=1000).
+Les liens next fournis par l'API ne sont jamais suivis (ils pointent actuellement vers
+un autre hôte en HTTP). Chaque page doit conserver le même total et le même nombre de
+pages, porter le numéro attendu et le nombre exact d'enregistrements attendu. Une clé
+codeAIOT absente ou dupliquée provoque un échec atomique : protège contre une page répétée
+ou un décalage des résultats pendant la pagination. L'API ne fournit pas de snapshot
+transactionnel ; une modification amont sans changement de total reste une limite.
+
+Mémoire : une page JSON (32 Mio maximum), plus un ensemble borné d'identifiants courts
+pour détecter les doublons. Limites : 384 Mio cumulés, 1 million d'identifiants, 1 000 pages,
+au moins 1 000 lignes nationales, 90 s par page, 25 minutes pour l'import. La transaction,
+le verrou et la publication atomique sont ceux de D0. Un échec conserve la précédente
+version. La clé naturelle est codeAIOT, pas le SIRET : plusieurs installations peuvent
+partager un établissement. Upsert sur (import_id, code_aiot), index (siren, import_id).
+
+Les lignes Non ICPE sont exclues. Le rapprochement exige un SIRET strictement à 14 chiffres
+avec préfixe SIREN valide (Luhn, hors zéros). Le NIC n'est pas validé par Luhn : il ne sert
+pas au rapprochement par entreprise. Les entrepreneurs individuels restent inclus.
+Le résumé Actions distingue lignes reçues, Non ICPE exclus, identifiants inutilisables
+et lignes stockées. Les adresses, contacts, coordonnées géographiques, rubriques et
+rapports ne sont jamais conservés. Seuls identifiants, nom professionnel, commune, NAF,
+régime, Seveso, IED, priorité nationale, état et nombre/date d'inspections sont projetés.
+Les valeurs booléennes manquantes restent inconnues, sans être présentées comme fausses.
+
+Une requête SQL unique lit le dernier import ok et les sites du SIREN. Totaux par régime,
+état, Seveso, IED et priorité, total d'inspections et dernière date portent sur tous les
+sites ; la liste est limitée à 20 installations. Le nombre d'installations est distingué
+du nombre d'établissements (SIRET distincts). Attribut stable : « Installations classées
+(Géorisques) ». Il indique la date d'import et le rapprochement limité aux identifiants
+exploitables publiés ; aucune promesse de couverture de sites sans identifiants.
+Aucun nouvel événement ni effet sur les scores/signaux. SourceKind georisques réutilisé.
+
+### Lecture et repli
+
+- GEORISQUES_ENABLED=true + ICPE_IMPORT_ENABLED=true + mode live : lecture nationale,
+  sans appel ICPE externe ni liste d'établissements Sirene si l'import existe.
+- Import réussi, aucun site : absence dans le jeu importé, aucun repli réseau.
+- Aucun import réussi : trace dégradée « source non importée », puis consultation directe
+  historique (siège/établissements), trace séparée et couverture limitée explicitée.
+- Erreur DB ou table manquante : consultation dégradée, pas de repli masquant l'erreur.
+- ICPE_IMPORT_ENABLED=false : comportement direct du lot C inchangé. Mode démo ou
+  GEORISQUES_ENABLED=false : aucun appel national.
+
+### Activation D2
+
+1. Appliquer le SQL D0 0014, D1 0015, puis D2 0016_icpe_sites.sql dans Neon SQL Editor.
+2. Fusionner D2 depuis main. Le code peut précéder l'activation si ICPE_IMPORT_ENABLED
+   reste false ; ne pas activer le flag avant le SQL et le premier import complet.
+3. Configurer DATABASE_URL_UNPOOLED dans les secrets GitHub Actions, si nécessaire.
+   Toujours saisir la connexion directe dans GitHub, jamais dans la conversation.
+4. Actions → Import open data → Run workflow → main → icpe. Relancer à fichier identique
+   pour vérifier « inchangé » et l'actualisation de la date de vérification.
+5. Dans Vercel Production : GEORISQUES_ENABLED=true et ICPE_IMPORT_ENABLED=true, puis
+   redéployer. Recréer EDF / LIDL / LA POSTE / HSBC pour contrôler l'attribut et les sources.
+6. Après validation, OPEN_DATA_IMPORTS_ENABLED=true active le rythme mensuel. all importe
+   maintenant Camino puis ICPE, en transactions indépendantes, et publie le résumé de
+   chaque réussite immédiatement. Une panne ICPE n'annule pas un import Camino réussi.
+7. Repli opérationnel : ICPE_IMPORT_ENABLED=false et redéploiement restaurent le lot C.
+
+### Vérification réelle du 10 octobre 2026
+
+139 pages / 138 777 lignes reçues ; 33 147 Non ICPE exclus ; 6 919 identifiants inutilisables ;
+98 711 installations projetées. Durée 209,37 s, pic RSS mesuré 119 Mio (script Node local,
+sans écritures Neon). SHA-256 concaténé des pages dans l'ordre :
+20e45a85e2933c0eb5e16f4deea9d5381a9794bde8aa6edbff9b735584459444.
+
+| SIREN | Installations | Établissements | IED | Inspections référencées |
+|---|---:|---:|---:|---:|
+| EDF 552081317 | 104 | 92 | 21 | 226 |
+| LIDL 343262622 | 36 | 20 | 0 | 91 |
+| LA POSTE 356000000 | 5 | 5 | 0 | 6 |
+| HSBC Continental Europe 775670284 | 1 | 1 | 0 | 1 |
+| Témoin absent 123456782 | 0 | 0 | 0 | 0 |
+
+Le téléchargement, l'analyse, la projection et le normaliseur réels ont été exercés,
+puis le script temporaire supprimé. Le connecteur SQL et les branches d'assemblage sont
+vérifiés par doubles de test. L'exécution réelle de la transaction Neon, la répétition,
+le stockage occupé et la latence cible <100 ms restent à mesurer après configuration.
+Aucun secret local utilisé, aucun abonnement changé, aucun flag activé.
+
+Pour une première activation, le fichier [lot-d-activation.sql](./lot-d-activation.sql) rassemble exactement les migrations 0014 à 0016 dans leur ordre. Il peut être collé en une fois dans Neon SQL Editor ; les migrations déjà appliquées sont idempotentes.

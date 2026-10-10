@@ -41,6 +41,8 @@ export type GeorisquesRaw = {
   /** Établissements ouverts du SIREN (connus par ailleurs), pour exprimer la couverture. */
   openTotal: number | null;
   sites: IcpeSite[];
+  /** Consultation directe après constat d’un import national manquant. */
+  importFallback?: boolean;
 };
 
 const PAGE_SIZE = 20;
