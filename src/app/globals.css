@@ -1,119 +1,66 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-
-@custom-variant dark (&:is(.dark *));
+/*
+ * Contrat de design : toutes les valeurs (couleurs, surfaces, bordures, élévations,
+ * motion, échelles) vivent dans design-tokens.css. Ce fichier ne fait que les
+ * exposer à Tailwind (`@theme`), poser la couche de base et héberger les styles
+ * historiques non migrés (graphe, secteurs, démo). Voir DESIGN_SYSTEM.md.
+ */
+@import "../styles/design-tokens.css";
 
 /*
- * KYB Graph — palette double : sombre par défaut (identité « carte réseau »)
- * et clair optionnel (impression / certaines DSI — recommandation de l'audit).
- * `next-themes` injecte `class="dark"` ou `class="light"` sur <html>.
+ * Le thème sombre est le défaut (cf. design-tokens.css : `:root`). `dark:` s'applique
+ * donc dès que `<html>` n'est pas explicitement `.light` — y compris avant que
+ * next-themes n'ait posé sa classe.
  */
-:root {
-  /* ── Palette de marque (tokens partagés clair/sombre) ── */
-  /* Accent produit : teal (remplace le violet — casse le côté « IA générique »). */
-  --teal: #15c2b8;
-  --teal-2: #0ea5a3;
-  /* Rebrand : l'ancien token de marque « violet » pointe désormais sur le teal,
-     de sorte que toutes les utilities (bg-violet/text-violet/border-violet) et
-     var(--violet) basculent en teal d'un coup, sur toute l'app. */
-  --violet: var(--teal);
-  --emerald: #10b981;
-  --amber: #f59e0b;
-  --red: #ef4444;
+@custom-variant dark (&:where(:root:not(.light) *));
 
-  /* ── Mode CLAIR (par défaut sur :root) ── */
-  --background: #ffffff;
-  --surface: #f8fafc;
-  --surface-2: #f1f5f9;
-  --foreground: #0a1628;
-  --border: #e2e8f0;
-
-  --card: var(--surface);
-  --card-foreground: var(--foreground);
-  --popover: #ffffff;
-  --popover-foreground: var(--foreground);
-  --primary: var(--teal);
-  --primary-foreground: #04201d;
-  --secondary: var(--surface-2);
-  --secondary-foreground: var(--foreground);
-  --muted: #f1f5f9;
-  --muted-foreground: #475569;
-  --accent: var(--surface-2);
-  --accent-foreground: var(--foreground);
-  --destructive: var(--red);
-  --destructive-foreground: #ffffff;
-  --ring: var(--teal);
-  --input: var(--border);
-  --radius: 0.625rem;
-
-  --sidebar: #f8fafc;
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--teal);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eef2f7;
-  --sidebar-accent-foreground: var(--foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--teal);
-}
-
-.dark {
-  /* ── Mode SOMBRE (override sur <html class="dark">) ── */
-  --background: #0a1628;
-  --surface: #0e1d33;
-  --surface-2: #13233d;
-  --foreground: #e8eef7;
-  --border: #1e3354;
-
-  --card: var(--surface);
-  --card-foreground: var(--foreground);
-  --popover: var(--surface-2);
-  --popover-foreground: var(--foreground);
-  --primary: var(--teal);
-  --primary-foreground: #04201d;
-  --secondary: var(--surface-2);
-  --secondary-foreground: var(--foreground);
-  --muted: #1a2c49;
-  --muted-foreground: #8aa0bd;
-  --accent: var(--surface-2);
-  --accent-foreground: var(--foreground);
-  --destructive: var(--red);
-  --destructive-foreground: #ffffff;
-  --ring: var(--teal);
-  --input: var(--border);
-
-  --sidebar: #0c1a30;
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--teal);
-  --sidebar-primary-foreground: #04201d;
-  --sidebar-accent: var(--surface-2);
-  --sidebar-accent-foreground: var(--foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--teal);
-}
-
+/* ── Exposition des tokens à Tailwind ── */
 @theme inline {
-  /* ── Marque ── */
+  /* Surfaces (superposition : sunken < background < surface < surface-2 < surface-3) */
   --color-background: var(--background);
+  --color-sunken: var(--canvas-sunken);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
-  --color-foreground: var(--foreground);
-  --color-border: var(--border);
-  --color-violet: var(--violet);
-  --color-teal: var(--teal);
-  --color-teal-2: var(--teal-2);
-  --color-emerald: var(--emerald);
-  --color-amber: var(--amber);
-  --color-red: var(--red);
-  --font-sans: var(--font-inter);
-  --font-display: var(--font-space-grotesk);
+  --color-surface-3: var(--surface-3);
+  --color-overlay: var(--overlay);
 
-  /* ── Sémantique shadcn ── */
+  /* Texte */
+  --color-foreground: var(--foreground);
+  --color-subtle: var(--foreground-subtle);
+  --color-disabled: var(--foreground-disabled);
+
+  /* Bordures froides */
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-control: var(--border-control);
+
+  /* Action / focus / sélection / signal actif */
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+
+  /* Teintes sémantiques de risque */
+  --color-tone-success: var(--tone-success);
+  --color-tone-vigilance: var(--tone-vigilance);
+  --color-tone-critical: var(--tone-critical);
+  --color-tone-info: var(--tone-info);
+  --color-tone-neutral: var(--tone-neutral);
+  --color-on-tone: var(--on-tone);
+
+  /* Niveaux de preuve */
+  --color-proof-confirmed: var(--proof-confirmed);
+  --color-proof-declared: var(--proof-declared);
+  --color-proof-inferred: var(--proof-inferred);
+  --color-proof-simulated: var(--proof-simulated);
+
+  /* Rôles shadcn */
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -122,7 +69,6 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  --color-ring: var(--ring);
   --color-input: var(--input);
 
   --color-sidebar: var(--sidebar);
@@ -134,16 +80,221 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  /* Alias historiques (cf. design-tokens.css §5) — pas dans du nouveau code */
+  --color-violet: var(--violet);
+  --color-teal: var(--teal);
+  --color-teal-2: var(--teal-2);
+  --color-emerald: var(--emerald);
+  --color-amber: var(--amber);
+  --color-red: var(--red);
+
+  /* Polices : celles déjà chargées par src/app/layout.tsx, inchangées */
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-space-grotesk);
+
+  /* Échelle typographique : tailles / interlignes / graisses lues sur le contrat
+     (mêmes valeurs que l'échelle Tailwind) + un cran « micro ». */
+  --text-micro: var(--font-size-micro);
+  --text-micro--line-height: var(--line-height-micro);
+  --text-xs: var(--font-size-xs);
+  --text-xs--line-height: var(--line-height-xs);
+  --text-sm: var(--font-size-sm);
+  --text-sm--line-height: var(--line-height-sm);
+  --text-base: var(--font-size-base);
+  --text-base--line-height: var(--line-height-base);
+  --text-lg: var(--font-size-lg);
+  --text-lg--line-height: var(--line-height-lg);
+  --text-xl: var(--font-size-xl);
+  --text-xl--line-height: var(--line-height-xl);
+  --text-2xl: var(--font-size-2xl);
+  --text-2xl--line-height: var(--line-height-2xl);
+  --text-3xl: var(--font-size-3xl);
+  --text-3xl--line-height: var(--line-height-3xl);
+  --font-weight-normal: var(--weight-regular);
+  --font-weight-medium: var(--weight-medium);
+  --font-weight-semibold: var(--weight-semibold);
+  --font-weight-bold: var(--weight-bold);
+  --tracking-wide: var(--tracking-caps);
+
+  /* Rayons : --radius = rayon d'un panneau (lg) */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Élévations (remplacent les ombres Tailwind par défaut) */
+  --shadow-xs: var(--elevation-xs);
+  --shadow-sm: var(--elevation-sm);
+  --shadow-md: var(--elevation-md);
+  --shadow-lg: var(--elevation-lg);
+  --shadow-glow: var(--glow-primary);
+
+  /* Courbes de motion → utilitaires `ease-standard`, `ease-out-soft`, `ease-in-soft`, `ease-spring` */
+  --ease-standard: var(--motion-ease-standard);
+  --ease-out-soft: var(--motion-ease-out);
+  --ease-in-soft: var(--motion-ease-in);
+  --ease-spring: var(--motion-ease-spring);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+@theme {
+  /* Breakpoints : md = la sidebar devient un tiroir ; lg = panneaux latéraux persistants */
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
+
+  /* Espacement : unité de 4 px (valeurs nommées : `--space-*` du contrat). */
+  --spacing: 0.25rem;
 }
+
+/* ── Couche de base ── */
+@layer base {
+  /* Tailwind v4 rend `border` sans couleur en `currentColor`, ce qui dessinait des
+     cadres couleur-du-texte (cartes, lignes de tableau). La bordure par défaut est
+     le filet froid du design system. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border);
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  /* Focus clavier : contour plein 2 px, jamais supprimé sans équivalent. Les
+     composants qui portent leur propre anneau posent `outline-none`. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 32%, transparent);
+    color: var(--foreground);
+  }
+
+  /* Motion : aucune animation ni transition de plus de 0,01 ms si l'utilisateur
+     demande moins de mouvement. Les états restent identiques, sans transition. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::after,
+    ::before {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ── Motion : keyframes et utilitaires (120–220 ms, ressort doux) ── */
+@keyframes kyb-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--motion-from-x, 0px), var(--motion-from-y, 0px), 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes kyb-exit {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(var(--motion-from-x, 0px), var(--motion-from-y, 0px), 0);
+  }
+}
+@keyframes kyb-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes kyb-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Entrée d'un panneau / dialogue : translation légère + opacité + ressort doux. */
+@utility motion-enter {
+  animation: kyb-enter var(--motion-duration-slow) var(--motion-ease-spring) both;
+}
+/* Sortie : plus courte, sans ressort. */
+@utility motion-exit {
+  animation: kyb-exit var(--motion-duration-exit) var(--motion-ease-in) both;
+}
+@utility motion-fade-in {
+  animation: kyb-fade-in var(--motion-duration-base) var(--motion-ease-out) both;
+}
+@utility motion-fade-out {
+  animation: kyb-fade-out var(--motion-duration-exit) var(--motion-ease-in) both;
+}
+/* Direction de provenance (vecteur lu par kyb-enter / kyb-exit). */
+@utility motion-from-right {
+  --motion-from-x: var(--motion-distance-panel);
+  --motion-from-y: 0px;
+}
+@utility motion-from-left {
+  --motion-from-x: calc(var(--motion-distance-panel) * -1);
+  --motion-from-y: 0px;
+}
+@utility motion-from-top {
+  --motion-from-x: 0px;
+  --motion-from-y: calc(var(--motion-distance-panel) * -1);
+}
+@utility motion-from-bottom {
+  --motion-from-x: 0px;
+  --motion-from-y: var(--motion-distance-panel);
+}
+
+/* Transition d'état d'un contrôle : couleur / bordure / halo, jamais de déplacement. */
+@utility transition-ui {
+  transition-property: color, background-color, border-color, box-shadow, opacity, fill, stroke;
+  transition-duration: var(--motion-duration-fast);
+  transition-timing-function: var(--motion-ease-standard);
+}
+
+/* ── Typographie utilitaire ── */
+/* Légende : capitales 12 px / 600, interlettrage `tracking-wide`, couleur tertiaire
+   — l'usage historique `text-xs font-semibold uppercase tracking-wide` unifié. */
+@utility text-eyebrow {
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--foreground-subtle);
+}
+
+/* ── Effets : grille technique (portée de hiérarchie uniquement, jamais sous du texte dense) ── */
+@utility bg-tech-grid {
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   STYLES HISTORIQUES — non migrés vers les tokens (lots Graphe, Secteurs, Démo).
+   Ne pas en créer de nouveaux : utiliser les tokens et les primitives.
+   ════════════════════════════════════════════════════════════════════════════ */
 
 /* Grille discrète en fond (esprit « carte »). */
 .bg-grid {

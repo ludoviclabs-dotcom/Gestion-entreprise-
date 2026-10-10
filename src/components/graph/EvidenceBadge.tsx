@@ -1,25 +1,19 @@
+import { StatusBadge } from "@/components/ui/status-badge";
+import { EVIDENCE_TONE } from "@/lib/design/domain-tones";
 import { EVIDENCE_LABELS, isHypothesis } from "@/lib/graph/graph-types";
 import type { EvidenceLevel } from "@/lib/graph/graph-types";
 
-const COLORS: Record<EvidenceLevel, string> = {
-  confirmed: "#10b981",
-  declared: "#38bdf8",
-  inferred: "#f59e0b",
-  simulated: "#ef4444",
-};
-
+/**
+ * Niveau de preuve. La preuve n'est pas un niveau de risque : confirmé = accent,
+ * inféré = vigilance + « à vérifier », déclaré / simulé = neutre. Jamais rouge.
+ */
 export default function EvidenceBadge({ level }: { level: EvidenceLevel }) {
-  const color = COLORS[level];
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
-      style={{ background: `${color}22`, color }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
+    <StatusBadge tone={EVIDENCE_TONE[level]} className="rounded-full">
       {EVIDENCE_LABELS[level]}
       {isHypothesis(level) && (
-        <span className="text-[var(--muted-foreground)]">· à vérifier</span>
+        <span className="text-subtle">· à vérifier</span>
       )}
-    </span>
+    </StatusBadge>
   );
 }

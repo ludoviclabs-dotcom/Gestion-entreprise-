@@ -26,6 +26,7 @@ L'application boote en **mode démo** : 5 dossiers de cartographie peuplés (hol
 - **Sigma.js v3** + **Graphology** (rendu WebGL du graphe, ForceAtlas2 + Louvain côté serveur)
 - **Neon Postgres** + **Drizzle ORM** (persistance, optionnelle)
 - **Zod** (validation), **Zustand** (état client du graphe), **Vitest** + **Playwright**
+- **Design system** : tokens (OKLCH, thèmes sombre / clair), primitives et règles de motion documentés dans [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — prévisualisation interne sur `/design-system`
 
 ## Architecture (résumé)
 
@@ -41,9 +42,12 @@ src/
 │        ├─ timeline/             événements juridiques
 │        ├─ risques/              signaux de vigilance
 │        └─ sources/              trail de provenance
+├─ styles/
+│  └─ design-tokens.css           contrat de design : couleurs, surfaces, élévations, motion
 ├─ components/
-│  ├─ ui/                         primitives shadcn (Dialog, Table, Command…)
-│  ├─ shell/                      AppSidebar, TopBar, CommandPalette, PageMotion
+│  ├─ ui/                         primitives (Card/Panel, StatusBadge, MetricChip, DataTable, SidePanel…)
+│  ├─ shell/                      AppShell, Sidebar, TopBar, PageHeader, CommandPalette, PageMotion
+│  ├─ empty/                      EmptyState, LoadingState, ErrorState
 │  ├─ cases/                      ScorePills, CasesTable, NewCaseDialog, …
 │  └─ graph/                      GraphScene, GraphCanvas, NodePanel, EdgePanel
 └─ lib/

@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import AppShell from "@/components/shell/AppShell";
 import AppSidebar from "@/components/shell/AppSidebar";
 import TopBar from "@/components/shell/TopBar";
 import CommandPalette from "@/components/shell/CommandPalette";
@@ -29,17 +30,15 @@ export default async function AppLayout({
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex h-screen overflow-hidden">
-        <AppSidebar demoMode={demoMode} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar demoMode={demoMode} />
-          <main className="min-h-0 flex-1 overflow-y-auto">
-            <PageMotion>{children}</PageMotion>
-          </main>
-        </div>
-      </div>
+      <AppShell
+        sidebar={<AppSidebar demoMode={demoMode} />}
+        topbar={<TopBar demoMode={demoMode} />}
+      >
+        <PageMotion>{children}</PageMotion>
+      </AppShell>
       <CommandPalette cases={curated.visible} />
-      <Toaster position="bottom-right" theme="dark" />
+      {/* Le thème des toasts suit le thème de l'application (next-themes). */}
+      <Toaster position="bottom-right" />
     </TooltipProvider>
   );
 }
