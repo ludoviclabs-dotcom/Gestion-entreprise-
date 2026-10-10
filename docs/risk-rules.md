@@ -110,6 +110,8 @@ Score structurel : `clamp(densité × 22 + log2(n+1) × 8 + log2(maxDegree+1) ×
 
 Le degré max est **structurel** (modèle 2026.2) : seuls comptent les liens de structure (dirigeants, détention, siège, adresse partagée…). Les annonces rattachées à une société (BODACC, BALO, BOAMP, JOAFE, DCA — arêtes « a publié ») n'y entrent pas : leur nombre reflète l'ancienneté et la taille de l'entreprise, pas la complexité de son organisation. Même règle pour « Société récente très liée ».
 
+Les dossiers créés avant 2026.2 **conservent** leur score et leur version (`kyb-risk-2026.1`, où le degré comptait aussi les annonces) : l'export, le PDF et la page Risques indiquent la version qui a réellement produit le score persisté — jamais la version courante par défaut. Recréer le dossier applique le modèle courant.
+
 - Dossier solo (1 société, 0 lien) → < 20.
 - Réseau dense (5+ sociétés, 15+ liens, degré max ≥ 8) → > 70.
 

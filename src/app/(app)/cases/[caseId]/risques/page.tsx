@@ -84,7 +84,12 @@ export default async function RisquesTab(props: {
   // Indicateurs structurels + décomposition des scores complexité / qualité.
   const graph = buildGraph(detail.bundle);
   const indicators = computeStructuralIndicators(detail.bundle);
-  const complexite = explainComplexite(detail.bundle, graph);
+  // Composition expliquée avec le modèle qui a produit le score persisté.
+  const complexite = explainComplexite(
+    detail.bundle,
+    graph,
+    detail.scoreModelVersion,
+  );
   const qualite = explainQualitePreuve(detail.bundle);
 
   return (
@@ -128,7 +133,11 @@ export default async function RisquesTab(props: {
       ) : null}
       <div className="mt-6 space-y-4">
         <IndicatorsPanel indicators={indicators} />
-        <ScoreDetails complexite={complexite} qualite={qualite} />
+        <ScoreDetails
+          complexite={complexite}
+          qualite={qualite}
+          modelVersion={detail.scoreModelVersion}
+        />
       </div>
       {ubo.length > 0 ? (
         <div className="mt-6">

@@ -3,13 +3,13 @@ import { getCasesRepository } from "@/lib/data/cases-repository";
 import {
   buildExportMeta,
   exportFilename,
+  exportScoreModelVersion,
   exportGate,
   renderCasePdf,
   resolveExportDetail,
 } from "@/lib/export/case-export";
 import { VERIFY_SCRIPT, buildLisezmoi } from "@/lib/export/verify-script";
 import { sha256Bytes } from "@/lib/audit/hash-chain";
-import { SCORE_MODEL_VERSION } from "@/lib/risk/engine";
 
 export const runtime = "nodejs";
 // Co-localisation avec Neon (eu-central-1) : évite l'aller-retour US↔EU par requête.
@@ -69,7 +69,7 @@ export async function GET(
   const manifest = {
     schemaVersion: "kyb-pack/v1",
     generator: "KYB Graph",
-    scoreModelVersion: SCORE_MODEL_VERSION,
+    scoreModelVersion: exportScoreModelVersion(detail),
     generatedAt: meta.generatedAt,
     payloadHash: meta.payloadHash,
     origin: meta.sourceHealth.origin,

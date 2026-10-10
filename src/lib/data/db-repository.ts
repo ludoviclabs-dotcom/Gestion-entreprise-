@@ -37,7 +37,7 @@ import {
   getScoreStatus,
   getSourceHealth,
 } from "./case-quality";
-import { SCORE_MODEL_VERSION } from "@/lib/risk/engine";
+import { SCORE_MODEL_VERSION, scoreModelVersionOf } from "@/lib/risk/engine";
 
 /** Format UUID (les ids de dossiers réels) — un id non-UUID est une fixture. */
 const UUID_RE =
@@ -460,6 +460,9 @@ export class DbCasesRepository implements CasesRepository {
         evidenceRows.length > 0
           ? evidenceRows
           : buildBundleEvidence(bundle, sources),
+      // Les scores ci-dessus sont ceux de la base : on conserve la version du
+      // modèle qui les a produits (jamais l'actuelle par défaut).
+      scoreModelVersion: scoreModelVersionOf(caseRow.metadata),
     };
   }
 

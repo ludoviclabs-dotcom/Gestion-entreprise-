@@ -3,7 +3,8 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildExportMeta, buildManifest } from "@/lib/export/case-export";
+import { buildExportMeta, buildManifest, exportScoreModelVersion } from "@/lib/export/case-export";
+import { SCORE_MODEL_VERSION } from "@/lib/risk/engine";
 import { VERIFY_SCRIPT } from "@/lib/export/verify-script";
 import { chainNext } from "@/lib/audit/journal";
 import { sha256Bytes } from "@/lib/audit/hash-chain";
@@ -44,6 +45,22 @@ describe("export partagé (case-export)", () => {
     expect(manifest.bundle.case.id).toBe("demo-holding");
     expect(Array.isArray(manifest.sources)).toBe(true);
     expect(Array.isArray(manifest.evidence)).toBe(true);
+  });
+
+  it("étiquette l'export avec la version qui a produit les scores PERSISTÉS", () => {
+    const at = "2026-06-01T00:00:00.000Z";
+    const persisted = { ...demoDetail(), scoreModelVersion: "kyb-risk-2026.1" };
+    const manifest = buildManifest(persisted, buildExportMeta(persisted, at));
+    expect(manifest.scoreModelVersion).toBe("kyb-risk-2026.1");
+    expect(exportScoreModelVersion(persisted)).toBe("kyb-risk-2026.1");
+  });
+
+  it("scores calculés à la volée (fixture, session) : modèle courant", () => {
+    const at = "2026-06-01T00:00:00.000Z";
+    const detail = demoDetail();
+    expect(detail.scoreModelVersion).toBeUndefined();
+    const manifest = buildManifest(detail, buildExportMeta(detail, at));
+    expect(manifest.scoreModelVersion).toBe(SCORE_MODEL_VERSION);
   });
 });
 

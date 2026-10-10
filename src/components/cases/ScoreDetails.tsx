@@ -1,6 +1,7 @@
-import type {
-  ComplexiteExplanation,
-  QualitePreuveExplanation,
+import {
+  SCORE_MODEL_VERSION,
+  type ComplexiteExplanation,
+  type QualitePreuveExplanation,
 } from "@/lib/risk/engine";
 import { EVIDENCE_LABELS, type EvidenceLevel } from "@/lib/graph/graph-types";
 
@@ -14,10 +15,14 @@ const LEVELS: EvidenceLevel[] = ["confirmed", "declared", "inferred", "simulated
 export default function ScoreDetails({
   complexite,
   qualite,
+  modelVersion,
 }: {
   complexite: ComplexiteExplanation;
   qualite: QualitePreuveExplanation;
+  /** Modèle ayant produit les scores persistés (absent = modèle courant). */
+  modelVersion?: string;
 }) {
+  const legacyModel = modelVersion && modelVersion !== SCORE_MODEL_VERSION;
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <section
@@ -32,6 +37,14 @@ export default function ScoreDetails({
           {complexite.entities} entités, {complexite.edges} liens, degré max{" "}
           {complexite.maxDegree}, densité {complexite.density}.
         </p>
+        {legacyModel ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Score calculé avec le modèle {modelVersion} (dossier créé avant{" "}
+            {SCORE_MODEL_VERSION}) : le degré maximal y comptait aussi les
+            annonces publiées. Recréez le dossier pour obtenir le calcul
+            structurel.
+          </p>
+        ) : null}
         <ul className="mt-3 space-y-1.5">
           {complexite.terms.map((t) => (
             <li

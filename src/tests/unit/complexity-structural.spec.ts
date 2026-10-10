@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { buildGraph, structuralDegree } from "@/lib/graph/build-graph";
-import { computeRisk, explainComplexite, SCORE_MODEL_VERSION } from "@/lib/risk/engine";
+import {
+  LEGACY_SCORE_MODEL_VERSION,
+  computeRisk,
+  explainComplexite,
+  scoreModelVersionOf,
+  SCORE_MODEL_VERSION,
+} from "@/lib/risk/engine";
 import { SOCIETE_RECENTE_TRES_LIEE } from "@/lib/risk/rules";
 import { DEFAULT_THRESHOLDS } from "@/lib/risk/types";
 import type { CaseBundle, CaseEvent } from "@/lib/graph/graph-types";
@@ -105,5 +111,31 @@ describe("complexité — degré structurel", () => {
 
   it("le modèle de score est versionné 2026.2", () => {
     expect(SCORE_MODEL_VERSION).toBe("kyb-risk-2026.2");
+    expect(LEGACY_SCORE_MODEL_VERSION).toBe("kyb-risk-2026.1");
+  });
+
+  it("explique un score PERSISTÉ avec le modèle qui l'a produit (2026.1 : annonces comptées)", () => {
+    const b = simpleCompany(events(40));
+    const g = buildGraph(b);
+    const legacy = explainComplexite(b, g, LEGACY_SCORE_MODEL_VERSION);
+    const current = explainComplexite(b, g);
+    expect(legacy.maxDegree).toBe(43); // 3 liens + 40 annonces
+    expect(current.maxDegree).toBe(3);
+    expect(legacy.score).toBeGreaterThan(current.score);
+    // Sans annonce, les deux modèles s'accordent : seule l'ancienne formule diffère.
+    const bare = simpleCompany();
+    expect(explainComplexite(bare, buildGraph(bare), LEGACY_SCORE_MODEL_VERSION).score).toBe(
+      explainComplexite(bare, buildGraph(bare)).score,
+    );
+  });
+
+  it("version persistée : lue dans les métadonnées, modèle historique à défaut", () => {
+    expect(scoreModelVersionOf({ scoreModelVersion: "kyb-risk-2026.2" })).toBe("kyb-risk-2026.2");
+    expect(scoreModelVersionOf({ scoreModelVersion: "kyb-risk-2026.1", origin: "live" })).toBe(
+      "kyb-risk-2026.1",
+    );
+    for (const bad of [null, undefined, {}, { scoreModelVersion: "" }, { scoreModelVersion: 3 }, "x"]) {
+      expect(scoreModelVersionOf(bad)).toBe(LEGACY_SCORE_MODEL_VERSION);
+    }
   });
 });

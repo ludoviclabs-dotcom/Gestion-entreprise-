@@ -21,6 +21,23 @@ import type { Rule, Thresholds } from "./types";
  */
 export const SCORE_MODEL_VERSION = "kyb-risk-2026.2";
 
+/**
+ * Version du modèle qui a produit les dossiers créés AVANT 2026.2. Leurs scores
+ * sont persistés tels quels : on ne les relabellise jamais « 2026.2 ». Sa formule
+ * de complexité comptait toutes les arêtes (annonces comprises) dans le degré max.
+ */
+export const LEGACY_SCORE_MODEL_VERSION = "kyb-risk-2026.1";
+
+/**
+ * Version du modèle enregistrée dans les métadonnées d'un dossier persisté.
+ * Absente ou illisible → modèle historique (seul modèle existant avant 2026.2).
+ */
+export function scoreModelVersionOf(metadata: unknown): string {
+  const v = (metadata as { scoreModelVersion?: unknown } | null | undefined)
+    ?.scoreModelVersion;
+  return typeof v === "string" && v.trim() ? v.trim() : LEGACY_SCORE_MODEL_VERSION;
+}
+
 /** Poids appliqué à chaque sévérité dans le score de vigilance. */
 export const SEVERITY_WEIGHT: Record<Severity, number> = {
   info: 1,
@@ -145,20 +162,25 @@ export type ComplexiteExplanation = {
 /**
  * Décompose le score de complexité structurelle en ses 3 termes (densité,
  * taille, degré max) — rend le chiffre auditable plutôt qu'opaque. Calibré pour
- * qu'un dossier solo soit < 20, un réseau dense > 70. Le degré max est
- * STRUCTUREL (voir `structuralDegree`) : le volume d'annonces publiées n'entre
+ * qu'un dossier solo soit < 20, un réseau dense > 70. Depuis 2026.2 le degré max
+ * est STRUCTUREL (voir `structuralDegree`) : le volume d'annonces publiées n'entre
  * pas dans la complexité.
+ *
+ * `modelVersion` permet d'expliquer un score PERSISTÉ avec le modèle qui l'a
+ * produit (2026.1 : toutes les arêtes comptaient) — un audit doit retrouver le
+ * chiffre stocké avec la version annoncée. Par défaut : modèle courant.
  */
 export function explainComplexite(
   bundle: CaseBundle,
   graph: Graph,
+  modelVersion: string = SCORE_MODEL_VERSION,
 ): ComplexiteExplanation {
   const n = bundle.entities.length;
   const e = bundle.edges.length;
-  // Degré STRUCTUREL : les annonces rattachées (nœuds événement) ne comptent pas.
+  const legacy = modelVersion === LEGACY_SCORE_MODEL_VERSION;
   let maxDegree = 0;
   graph.forEachNode((node) => {
-    const d = structuralDegree(graph, node);
+    const d = legacy ? graph.degree(node) : structuralDegree(graph, node);
     if (d > maxDegree) maxDegree = d;
   });
   const density = n === 0 ? 0 : e / Math.max(n - 1, 1);
