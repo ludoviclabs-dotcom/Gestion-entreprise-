@@ -128,6 +128,40 @@ describe("design-contract — territoire du design system", () => {
   });
 });
 
+describe("design-contract — motion et centrage par translate", () => {
+  // Tailwind v4 compile `translate-x-*` / `-translate-y-*` vers la propriété CSS
+  // `translate` (et non `transform`). Les keyframes de motion n'animent QUE
+  // `transform` : les deux se composent, donc le centrage du Dialog
+  // (`left-[50%] translate-x-[-50%]`) survit à `animation-fill-mode: both`.
+  // Si un keyframe animait `translate`, il écraserait ce centrage.
+  const globals = read("src/app/globals.css");
+  const keyframes = (name: string) => {
+    const start = globals.indexOf(`@keyframes ${name}`);
+    expect(start, `@keyframes ${name}`).toBeGreaterThanOrEqual(0);
+    let depth = 0;
+    for (let i = globals.indexOf("{", start); i < globals.length; i++) {
+      if (globals[i] === "{") depth++;
+      if (globals[i] === "}" && --depth === 0) return globals.slice(start, i + 1);
+    }
+    throw new Error(`@keyframes ${name} non fermé`);
+  };
+
+  it("les keyframes kyb-enter / kyb-exit animent `transform`, jamais `translate`", () => {
+    for (const name of ["kyb-enter", "kyb-exit"]) {
+      const block = keyframes(name);
+      expect(block, name).toMatch(/\btransform\s*:/);
+      expect(block, name).not.toMatch(/(?<![\w-])translate\s*:/);
+    }
+  });
+
+  it("le Dialog se centre avec les utilitaires translate (propriété `translate`)", () => {
+    const dialog = read("src/components/ui/dialog.tsx");
+    expect(dialog).toMatch(/translate-x-\[-50%\]/);
+    expect(dialog).toMatch(/translate-y-\[-50%\]/);
+    expect(dialog).not.toMatch(/\btransform-none\b|\[transform:/);
+  });
+});
+
 describe("design-contract — typographie : aucune police ajoutée", () => {
   it("src/app/layout.tsx ne charge que Inter et Space Grotesk", () => {
     const layout = read("src/app/layout.tsx");
