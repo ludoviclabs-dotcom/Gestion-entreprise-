@@ -11,5 +11,6 @@ export type SourceKind =
   | "gdelt"
   | "pappers"
   | "companies_house"
+  | "recherche_entreprises"
   | "manual"
   | "fixture";

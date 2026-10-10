@@ -1,0 +1,32 @@
+{
+  "status": "ok",
+  "company": {
+    "siren": "552032534",
+    "name": "DANONE",
+    "administrativeState": "A",
+    "legalCategory": "5599",
+    "createdOn": "1899-01-01",
+    "rneUpdatedOn": "2026-01-15"
+  },
+  "dirigeants": [
+    {
+      "type": "personne physique",
+      "nom": "FABER",
+      "prenoms": "Emmanuel",
+      "qualite": "Directeur général",
+      "siren": null,
+      "denomination": null
+    },
+    {
+      "type": "personne morale",
+      "nom": null,
+      "prenoms": null,
+      "qualite": "Commissaire aux comptes titulaire",
+      "siren": "000000001",
+      "denomination": "CABINET AUDIT EXEMPLE"
+    }
+  ],
+  "finances": [{ "annee": 2024, "ca": 27000000000, "resultatNet": 2000000000 }],
+  "labels": ["Qualiopi"],
+  "tva": ["FR27552032534"]
+}

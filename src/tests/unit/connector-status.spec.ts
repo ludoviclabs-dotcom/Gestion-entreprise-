@@ -11,7 +11,7 @@ describe("getConnectorStatuses", () => {
   const statuses = getConnectorStatuses();
   const byKey = Object.fromEntries(statuses.map((s) => [s.key, s]));
 
-  it("couvre les 12 connecteurs attendus", () => {
+  it("couvre les 13 connecteurs attendus", () => {
     expect(statuses.map((s) => s.key).sort()).toEqual(
       [
         "ban",
@@ -23,6 +23,7 @@ describe("getConnectorStatuses", () => {
         "inpi",
         "opensanctions",
         "pappers",
+        "recherche_entreprises",
         "sirene",
         "tresor",
         "vies",

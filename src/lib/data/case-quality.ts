@@ -90,6 +90,8 @@ function sourceFromText(text: string | undefined): SourceKind | null {
   const haystack = (text ?? "").toLowerCase();
   // Avant INPI : « agrégé par Pappers » peut citer le RNE sans en être issu.
   if (haystack.includes("pappers")) return "pappers";
+  // Avant INPI : « dirigeants (RNE) » cite le RNE sans en être issu directement.
+  if (/recherche d['’]entreprises/.test(haystack)) return "recherche_entreprises";
   if (haystack.includes("companies house")) return "companies_house";
   if (haystack.includes("sirene") || haystack.includes("insee")) return "sirene";
   if (haystack.includes("bodacc")) return "bodacc";

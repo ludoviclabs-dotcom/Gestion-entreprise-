@@ -12,6 +12,7 @@ import {
   isGdeltEnabled,
   isPappersEnabled,
   isCompaniesHouseEnabled,
+  isRechercheEntreprisesEnabled,
 } from "@/lib/env";
 
 /**
@@ -141,6 +142,17 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isPappersEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "PAPPERS_API_KEY non posée → fixture.",
+    },
+    {
+      key: "recherche_entreprises",
+      label: "Recherche d'entreprises (DINUM)",
+      live: !demo && isRechercheEntreprisesEnabled(),
+      detail:
+        !demo && isRechercheEntreprisesEnabled()
+          ? "Dirigeants (RNE), derniers comptes et indicateurs publics en temps réel."
+          : isRechercheEntreprisesEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "RECHERCHE_ENTREPRISES_ENABLED non activé → inactif.",
     },
     {
       key: "companies_house",
