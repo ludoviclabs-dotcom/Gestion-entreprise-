@@ -8,7 +8,8 @@
  * comptée comme une consultation réussie (et un « aucun résultat » comme une
  * absence avérée).
  */
-const DEGRADED_SUFFIX = /\((?:exception|erreur \d+|schéma non reconnu)\)\s*$/;
+const DEGRADED_SUFFIX =
+  /\((?:exception|erreur \d+|schéma non reconnu|délai dépassé)\)\s*$/;
 
 export function isDegradedEndpoint(endpoint: string): boolean {
   return DEGRADED_SUFFIX.test(endpoint);

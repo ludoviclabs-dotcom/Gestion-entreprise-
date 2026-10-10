@@ -74,6 +74,8 @@ export type CaseDetail = {
    * les scores y sont calculés à la volée, donc avec le modèle courant.
    */
   scoreModelVersion?: string;
+  /** Durées de collecte par source (ms), mesurées à la création (dossiers persistés). */
+  timings?: Record<string, number>;
 };
 
 /**
