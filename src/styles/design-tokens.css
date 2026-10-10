@@ -1,0 +1,307 @@
+/*
+ * KYB Graph — design tokens (contrat de design).
+ *
+ * SOURCE UNIQUE des valeurs du design system. Chaque primitive (src/components/ui,
+ * src/components/shell, src/components/empty) ne consomme que ces tokens, jamais
+ * de littéral hex / rgb. Documentation : DESIGN_SYSTEM.md. Contrat testé par
+ * src/tests/unit/design-tokens.spec.ts (contrastes WCAG, complétude, motion).
+ *
+ * Dérivation depuis l'accueil (src/components/landing/kyb/landing.css) :
+ *   - thème SOMBRE « Nuit » (.kgl-b) : défaut de l'app → `:root` / `.dark` ;
+ *   - thème CLAIR « Registre » (.kgl-a) : secondaire → `.light`.
+ * Valeurs reprises telles quelles de l'accueil : fond, encre, encre secondaire,
+ * accent, accent survolé, alerte « à vérifier ». Valeurs DÉRIVÉES (non définies par
+ * l'accueil, qui n'a ni cartes ni formulaires) : surfaces superposées, bordures
+ * froides à faible opacité, teintes de risque, élévations, motion.
+ *
+ * Couleurs en OKLCH (comme l'accueil). L'ordre des surfaces est le même dans les
+ * deux thèmes : sunken < background < surface < surface-2 < surface-3 (« plus
+ * proche de l'utilisateur » = plus clair en sombre ; en clair l'élévation passe
+ * surtout par l'ombre).
+ *
+ * Polices : aucune ici — Inter / Space Grotesk restent chargées par
+ * src/app/layout.tsx (voir DESIGN_SYSTEM.md § Typographie).
+ */
+
+/* ════════════════════════════════════════════════════════════════════════════
+   1. THÈME SOMBRE (défaut)
+   ════════════════════════════════════════════════════════════════════════════ */
+:root,
+.dark {
+  color-scheme: dark;
+
+  /* ── Surfaces : profondeur par superposition ── */
+  --canvas-sunken: oklch(0.135 0.01 236); /* puits : champs, scène, code */
+  --background: oklch(0.165 0.01 235); /* toile de fond (= accueil « Nuit ») */
+  --surface: oklch(0.2 0.018 242); /* panneau / carte — niveau 1 */
+  --surface-2: oklch(0.235 0.024 245); /* surélevé : survol de ligne, onglet actif */
+  --surface-3: oklch(0.27 0.028 247); /* surcouche : menu, dialogue, tiroir */
+  --sidebar: oklch(0.145 0.012 238);
+  --overlay: oklch(0.08 0.012 238 / 0.66); /* voile derrière un modal */
+
+  /* ── Texte ── */
+  --foreground: oklch(0.965 0.004 235); /* = accueil --ink */
+  --muted-foreground: oklch(0.74 0.012 235); /* secondaire = accueil --ink2 */
+  --foreground-subtle: oklch(0.68 0.012 235); /* tertiaire / métadonnées (≥ 4,5:1 sur toutes surfaces) */
+  --foreground-disabled: oklch(0.52 0.012 235); /* désactivé — exempté de contraste */
+
+  /* ── Bordures froides, à faible opacité (adaptées à toute surface) ── */
+  --border-subtle: oklch(0.86 0.035 225 / 0.07);
+  --border: oklch(0.86 0.035 225 / 0.12);
+  --border-strong: oklch(0.86 0.04 220 / 0.22);
+  --border-control: oklch(0.58 0.018 238); /* frontière d'un champ : ≥ 3:1 (WCAG 1.4.11) */
+
+  /* ── Action, focus, sélection, signal actif, connexion confirmée ── */
+  --primary: oklch(0.8 0.11 200); /* = accueil --accent */
+  --primary-hover: oklch(0.9 0.08 200); /* = accueil --accent-hi */
+  --primary-foreground: oklch(0.18 0.03 220); /* = accueil --on-accent */
+
+  /* ── Teintes sémantiques de risque : strictes et constantes ── */
+  --tone-success: oklch(0.78 0.15 150); /* succès / prêt */
+  --tone-vigilance: oklch(0.8 0.11 70); /* vigilance / à vérifier (= accueil --warn) */
+  --tone-critical: oklch(0.72 0.16 25); /* critique */
+  --tone-info: oklch(0.74 0.12 255); /* information */
+  --tone-neutral: oklch(0.74 0.012 235); /* neutre */
+  --on-tone: oklch(0.18 0.03 220); /* texte sur aplat de teinte */
+
+  /* ── Niveaux de preuve (traits du graphe, légendes) ── */
+  --proof-confirmed: var(--primary);
+  --proof-declared: var(--border-control);
+  --proof-inferred: var(--tone-vigilance);
+  --proof-simulated: oklch(0.72 0.012 235); /* = accueil --simule */
+
+  /* ── Élévations : profondes mais discrètes ── */
+  --elevation-xs: 0 1px 0 oklch(0 0 0 / 0.3);
+  --elevation-sm: inset 0 1px 0 oklch(1 0 0 / 0.035), 0 1px 2px oklch(0 0 0 / 0.4);
+  --elevation-md: inset 0 1px 0 oklch(1 0 0 / 0.045), 0 8px 20px -6px oklch(0 0 0 / 0.55),
+    0 2px 6px -2px oklch(0 0 0 / 0.45);
+  --elevation-lg: inset 0 1px 0 oklch(1 0 0 / 0.055), 0 24px 56px -16px oklch(0 0 0 / 0.7),
+    0 8px 20px -8px oklch(0 0 0 / 0.55);
+
+  /* ── Halos diffus et contrôlés (survol, sélection, signal actif) ── */
+  --glow-primary: 0 0 0 1px color-mix(in oklab, var(--primary) 45%, transparent),
+    0 0 18px -4px color-mix(in oklab, var(--primary) 38%, transparent);
+
+  /* ── Grille technique (arrière-plan, à n'utiliser que pour porter la hiérarchie) ── */
+  --grid-line: oklch(0.86 0.035 225 / 0.05);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   2. THÈME CLAIR « Registre » (secondaire)
+   ════════════════════════════════════════════════════════════════════════════ */
+.light {
+  color-scheme: light;
+
+  --canvas-sunken: oklch(0.955 0.005 256);
+  --background: oklch(0.985 0.003 255); /* = accueil « Registre » --bg */
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.968 0.005 256);
+  --surface-3: oklch(1 0 0);
+  --sidebar: oklch(0.965 0.005 256);
+  --overlay: oklch(0.22 0.02 258 / 0.42);
+
+  --foreground: oklch(0.22 0.02 258); /* = --ink */
+  --muted-foreground: oklch(0.45 0.015 258); /* = --ink2 */
+  --foreground-subtle: oklch(0.5 0.013 258); /* = --muted */
+  --foreground-disabled: oklch(0.65 0.01 258);
+
+  --border-subtle: oklch(0.3 0.03 258 / 0.07);
+  --border: oklch(0.3 0.03 258 / 0.12);
+  --border-strong: oklch(0.3 0.03 258 / 0.22);
+  --border-control: oklch(0.6 0.015 258);
+
+  --primary: oklch(0.5 0.15 258); /* = accueil « Registre » --accent */
+  --primary-hover: oklch(0.44 0.15 258);
+  --primary-foreground: oklch(0.985 0.003 255);
+
+  --tone-success: oklch(0.47 0.11 152);
+  --tone-vigilance: oklch(0.51 0.115 58);
+  --tone-critical: oklch(0.5 0.19 18);
+  --tone-info: oklch(0.44 0.1 240);
+  --tone-neutral: oklch(0.45 0.015 258);
+  --on-tone: oklch(0.985 0.003 255);
+
+  --proof-simulated: oklch(0.45 0.015 258);
+
+  --elevation-xs: 0 1px 1px oklch(0.22 0.02 258 / 0.06);
+  --elevation-sm: 0 1px 2px oklch(0.22 0.02 258 / 0.08), 0 0 0 1px oklch(0.22 0.02 258 / 0.03);
+  --elevation-md: 0 6px 16px -6px oklch(0.22 0.02 258 / 0.16), 0 2px 4px -2px oklch(0.22 0.02 258 / 0.1);
+  --elevation-lg: 0 20px 44px -14px oklch(0.22 0.02 258 / 0.26), 0 6px 14px -6px oklch(0.22 0.02 258 / 0.14);
+
+  --grid-line: oklch(0.3 0.03 258 / 0.05);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   3. RÔLES shadcn (alias sémantiques — ne pas y mettre de valeur brute)
+   ════════════════════════════════════════════════════════════════════════════ */
+:root {
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface-3);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --accent: var(--surface-2); /* ATTENTION : fond de survol shadcn, pas l'accent de marque */
+  --accent-foreground: var(--foreground);
+  --destructive: var(--tone-critical);
+  --destructive-foreground: var(--on-tone);
+  --input: var(--border-strong);
+  --ring: var(--primary);
+
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   4. ÉCHELLES (indépendantes du thème)
+   ════════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Rayons : contrôles 6 px · panneaux 8 px · surcouches 12 px · puces 9999 px.
+     Dérivés de --radius par Tailwind : sm = −4 px, md = −2 px, lg = base, xl = +4 px. */
+  --radius: 0.5rem;
+
+  /* Espacement : grille de 4 px — mêmes valeurs que `p-1`…`p-16` de Tailwind
+     (`--spacing`). En classes, utiliser `p-2`, `gap-3`… ; ces paliers servent aux
+     styles inline et au SVG. Usage : 2 (8) petit écart · 3 (12) gouttière de
+     contrôle · 4 (16) padding de panneau · 6 (24) gouttière de page · 8 (32)
+     séparation de sections. */
+  --space-unit: 0.25rem;
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Typographie : tailles, interlignes, graisses. Valeurs de l'échelle Tailwind
+     (celle que l'application a toujours utilisée) + un cran « micro ». Les
+     FAMILLES ne sont pas ici : Inter / Space Grotesk restent chargées par
+     src/app/layout.tsx. Graisses d'usage : 400 · 500 · 600 · 700. */
+  --font-size-micro: 0.6875rem;
+  --line-height-micro: 1rem;
+  --font-size-xs: 0.75rem;
+  --line-height-xs: 1rem;
+  --font-size-sm: 0.875rem;
+  --line-height-sm: 1.25rem;
+  --font-size-base: 1rem;
+  --line-height-base: 1.5rem;
+  --font-size-lg: 1.125rem;
+  --line-height-lg: 1.75rem;
+  --font-size-xl: 1.25rem;
+  --line-height-xl: 1.75rem;
+  --font-size-2xl: 1.5rem;
+  --line-height-2xl: 2rem;
+  --font-size-3xl: 1.875rem;
+  --line-height-3xl: 2.25rem;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --tracking-caps: 0.025em; /* légendes en capitales (= tracking-wide) */
+
+  /* Mise en page */
+  --layout-sidebar-width: 15rem;
+  --layout-topbar-height: 3.5rem;
+  --layout-page-gutter: 1.5rem;
+  --layout-page-max: 72rem;
+  --layout-reading-max: 48rem;
+  --layout-panel-width: 22rem;
+
+  /* Opacités */
+  --opacity-disabled: 0.5;
+  --opacity-tint: 0.12; /* fond teinté d'une pastille */
+  --opacity-tint-strong: 0.2;
+  --opacity-border-tone: 0.3; /* bordure d'une pastille teintée */
+  --opacity-hover-fill: 0.6; /* survol de ligne : surface-2 à 60 % */
+
+  /* Profondeur (z-index) — toute couche portalisée (menu, dialogue, tooltip) partage
+     le palier « overlay » : c'est l'ordre du DOM qui les départage (comportement
+     historique de shadcn, conservé pour qu'un menu s'ouvre au-dessus d'un dialogue). */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-floating: 30; /* panneaux flottants du graphe (légende, fiche) */
+  --z-overlay: 50;
+  --z-toast: 60;
+  --z-skip-link: 100;
+
+  /* Motion : fonctionnelle, courte (120–220 ms). Voir DESIGN_SYSTEM.md § Motion. */
+  --motion-duration-fast: 120ms; /* survol, focus, couleur */
+  --motion-duration-base: 180ms; /* changement d'état, infobulle, page */
+  --motion-duration-slow: 220ms; /* entrée d'un panneau / dialogue */
+  --motion-duration-exit: 140ms; /* sortie : toujours plus courte que l'entrée */
+  --motion-distance-panel: 12px; /* translation d'entrée d'un panneau */
+  --motion-distance-fade: 4px; /* translation d'entrée d'une page / d'un bloc */
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  /* Ressort doux : ≈ 2 % de dépassement, 90 % atteint très tôt. Repli cubic-bezier. */
+  --motion-ease-spring: cubic-bezier(0.32, 1.08, 0.5, 1);
+}
+
+@supports (animation-timing-function: linear(0, 1)) {
+  :root {
+    --motion-ease-spring: linear(
+      0,
+      0.322,
+      0.556,
+      0.721,
+      0.835,
+      0.912,
+      0.962,
+      0.993,
+      1.01,
+      1.019,
+      1.023,
+      1.023,
+      1.021,
+      1.019,
+      1.016,
+      1.013,
+      1.01,
+      1.008,
+      1.006,
+      1.005,
+      1.003,
+      1.002,
+      1.002,
+      1.001,
+      1
+    );
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   5. ALIAS HISTORIQUES — NE PAS UTILISER DANS DU NOUVEAU CODE
+   Conservés pour que les ~120 usages existants (text-violet, bg-emerald/10…) suivent
+   la palette sans migration immédiate. Le nom « violet » désigne l'accent (cyan/teal).
+   ════════════════════════════════════════════════════════════════════════════ */
+:root {
+  --violet: var(--primary);
+  --teal: var(--primary);
+  --teal-2: var(--primary-hover);
+  --emerald: var(--tone-success);
+  --amber: var(--tone-vigilance);
+  --red: var(--tone-critical);
+}
+
+/* Mode clair : ~20 boutons historiques posent `bg-violet` + `text-[#04201d]`
+   (texte sombre figé). Avec l'accent « Registre » (bleu foncé) ils perdraient leur
+   contraste : tant qu'ils ne sont pas migrés, l'alias reste le teal clair d'origine.
+   Les nouveaux composants utilisent `--primary` / `bg-primary`, jamais `--violet`. */
+.light {
+  --violet: #15c2b8; /* stylelint-disable-line — exception documentée, alias historique */
+  --teal: #15c2b8;
+  --teal-2: #0ea5a3;
+}

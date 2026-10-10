@@ -2,6 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { Moon, Sun, Monitor } from "lucide-react";
+import { IconButton } from "@/components/ui/icon-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,13 +16,12 @@ export default function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground transition hover:text-foreground"
-          aria-label="Changer de thème"
-        >
-          <Icon size={15} />
-        </button>
+        <IconButton
+          label="Changer de thème"
+          icon={Icon}
+          variant="outline"
+          tooltip={false}
+        />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => setTheme("light")}>

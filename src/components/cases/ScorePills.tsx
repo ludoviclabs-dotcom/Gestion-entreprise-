@@ -1,51 +1,47 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { SEVERITY_COLORS } from "@/lib/graph/graph-types";
+import { MetricChip } from "@/components/ui/metric-chip";
+import { TONE_CSS_VAR } from "@/lib/design/tone";
+import { toneForScore } from "@/lib/design/domain-tones";
 import type { CaseScores } from "@/lib/graph/graph-types";
 
-export type Tone = "risk" | "good";
+/** Sens d'un score : "risk" = plus haut est pire ; "good" = plus haut est mieux. */
+export type ScorePolarity = "risk" | "good";
+/** @deprecated alias historique de `ScorePolarity` (importé par la démo guidée). */
+export type Tone = ScorePolarity;
 
 /**
- * Couleur produit d'un score continu (seuils 34/67) — réutilisée par la démo
- * guidée. Source de vérité unique : la palette de sévérité `SEVERITY_COLORS`
- * (les bandes vert/ambre/rouge), pour cohérence avec les signaux (pattern P2).
+ * Couleur d'un score continu (seuils 34/67) — réutilisée par la démo guidée.
+ * Source de vérité : les teintes sémantiques du design system (vert / vigilance /
+ * critique), donc cohérentes avec les signaux et les statuts. Retourne la
+ * référence CSS (`var(--tone-…)`), utilisable en `style` inline.
  * (La page /secteurs garde sa propre échelle 4 bandes, distincte par nature.)
  */
-export function scoreColor(value: number | undefined, tone: Tone): string {
-  if (value === undefined) return SEVERITY_COLORS.info;
-  const high = SEVERITY_COLORS.high;
-  const mid = SEVERITY_COLORS.medium;
-  const low = SEVERITY_COLORS.low;
-  if (tone === "good") return value >= 67 ? low : value >= 34 ? mid : high;
-  return value >= 67 ? high : value >= 34 ? mid : low;
+export function scoreColor(
+  value: number | undefined,
+  polarity: ScorePolarity,
+): string {
+  return TONE_CSS_VAR[toneForScore(value, polarity)];
 }
 
 function Pill({
   label,
   value,
-  tone,
+  polarity,
   size = "md",
 }: {
   label: string;
   value?: number;
-  tone: Tone;
+  polarity: ScorePolarity;
   size?: "sm" | "md";
 }) {
-  const color = scoreColor(value, tone);
   return (
-    <div
-      className={`flex items-center gap-2 rounded-lg border border-border bg-surface/90 ${
-        size === "sm" ? "px-2 py-1" : "px-3 py-1.5"
-      }`}
-    >
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span
-        className={size === "sm" ? "text-xs font-semibold" : "text-sm font-semibold"}
-        style={{ color }}
-      >
-        {value ?? "—"}
-      </span>
-    </div>
+    <MetricChip
+      label={label}
+      value={value ?? "—"}
+      tone={toneForScore(value, polarity)}
+      size={size}
+    />
   );
 }
 
@@ -54,7 +50,7 @@ function linkable(node: ReactNode, href: string | undefined, title: string): Rea
   return (
     <Link
       href={href}
-      className="rounded-lg transition hover:opacity-80"
+      className="rounded-md transition-ui hover:opacity-80"
       title={title}
       aria-label={title}
     >
@@ -81,17 +77,17 @@ export default function ScorePills({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {linkable(
-        <Pill label="Complexité" value={scores.complexite} tone="risk" size={size} />,
+        <Pill label="Complexité" value={scores.complexite} polarity="risk" size={size} />,
         complexiteHref,
         "Voir la composition du score de complexité",
       )}
       {linkable(
-        <Pill label="Vigilance" value={scores.vigilance} tone="risk" size={size} />,
+        <Pill label="Vigilance" value={scores.vigilance} polarity="risk" size={size} />,
         vigilanceHref,
         "Voir la composition du score de vigilance",
       )}
       {linkable(
-        <Pill label="Qualité de preuve" value={scores.qualitePreuve} tone="good" size={size} />,
+        <Pill label="Qualité de preuve" value={scores.qualitePreuve} polarity="good" size={size} />,
         qualiteHref,
         "Voir la composition de la qualité de preuve",
       )}

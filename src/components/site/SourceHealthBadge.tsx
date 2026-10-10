@@ -1,11 +1,9 @@
-import { Badge } from "@/components/ui/badge";
-
-const EMERALD = "#10b981";
-const AMBER = "#f59e0b";
+import { StatusBadge } from "@/components/ui/status-badge";
 
 /**
  * Badge live/démo d'une source. Markup extrait de la page Réglages
  * (src/app/(app)/reglages/page.tsx) pour une vérité d'affichage unique.
+ * Live = succès, démo = vigilance (donnée de démonstration, pas une erreur).
  */
 export function SourceHealthBadge({
   live,
@@ -14,14 +12,9 @@ export function SourceHealthBadge({
   live: boolean;
   label?: string;
 }) {
-  const color = live ? EMERALD : AMBER;
   return (
-    <Badge variant="outline" className="shrink-0 border-border" style={{ color }}>
-      <span
-        className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: color }}
-      />
+    <StatusBadge tone={live ? "success" : "vigilance"} className="shrink-0">
       {label ?? (live ? "Live" : "Démo")}
-    </Badge>
+    </StatusBadge>
   );
 }

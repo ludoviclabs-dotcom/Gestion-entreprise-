@@ -10,6 +10,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { IconButton } from "@/components/ui/icon-button";
 import SidebarContent from "./SidebarContent";
 
 export default function MobileSidebar({ demoMode }: { demoMode: boolean }) {
@@ -17,13 +18,13 @@ export default function MobileSidebar({ demoMode }: { demoMode: boolean }) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <button
-          type="button"
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-muted-foreground transition hover:text-foreground md:hidden"
-          aria-label="Ouvrir le menu"
-        >
-          <Menu size={16} />
-        </button>
+        <IconButton
+          label="Ouvrir le menu"
+          icon={Menu}
+          variant="outline"
+          tooltip={false}
+          className="md:hidden"
+        />
       </SheetTrigger>
       <SheetContent side="left" className="w-64 bg-sidebar p-0">
         <SheetHeader className="sr-only">

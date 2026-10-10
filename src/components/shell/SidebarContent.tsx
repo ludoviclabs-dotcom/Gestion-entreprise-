@@ -6,11 +6,17 @@ import {
   LayoutDashboard,
   FolderOpen,
   Settings,
-  Network,
   BriefcaseBusiness,
   Coins,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/components/ui/status-badge";
+import BrandMark from "./BrandMark";
+import {
+  SidebarFooter,
+  SidebarHeader,
+  SidebarItem,
+  SidebarNav,
+} from "./Sidebar";
 
 const NAV = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
@@ -21,8 +27,9 @@ const NAV = [
 ];
 
 /**
- * Contenu de la sidebar (logo + nav + badge démo).
+ * Contenu de la sidebar (marque + navigation + mode d'exécution).
  * Partagé entre la sidebar desktop fixe et le drawer mobile (Sheet).
+ * Assemble les briques génériques de ./Sidebar : aucune valeur de style en dur.
  */
 export default function SidebarContent({
   demoMode,
@@ -35,50 +42,36 @@ export default function SidebarContent({
 
   return (
     <div className="flex h-full flex-col">
-      <Link
-        href="/"
-        onClick={onNavigate}
-        className="flex items-center gap-2 px-5 py-4 text-sidebar-foreground"
-      >
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
-          <Network size={18} />
-        </span>
-        <span className="font-[family-name:var(--font-display)] text-lg font-semibold">
-          KYB Graph
-        </span>
-      </Link>
+      <SidebarHeader>
+        <Link
+          href="/"
+          onClick={onNavigate}
+          className="flex items-center gap-2.5 rounded-md text-sidebar-foreground"
+        >
+          <BrandMark />
+          <span className="font-display text-lg font-semibold">KYB Graph</span>
+        </Link>
+      </SidebarHeader>
 
-      <nav className="flex-1 space-y-1 px-3 py-2">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={onNavigate}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition",
-                active
-                  ? "bg-sidebar-accent text-sidebar-foreground"
-                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-              )}
-            >
-              <Icon size={17} />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
+      <SidebarNav label="Navigation principale">
+        {NAV.map(({ href, label, icon }) => (
+          <SidebarItem
+            key={href}
+            href={href}
+            icon={icon}
+            active={pathname === href || pathname.startsWith(`${href}/`)}
+            onClick={onNavigate}
+          >
+            {label}
+          </SidebarItem>
+        ))}
+      </SidebarNav>
 
-      <div className="px-5 py-4">
-        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs text-muted-foreground">
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ backgroundColor: demoMode ? "#f59e0b" : "#10b981" }}
-          />
+      <SidebarFooter>
+        <StatusBadge tone={demoMode ? "vigilance" : "success"}>
           {demoMode ? "Mode démo" : "Mode live"}
-        </span>
-      </div>
+        </StatusBadge>
+      </SidebarFooter>
     </div>
   );
 }

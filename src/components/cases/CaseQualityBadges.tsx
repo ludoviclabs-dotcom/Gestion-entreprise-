@@ -1,50 +1,23 @@
 import { Activity, DatabaseZap, FlaskConical, Gauge, ShieldCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { CASE_ORIGIN_TONE, SCORE_STATUS_TONE } from "@/lib/design/domain-tones";
 import type { CaseOrigin, ScoreStatus, SourceHealth } from "@/lib/data/types";
 
 const ORIGIN_META: Record<
   CaseOrigin,
-  { label: string; tone: string; icon: typeof DatabaseZap }
+  { label: string; icon: typeof DatabaseZap }
 > = {
-  live: {
-    label: "Live",
-    tone: "border-emerald/40 bg-emerald/10 text-emerald",
-    icon: DatabaseZap,
-  },
-  mixed: {
-    label: "Mixte",
-    tone: "border-amber/40 bg-amber/10 text-amber",
-    icon: Activity,
-  },
-  fixture: {
-    label: "Demo",
-    tone: "border-violet/40 bg-violet/10 text-violet",
-    icon: FlaskConical,
-  },
-  unknown: {
-    label: "Origine inconnue",
-    tone: "border-border bg-surface text-muted-foreground",
-    icon: DatabaseZap,
-  },
+  live: { label: "Live", icon: DatabaseZap },
+  mixed: { label: "Mixte", icon: Activity },
+  fixture: { label: "Demo", icon: FlaskConical },
+  unknown: { label: "Origine inconnue", icon: DatabaseZap },
 };
 
-const SCORE_META: Record<ScoreStatus, { label: string; tone: string }> = {
-  computed: {
-    label: "Score calcule",
-    tone: "border-emerald/40 bg-emerald/10 text-emerald",
-  },
-  partial: {
-    label: "Score partiel",
-    tone: "border-amber/40 bg-amber/10 text-amber",
-  },
-  missing: {
-    label: "Score manquant",
-    tone: "border-border bg-surface text-muted-foreground",
-  },
-  error: {
-    label: "Score erreur",
-    tone: "border-red/40 bg-red/10 text-red",
-  },
+const SCORE_LABELS: Record<ScoreStatus, string> = {
+  computed: "Score calcule",
+  partial: "Score partiel",
+  missing: "Score manquant",
+  error: "Score erreur",
 };
 
 export function OriginBadge({
@@ -57,15 +30,13 @@ export function OriginBadge({
   compact?: boolean;
 }) {
   const meta = ORIGIN_META[origin];
-  const Icon = meta.icon;
   const title = sourceHealth
     ? `${sourceHealth.live} live, ${sourceHealth.fixture} demo, ${sourceHealth.failed} echec(s)`
     : meta.label;
   return (
-    <Badge variant="outline" className={meta.tone} title={title}>
-      <Icon size={12} />
+    <StatusBadge tone={CASE_ORIGIN_TONE[origin]} icon={meta.icon} title={title}>
       {compact ? meta.label : `${meta.label}${sourceHealth ? ` ${sourceHealth.live}/${sourceHealth.total}` : ""}`}
-    </Badge>
+    </StatusBadge>
   );
 }
 
@@ -76,12 +47,11 @@ export function ScoreStatusBadge({
   scoreStatus: ScoreStatus;
   compact?: boolean;
 }) {
-  const meta = SCORE_META[scoreStatus];
+  const label = SCORE_LABELS[scoreStatus];
   return (
-    <Badge variant="outline" className={meta.tone}>
-      <Gauge size={12} />
-      {compact ? meta.label.replace("Score ", "") : meta.label}
-    </Badge>
+    <StatusBadge tone={SCORE_STATUS_TONE[scoreStatus]} icon={Gauge}>
+      {compact ? label.replace("Score ", "") : label}
+    </StatusBadge>
   );
 }
 
@@ -94,20 +64,15 @@ export function SourceHealthBadge({
 }) {
   const hasFailure = sourceHealth.failed > 0;
   return (
-    <Badge
-      variant="outline"
-      className={
-        hasFailure
-          ? "border-red/40 bg-red/10 text-red"
-          : "border-border bg-surface text-muted-foreground"
-      }
+    <StatusBadge
+      tone={hasFailure ? "critical" : "neutral"}
+      icon={ShieldCheck}
       title={`${sourceHealth.total} source(s), ${sourceHealth.failed} echec(s)`}
     >
-      <ShieldCheck size={12} />
       {compact
         ? `${sourceHealth.failed}/${sourceHealth.total}`
         : `${sourceHealth.failed} echec source`}
-    </Badge>
+    </StatusBadge>
   );
 }
 
