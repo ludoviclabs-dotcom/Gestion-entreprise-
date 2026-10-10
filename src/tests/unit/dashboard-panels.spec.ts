@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import ReviewQueuePanel from "@/components/dashboard/ReviewQueuePanel.client";
+import ReviewQueuePanel, { targetFor } from "@/components/dashboard/ReviewQueuePanel.client";
 import RiskSignalsPanel from "@/components/dashboard/RiskSignalsPanel";
 import RecentActivityPanel from "@/components/dashboard/RecentActivityPanel";
 import NextActionBanner from "@/components/dashboard/NextActionBanner";
@@ -62,6 +62,25 @@ describe("ReviewQueuePanel", () => {
     expect(out).toContain("Sources · 1");
     // Filtre sans résultat : désactivé (état « désactivé » visible).
     expect(out).toMatch(/disabled=""[^>]*>Scores · 0/);
+  });
+});
+
+describe("ReviewQueuePanel — cible de ligne selon le filtre", () => {
+  const [item] = buildReviewQueue([
+    summary({
+      id: "m",
+      counts: { entities: 1, edges: 0, signalsHigh: 2 },
+      sourceHealth: { origin: "live", total: 3, live: 3, fixture: 0, failed: 1 },
+      scoreStatus: "partial",
+    }),
+  ]);
+  it("sans filtre : la raison principale (risques)", () => {
+    expect(targetFor(item, "all")).toEqual({ href: "/cases/m/risques", actionLabel: "Ouvrir les risques" });
+  });
+  it("filtre Sources / Scores : l'onglet de la raison filtrée", () => {
+    expect(targetFor(item, "sources")).toEqual({ href: "/cases/m/sources", actionLabel: "Ouvrir les sources" });
+    expect(targetFor(item, "scores").href).toBe("/cases/m/sources");
+    expect(targetFor(item, "signals").href).toBe("/cases/m/risques");
   });
 });
 

@@ -138,6 +138,35 @@ describe("buildReviewQueue — ordre de traitement, raisons écrites", () => {
   });
 });
 
+describe("buildReviewQueue — bandes de priorité disjointes", () => {
+  it("un seul signal élevé passe devant tout cumul vigilance + sources + score", () => {
+    const queue = buildReviewQueue([
+      summary({
+        id: "cumul",
+        scores: { vigilance: 100 },
+        sourceHealth: { origin: "live", total: 5, live: 5, fixture: 0, failed: 3 },
+        scoreStatus: "partial",
+      }),
+      summary({ id: "signal", counts: { entities: 1, edges: 0, signalsHigh: 1 } }),
+    ]);
+    expect(queue.map((i) => i.case.id)).toEqual(["signal", "cumul"]);
+    expect(nextAction(queue, 2).href).toBe("/cases/signal/risques");
+  });
+
+  it("même raison principale : l'ampleur départage (3 signaux > 1 signal + cumul secondaire)", () => {
+    const queue = buildReviewQueue([
+      summary({
+        id: "un",
+        counts: { entities: 1, edges: 0, signalsHigh: 1 },
+        scores: { vigilance: 99 },
+        sourceHealth: { origin: "live", total: 9, live: 9, fixture: 0, failed: 9 },
+      }),
+      summary({ id: "trois", counts: { entities: 1, edges: 0, signalsHigh: 3 } }),
+    ]);
+    expect(queue.map((i) => i.case.id)).toEqual(["trois", "un"]);
+  });
+});
+
 describe("nextAction — une phrase, un bouton", () => {
   it("portefeuille vide → créer un premier dossier", () => {
     expect(nextAction([], 0)).toMatchObject({ kind: "create_first", href: "/cases/new" });

@@ -131,15 +131,34 @@ export function reviewReasons(c: CaseSummary): ReviewReason[] {
   return reasons;
 }
 
+/** Rang de priorité d'une raison (0 = la plus prioritaire). */
+const REASON_RANK: Record<ReviewReasonKind, number> = {
+  signals_high: 0,
+  vigilance_high: 1,
+  sources_failed: 2,
+  score_incomplete: 3,
+};
+
+/** Ampleur d'une raison, pour départager deux dossiers de même raison principale. */
+function magnitude(c: CaseSummary, kind: ReviewReasonKind): number {
+  if (kind === "signals_high") return c.counts.signalsHigh;
+  if (kind === "vigilance_high") return c.scores.vigilance ?? 0;
+  if (kind === "sources_failed") return c.sourceHealth.failed;
+  return 0;
+}
+
+const cap = (n: number) => Math.min(Math.max(n, 0), 999);
+
+/**
+ * Poids par BANDES disjointes : la raison principale décide toujours (un seul
+ * signal élevé passe devant n'importe quel cumul vigilance + sources + score),
+ * puis son ampleur, puis la somme des ampleurs des raisons secondaires.
+ */
 function weightOf(c: CaseSummary, reasons: ReviewReason[]): number {
-  let w = 0;
-  for (const r of reasons) {
-    if (r.kind === "signals_high") w += 1000 + c.counts.signalsHigh * 10;
-    if (r.kind === "vigilance_high") w += 500 + (c.scores.vigilance ?? 0);
-    if (r.kind === "sources_failed") w += 300 + c.sourceHealth.failed * 5;
-    if (r.kind === "score_incomplete") w += 100;
-  }
-  return w;
+  const [primary, ...rest] = reasons;
+  const band = 3 - REASON_RANK[primary.kind];
+  const secondary = rest.reduce((n, r) => n + 1 + magnitude(c, r.kind), 0);
+  return band * 1_000_000 + cap(magnitude(c, primary.kind)) * 1_000 + cap(secondary);
 }
 
 const REASON_TARGET: Record<ReviewReasonKind, { tab: string; action: string }> = {
@@ -149,20 +168,27 @@ const REASON_TARGET: Record<ReviewReasonKind, { tab: string; action: string }> =
   score_incomplete: { tab: "sources", action: "Ouvrir les sources" },
 };
 
+/** Onglet du dossier où traiter une raison donnée, et le libellé de l'action. */
+export function reviewTarget(
+  caseId: string,
+  kind: ReviewReasonKind,
+): { href: string; actionLabel: string } {
+  const target = REASON_TARGET[kind];
+  return { href: `/cases/${caseId}/${target.tab}`, actionLabel: target.action };
+}
+
 /** Dossiers à revoir, du plus prioritaire au moins prioritaire (égalité : le plus récent d'abord). */
 export function buildReviewQueue(cases: CaseSummary[]): ReviewItem[] {
   return cases
     .flatMap((c) => {
       const reasons = reviewReasons(c);
       if (reasons.length === 0) return [];
-      const target = REASON_TARGET[reasons[0].kind];
       return [
         {
           case: c,
           reasons,
           weight: weightOf(c, reasons),
-          href: `/cases/${c.id}/${target.tab}`,
-          actionLabel: target.action,
+          ...reviewTarget(c.id, reasons[0].kind),
         },
       ];
     })
