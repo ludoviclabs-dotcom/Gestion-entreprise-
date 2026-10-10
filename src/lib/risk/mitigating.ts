@@ -64,7 +64,7 @@ export function computeMitigatingFactors(
    * contrôle X a été mené : l'absence de résultat d'un contrôle non effectué
    * n'est pas un fait rassurant.
    */
-  coverage?: { bodacc: boolean; sanctions: boolean },
+  coverage?: { bodacc: boolean; sanctions: boolean; sanctionSources?: string[] },
 ): MitigatingFactor[] {
   const factors: MitigatingFactor[] = [];
 
@@ -101,12 +101,26 @@ export function computeMitigatingFactors(
   // 3. Aucune entité sous sanction / PEP dans le périmètre cartographié.
   const hasSanction = bundle.entities.some((e) => e.type === "sanction");
   if (!hasSanction && coverage?.sanctions !== false) {
-    factors.push({
-      id: "AUCUNE_ENTITE_SIGNALEE",
-      label: "Aucune entité signalée",
-      detail:
-        "Aucune entité sous sanction ou PEP dans le périmètre cartographié.",
-    });
+    // Seul le registre national des gels a répondu : ne pas affirmer « sanction ou
+    // PEP » (listes UE/ONU/OFAC complètes et PEP non consultées).
+    const gelsOnly =
+      coverage?.sanctionSources?.length === 1 &&
+      coverage.sanctionSources[0] === "tresor_gels";
+    factors.push(
+      gelsOnly
+        ? {
+            id: "AUCUNE_ENTITE_SIGNALEE",
+            label: "Aucune correspondance au registre des gels",
+            detail:
+              "Aucune correspondance au registre national des gels (DG Trésor). Les listes de sanctions UE/ONU/OFAC et les PEP n'ont pas pu être consultées.",
+          }
+        : {
+            id: "AUCUNE_ENTITE_SIGNALEE",
+            label: "Aucune entité signalée",
+            detail:
+              "Aucune entité sous sanction ou PEP dans le périmètre cartographié.",
+          },
+    );
   }
 
   // 4. Aucune procédure collective ni radiation au BODACC sur la période.

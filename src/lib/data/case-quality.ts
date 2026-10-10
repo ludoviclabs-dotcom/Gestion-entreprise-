@@ -42,6 +42,12 @@ export type SourceCoverage = {
   bodacc: boolean;
   /** Au moins un contrôle sanctions/PEP (DG Trésor, OpenSanctions) mené à terme. */
   sanctions: boolean;
+  /**
+   * Quels contrôles sanctions ont RÉELLEMENT abouti. Le registre DG Trésor ne
+   * couvre ni les listes UE/ONU/OFAC complètes ni les PEP : « aucune entité
+   * signalée » doit nommer ce qui a été vérifié.
+   */
+  sanctionSources: ("tresor_gels" | "opensanctions")[];
 };
 
 function completedLive(s: SourceRow): boolean {
@@ -61,12 +67,22 @@ function completedLive(s: SourceRow): boolean {
  */
 export function getSourceCoverage(sources: SourceRow[]): SourceCoverage {
   const realCase = sources.some((s) => !s.isFixture);
-  if (!realCase) return { bodacc: true, sanctions: true };
+  if (!realCase) {
+    return {
+      bodacc: true,
+      sanctions: true,
+      sanctionSources: ["tresor_gels", "opensanctions"],
+    };
+  }
   const done = (kinds: SourceKind[]) =>
     sources.some((s) => kinds.includes(s.source) && completedLive(s));
+  const sanctionSources = (["tresor_gels", "opensanctions"] as const).filter((k) =>
+    done([k]),
+  );
   return {
     bodacc: done(["bodacc"]),
-    sanctions: done(["tresor_gels", "opensanctions"]),
+    sanctions: sanctionSources.length > 0,
+    sanctionSources: [...sanctionSources],
   };
 }
 

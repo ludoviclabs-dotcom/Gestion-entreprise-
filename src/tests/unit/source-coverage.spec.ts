@@ -63,7 +63,7 @@ describe("getSourceHealth — consultations dégradées", () => {
 
 describe("getSourceCoverage", () => {
   it("dossier 100 % fixture (démonstration) : tout est couvert", () => {
-    expect(getSourceCoverage([fixture("sirene"), fixture("bodacc")])).toEqual({
+    expect(getSourceCoverage([fixture("sirene"), fixture("bodacc")])).toMatchObject({
       bodacc: true,
       sanctions: true,
     });
@@ -76,7 +76,7 @@ describe("getSourceCoverage", () => {
       fixture("tresor_gels"),
       fixture("opensanctions"),
     ]);
-    expect(cov).toEqual({ bodacc: true, sanctions: false });
+    expect(cov).toMatchObject({ bodacc: true, sanctions: false, sanctionSources: [] });
   });
 
   it("dossier réel : BODACC en repli fixture (panne) n'est pas couvert", () => {
@@ -85,7 +85,7 @@ describe("getSourceCoverage", () => {
       fixture("bodacc", "fixture:bodacc(repli)"),
       live("opensanctions"),
     ]);
-    expect(cov).toEqual({ bodacc: false, sanctions: true });
+    expect(cov).toMatchObject({ bodacc: false, sanctions: true, sanctionSources: ["opensanctions"] });
   });
 
   it("dossier réel : un seul contrôle sanctions mené à terme suffit", () => {
@@ -101,7 +101,7 @@ describe("getSourceCoverage", () => {
       live("tresor_gels", { endpoint: "https://x (schéma non reconnu)" }),
       live("opensanctions", { httpStatus: 401 }),
     ]);
-    expect(cov).toEqual({ bodacc: false, sanctions: false });
+    expect(cov).toMatchObject({ bodacc: false, sanctions: false, sanctionSources: [] });
   });
 });
 
@@ -126,6 +126,37 @@ describe("computeMitigatingFactors — couverture des contrôles", () => {
     );
     expect(f).not.toContain("PAS_DE_PROCEDURE");
     expect(f).toContain("AUCUNE_ENTITE_SIGNALEE");
+  });
+
+  it("seul le registre des gels a répondu : le facteur nomme ce qui a été vérifié (pas « PEP »)", () => {
+    // Cas observé en production : OpenSanctions 401, DG Trésor 200.
+    const sources = [
+      live("sirene"),
+      live("bodacc"),
+      live("tresor_gels"),
+      live("opensanctions", { httpStatus: 401, endpoint: "https://os (erreur 401)" }),
+    ];
+    const cov = getSourceCoverage(sources);
+    expect(cov.sanctionSources).toEqual(["tresor_gels"]);
+    const factor = computeMitigatingFactors(emptyBundle, new Date(), cov).find(
+      (f) => f.id === "AUCUNE_ENTITE_SIGNALEE",
+    );
+    expect(factor?.label).toBe("Aucune correspondance au registre des gels");
+    expect(factor?.detail).toContain("PEP n'ont pas pu être consultées");
+  });
+
+  it("les deux contrôles ont abouti : formulation complète « sanction ou PEP »", () => {
+    const cov = getSourceCoverage([
+      live("sirene"),
+      live("bodacc"),
+      live("tresor_gels"),
+      live("opensanctions"),
+    ]);
+    const factor = computeMitigatingFactors(emptyBundle, new Date(), cov).find(
+      (f) => f.id === "AUCUNE_ENTITE_SIGNALEE",
+    );
+    expect(factor?.label).toBe("Aucune entité signalée");
+    expect(factor?.detail).toContain("sanction ou PEP");
   });
 
   it("de bout en bout : dossier réel avec connecteurs désactivés → aucun facteur d'absence", () => {
