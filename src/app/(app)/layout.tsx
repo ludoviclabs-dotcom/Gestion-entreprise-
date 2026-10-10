@@ -2,6 +2,12 @@
 // elles lisent le repository à chaque rendu (cf. docs/sovereignty.md).
 export const preferredRegion = "fra1";
 
+// Rendu à CHAQUE requête. Sans cela, Next prérend `/cases`, `/dashboard`… au
+// build (ces pages ne lisent ni cookies ni en-têtes) : la liste des dossiers et
+// la palette de commandes restent figées au dernier déploiement et un dossier
+// qu'on vient de créer n'apparaît pas.
+export const dynamic = "force-dynamic";
+
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import AppSidebar from "@/components/shell/AppSidebar";
