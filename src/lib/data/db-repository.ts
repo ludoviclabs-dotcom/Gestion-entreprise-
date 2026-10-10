@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
   cases,
@@ -39,6 +39,9 @@ import {
 } from "./case-quality";
 import { SCORE_MODEL_VERSION, scoreModelVersionOf } from "@/lib/risk/engine";
 import { timingsOf } from "@/lib/data/timings";
+import { pressOf } from "@/lib/data/press-status";
+import { planPressCompletion } from "@/lib/data/press-completion";
+import { gdelt } from "@/lib/connectors/gdelt";
 
 /** Format UUID (les ids de dossiers réels) — un id non-UUID est une fixture. */
 const UUID_RE =
@@ -465,6 +468,7 @@ export class DbCasesRepository implements CasesRepository {
       // modèle qui les a produits (jamais l'actuelle par défaut).
       scoreModelVersion: scoreModelVersionOf(caseRow.metadata),
       timings: timingsOf(caseRow.metadata),
+      press: pressOf(caseRow.metadata),
     };
   }
 
@@ -496,7 +500,17 @@ export class DbCasesRepository implements CasesRepository {
 
   async createCaseFromSiren(siren: string): Promise<CaseSummary> {
     const db = getDb();
-    const { bundle, sources, timings = {} } = await assembleCase(siren);
+    // La presse (GDELT, 10 à 15 s) n'est pas attendue : collectée après la réponse
+    // (`completePendingPress`), le dossier est servi sans elle en attendant.
+    const {
+      bundle,
+      sources,
+      timings = {},
+      pressDeferred = false,
+    } = await assembleCase(siren, { deferPress: true });
+    const press = pressDeferred
+      ? { state: "pending" as const, requestedAt: new Date().toISOString() }
+      : undefined;
     // Une ligne par dossier dans les journaux serveur : repérer la source lente.
     console.info(
       "[case-timing]",
@@ -522,6 +536,7 @@ export class DbCasesRepository implements CasesRepository {
           origin: sourceHealth.origin,
           sourceHealth,
           scoreStatus: getScoreStatus(scores, "draft"),
+          ...(press ? { press } : {}),
         },
       })
       .returning();
@@ -766,6 +781,7 @@ export class DbCasesRepository implements CasesRepository {
               scoreStatus: getScoreStatus(scores, "ready"),
               lastRunAt: completedAt.toISOString(),
               timings,
+              ...(press ? { press } : {}),
             },
           })
           .where(eq(cases.id, caseId)),
@@ -829,6 +845,125 @@ export class DbCasesRepository implements CasesRepository {
         .set({ status: "error", updatedAt: new Date() })
         .where(eq(cases.id, caseId));
       throw error;
+    }
+  }
+
+  async completePendingPress(caseId: string): Promise<void> {
+    if (!UUID_RE.test(caseId)) return;
+    const db = getDb();
+    let requestedAt: string | undefined;
+    try {
+      const [row] = await db.select().from(cases).where(eq(cases.id, caseId));
+      const status = pressOf(row?.metadata);
+      if (!row || status?.state !== "pending") return;
+      requestedAt = status.requestedAt;
+
+      const startedAt = Date.now();
+      // Même libellé que celui utilisé à la création (dénomination du sujet).
+      const result = await gdelt.byName(row.title);
+      const elapsed = Date.now() - startedAt;
+
+      const detail = await this.getCase(caseId);
+      if (!detail) return;
+      // Sujet = la société portant le SIREN racine (id persistant, pas la clé
+      // naturelle : l'identité canonique peut différer après résolution).
+      const [subject] = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .innerJoin(companies, eq(companies.entityId, entities.id))
+        .where(and(eq(entities.caseId, caseId), eq(companies.siren, row.rootSiren)))
+        .limit(1);
+      const subjectId =
+        subject?.id ??
+        detail.bundle.entities.find((e) => e.type === "company")?.id;
+      if (!subjectId) throw new Error("sujet introuvable");
+
+      const plan = planPressCompletion({
+        caseId,
+        bundle: detail.bundle,
+        sources: detail.sources,
+        gdelt: result,
+        subjectId,
+      });
+      const completedAt = new Date();
+      const previous = (row.metadata ?? {}) as Record<string, unknown>;
+      const metadata = {
+        ...previous,
+        origin: plan.sourceHealth.origin,
+        sourceHealth: plan.sourceHealth,
+        scoreStatus: getScoreStatus(plan.scores, "ready"),
+        timings: { ...(timingsOf(previous) ?? {}), gdelt: elapsed },
+        press: {
+          state: "done",
+          requestedAt,
+          completedAt: completedAt.toISOString(),
+        },
+      };
+
+      // UNE requête transactionnelle : la presse, ses événements, leur preuve, le
+      // signal éventuel et les scores apparaissent ensemble — jamais à moitié.
+      const batch = [
+        db.insert(sourceRecords).values(plan.sourceRecord),
+        ...chunkRows(plan.eventRows).map((r) => db.insert(events).values(r)),
+        ...chunkRows(plan.signalRows).map((r) => db.insert(riskSignals).values(r)),
+        ...chunkRows(plan.evidenceRows).map((r) => db.insert(evidence).values(r)),
+        db
+          .update(cases)
+          .set({
+            scoreVigilance: plan.scores.vigilance ?? null,
+            scoreQualitePreuve: plan.scores.qualitePreuve ?? null,
+            updatedAt: completedAt,
+            metadata,
+          })
+          .where(eq(cases.id, caseId)),
+      ];
+      await db.batch(batch as unknown as Parameters<typeof db.batch>[0]);
+
+      // Journal de preuve : la consultation et le recalcul complémentaire.
+      try {
+        await this.appendProofEvent(caseId, "source_consultee", {
+          source: "gdelt",
+          endpoint: plan.sourceRecord.endpoint,
+          httpStatus: result.httpStatus,
+          isFixture: result.isFixture,
+          payloadHash: plan.sourceRecord.payloadHash,
+          collecteApresCreation: true,
+        });
+        await this.appendProofEvent(caseId, "risque_calcule", {
+          reglesDeclenchees: [
+            ...new Set(
+              [...detail.bundle.riskSignals, ...plan.signals].map((s) => s.ruleId),
+            ),
+          ],
+          scores: plan.scores,
+          scoreModelVersion: scoreModelVersionOf(previous),
+          complement: "presse",
+        });
+      } catch (error) {
+        console.warn("[completePendingPress] journal de preuve non écrit", error);
+      }
+      console.info(
+        "[press-timing]",
+        JSON.stringify({ caseId, gdeltMs: elapsed, usable: plan.usable }),
+      );
+    } catch (error) {
+      // Ne lève jamais (appelé après la réponse). Dossier conservé tel quel ;
+      // l'état « interrompue » est signalé, la presse reste « non interrogée ».
+      console.error("[completePendingPress] échec", error);
+      try {
+        await db
+          .update(cases)
+          .set({
+            metadata: sql`jsonb_set(coalesce(metadata, '{}'::jsonb), '{press}', ${JSON.stringify({
+              state: "failed",
+              requestedAt,
+              completedAt: new Date().toISOString(),
+            })}::jsonb)`,
+          })
+          .where(eq(cases.id, caseId));
+      } catch {
+        // Best effort.
+      }
     }
   }
 

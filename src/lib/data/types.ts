@@ -1,3 +1,4 @@
+import type { PressStatus } from "./press-status";
 import type {
   CaseBundle,
   CaseScores,
@@ -76,6 +77,11 @@ export type CaseDetail = {
   scoreModelVersion?: string;
   /** Durées de collecte par source (ms), mesurées à la création (dossiers persistés). */
   timings?: Record<string, number>;
+  /**
+   * Collecte de la presse (GDELT) APRÈS la création : « pending » = source pas
+   * encore interrogée (ni « aucun article », ni panne). Absent pour les fixtures.
+   */
+  press?: PressStatus;
 };
 
 /**
@@ -99,6 +105,12 @@ export interface CasesRepository {
   getCase(id: string): Promise<CaseDetail | null>;
   searchCompanies(q: string): Promise<CompanyCandidate[]>;
   createCaseFromSiren(siren: string): Promise<CaseSummary>;
+  /**
+   * Collecte la presse (GDELT) d'un dossier créé SANS elle, puis complète ses
+   * événements, son signal média et ses scores. Sans effet si rien n'est en
+   * attente. À appeler APRÈS l'envoi de la réponse (`after`) : ne lève jamais.
+   */
+  completePendingPress(caseId: string): Promise<void>;
   /**
    * Enregistre la synthèse manuelle (workflow Claude Code) d'un dossier.
    * `referencedRuleIds` : règles déclenchées citées dans le texte (validées

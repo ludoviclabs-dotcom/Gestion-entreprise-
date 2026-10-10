@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { getGraphQueryRepository } from "@/lib/data/graph-query-repository";
@@ -49,7 +50,17 @@ export async function createCaseAction(
     return { ok: false, error: "SIREN invalide (clé de Luhn incorrecte)." };
   }
   try {
-    const summary = await getCasesRepository().createCaseFromSiren(clean);
+    const repository = getCasesRepository();
+    const summary = await repository.createCaseFromSiren(clean);
+    // La presse (GDELT, 10 à 15 s) est collectée APRÈS l'envoi de la réponse : le
+    // dossier s'ouvre sans l'attendre, puis se complète (événements, vigilance).
+    after(async () => {
+      try {
+        await repository.completePendingPress(summary.id);
+      } catch (error) {
+        console.error("[createCaseAction] collecte de presse en échec", error);
+      }
+    });
     return { ok: true, id: summary.id };
   } catch (error) {
     // Source indispensable indisponible (ex. clé Sirene absente en mode live) :

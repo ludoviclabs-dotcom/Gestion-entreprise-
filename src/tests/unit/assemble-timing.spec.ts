@@ -5,6 +5,7 @@ import etablissementFixture from "@/lib/fixtures/sirene-etablissement.sample.jso
 vi.hoisted(() => {
   process.env.RECHERCHE_ENTREPRISES_ENABLED = "true";
   process.env.RGE_ENABLED = "true";
+  process.env.GDELT_ENABLED = "true";
 });
 
 /**
@@ -112,5 +113,32 @@ describe("assembleCase — chronométrage et seconds sauts", () => {
     // Source non interrogée (label absent, flag éteint) : aucune durée inventée.
     expect(timings.qualiopi).toBeUndefined();
     expect(timings.balo).toBeUndefined();
+  });
+
+  it("presse différée : GDELT n'est pas interrogé et aucune ligne source n'est produite", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    gate.order.length = 0;
+    const result = await assembleCase("552032534", { deferPress: true });
+    expect(result.pressDeferred).toBe(true);
+    // Source NON interrogée : ni appel, ni durée, ni source_records inventés.
+    expect(gate.order).not.toContain("gdelt");
+    expect(result.timings.gdelt).toBeUndefined();
+    expect(result.sources.some((s) => s.source === "gdelt")).toBe(false);
+    expect(result.bundle.events.some((e) => e.kind.startsWith("couverture_media"))).toBe(false);
+    // Les autres sources sont consultées normalement.
+    expect(result.sources.some((s) => s.source === "bodacc")).toBe(true);
+  });
+
+  it("sans option, la presse reste consultée dans le parcours synchrone", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    const result = await assembleCase("552032534");
+    expect(result.pressDeferred).toBe(false);
+    expect(result.sources.some((s) => s.source === "gdelt")).toBe(true);
+  });
+
+  it("en démonstration, rien n'est différé (fixture instantanée)", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "true";
+    const result = await assembleCase("552032534", { deferPress: true });
+    expect(result.pressDeferred).toBe(false);
   });
 });
