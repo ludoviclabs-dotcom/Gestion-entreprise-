@@ -17,6 +17,22 @@ RGE/Agence BIO/Alim'confiance/Qualiopi, **C** Géorisques/Annuaire (PR en cours)
 connecteurs « appel direct ». Le lot D est le premier à nécessiter une **infrastructure
 d'import**.
 
+## 0 bis. Prérequis — à vérifier AVANT d'écrire la moindre ligne
+
+Ce dossier s'appuie sur du code qui vit dans des PR **qui doivent être fusionnées dans
+`main` d'abord**. Partir d'un `main` qui ne les contient pas rend plusieurs consignes
+inapplicables (fichiers « modèles » absents, suffixe de dégradation inconnu).
+
+| PR | Contenu dont dépend le lot D | Vérification (doit réussir sur `main`) |
+|---|---|---|
+| **#39** perf 2 | suffixe `(délai dépassé)` dans `degraded.ts` ; durées par source (`timings`) ; seconds sauts enchaînés dans `assemble-case.ts` | `grep -n "délai dépassé" src/lib/connectors/degraded.ts` |
+| **#40** lot C | `georisques.ts`, `annuaire-administration.ts`, `normalize-regulatory.ts`, `assemble-regulatory.spec.ts`, `sirene.listOpenEtablissements`, migration `0013` | `ls src/lib/connectors/georisques.ts src/lib/ingestion/normalize-regulatory.ts` |
+| **#41** ce dossier | `docs/lot-d-brief-codex.md` | — |
+
+Si l'une de ces vérifications échoue, **s'arrêter et le signaler** : ne pas recréer ces
+éléments dans la PR du lot D (conflits garantis avec #39/#40). Les numéros de migration du
+lot D se placent **après la plus récente de `drizzle/`** (aujourd'hui `0013`, à relire).
+
 ## 1. Le produit, en 60 secondes
 
 - **KYB Graph** : cartographie de conformité d'une société à partir de son SIREN. Stack :
@@ -42,10 +58,14 @@ d'import**.
 2. **Absence ≠ panne ≠ non interrogé.** Trois états distincts, toujours : (a) « interrogé, rien
    trouvé » (absence avérée), (b) « consultation en échec » (dégradée), (c) « non interrogé /
    non importé ». Ne jamais afficher « aucun » dans les cas (b) et (c). Convention de
-   dégradation : suffixe d'`endpoint` `(exception)`, `(erreur N)`, `(schéma non reconnu)`,
-   `(délai dépassé)` — voir `src/lib/connectors/degraded.ts` (`isDegradedEndpoint`). **Pour
-   l'import, il faut un 4ᵉ suffixe, p. ex. `(source non importée)`**, à ajouter à cette
-   regex, avec test.
+   dégradation : suffixe d'`endpoint` — voir `src/lib/connectors/degraded.ts`
+   (`isDegradedEndpoint`, une regex). Sur `main` **avant** la PR #39 elle ne reconnaît que
+   `(exception)`, `(erreur N)` et `(schéma non reconnu)` ; la PR #39 ajoute
+   `(délai dépassé)` (**prérequis**, voir §0 bis). **Le lot D doit ajouter un suffixe
+   pour « source non importée » — p. ex. `(source non importée)` — dans cette même regex,
+   avec un test** : un connecteur qui produirait un suffixe absent de la regex serait lu
+   comme une consultation RÉUSSIE (donc comme une absence avérée) par `openDataUsable` et
+   `getSourceHealth`. Tout nouveau suffixe = regex + test dans `degraded`/`case-quality`.
 3. **Minimisation des données personnelles (RGPD / CJUE 2022).** Ne **jamais** stocker ni
    afficher : noms de personnes physiques, dates de naissance, adresses de personnes,
    téléphones, courriels. Les sources contiennent beaucoup de ces champs (HATVP : dirigeants,
@@ -67,8 +87,10 @@ d'import**.
 Lire d'abord : `AGENTS.md` (⚠️ ce Next.js n'est pas celui que vous connaissez — lire
 `node_modules/next/dist/docs/` avant d'écrire du code Next), `docs/architecture.md`,
 `docs/tutorial-connecteurs.md`, et comme **modèles** : `src/lib/connectors/balo.ts`,
-`opendatasoft.ts`, `src/lib/connectors/georisques.ts`, `src/lib/ingestion/normalize-dila.ts`,
-`normalize-labels.ts`, `normalize-regulatory.ts`.
+`opendatasoft.ts`, `src/lib/ingestion/normalize-dila.ts`, `normalize-labels.ts` (présents
+sur `main`) ; **après fusion de la PR #40** : `src/lib/connectors/georisques.ts`
+(plusieurs requêtes + garde « filtre ignoré »), `src/lib/ingestion/normalize-regulatory.ts`
+(couverture dite).
 
 ### 3.1 Checklist « ajouter une source » (toutes les étapes sont obligatoires)
 
@@ -114,7 +136,7 @@ non-JSON, panne réseau, garde « filtre ignoré », injection, minimisation des
 personnelles), normaliseur (jamais de levée, aucun jugement : pas de `fraude|sanction|infraction`),
 assemblage (gating, panne d'une source, mode démo → aucun appel). Les modèles à copier :
 `dila-connectors.spec.ts`, `labels-connectors.spec.ts`, `assemble-labels.spec.ts`,
-`assemble-regulatory.spec.ts`. Avant tout commit : `npx vitest run`, `npx tsc --noEmit`,
+`assemble-regulatory.spec.ts` (ce dernier : après fusion de #40). Avant tout commit : `npx vitest run`, `npx tsc --noEmit`,
 `npx eslint src` doivent être verts.
 
 ### 3.4 Vérifier sur les vraies sources (obligatoire, déjà décisif plusieurs fois)
@@ -143,8 +165,8 @@ HSBC Continental Europe `775670284`, une PME/association inconnue. `npx tsx` est
 
 ### 4.1 Pourquoi
 Vercel (serverless, 300 s max, mémoire limitée) ne peut ni télécharger ni analyser un fichier
-de 1 Go à chaque dossier, et il ne faut pas faire dépendre la création d'un dossier (≈ 8 s
-aujourd'hui, tout compris) d'un gros fichier. Donc : **import hors ligne → tables Neon
+de 1 Go à chaque dossier, et il ne faut pas faire dépendre la création d'un dossier (≈ 8 à 11 s
+de bout en bout après la PR #39, contre 22 s avant) d'un gros fichier. Donc : **import hors ligne → tables Neon
 indexées par SIREN → connecteur qui lit la base (≈ 50 ms)**.
 
 ### 4.2 Où exécuter l'import (recommandation)
@@ -287,12 +309,19 @@ Un connecteur par source, `bySiren(siren)`, qui lit la table via Drizzle et renv
   Constats : **le titulaire n'a pas de dénomination** (seulement `typeIdentifiant` + `id`) ;
   **l'acheteur n'a pas de nom** (seulement son SIRET) → les libellés se résolvent par
   jointure (le SIRET acheteur peut être inconnu : ne pas inventer de nom, afficher le SIRET ou
-  « acheteur public (SIRET …) »). Un marché a un `id` **non unique entre acheteurs** : clé
-  = (acheteur.id, id). `dateNotification` : `AAAA-MM-JJ`. `montant` : nombre (flottant).
+  « acheteur public (SIRET …) »). L'`id` d'un marché n'est **pas unique** : un acheteur
+  peut réutiliser le même `id` pour des contrats différents. **Clé naturelle =
+  (`acheteur.id`, `id`, `codeCPV`)**, soit l'`uid` publié par le projet de consolidation
+  des DECP depuis août 2026 (`acheteur_id` + `id` + `_` + `codeCPV`, notes de version
+  v2.13.0 / v2.14.0 de `ColinMaudry/decp-processing`) — la paire (`acheteur.id`, `id`)
+  fusionnait à tort des contrats distincts. Normaliser `codeCPV` comme eux (v2.9.1 : moins
+  de 8 caractères → complété par des `0` ; plus de 8 → raccourci ; sans le chiffre de
+  contrôle). Les anciens fichiers peuvent porter l'ancien `uid` : ne pas s'y fier, calculer
+  la clé soi-même. `dateNotification` : `AAAA-MM-JJ`. `montant` : nombre (flottant).
   **⚠️ À VÉRIFIER** sur un échantillon plus large : présence de `modifications`,
   `typeIdentifiant` autre que `SIRET` (`TVA`, `HORS-UE`…), marchés sans titulaire (accords-cadres).
-- **Qualité (important)** : doublons entre fichiers (clé `uid` + `id`), modifications du même
-  marché, montants aberrants (999 999 999, 0), SIRET invalides ou de personnes physiques,
+- **Qualité (important)** : doublons entre fichiers (même clé naturelle, voir ci-dessus),
+  modifications du même marché, montants aberrants (999 999 999, 0), SIRET invalides ou de personnes physiques,
   `typeIdentifiant` ≠ `SIRET`. Dédoublonner, valider (Luhn SIRET), plafonner les montants
   irréalistes **sans les supprimer** (marquer « non fiable »).
 - **Rapprochement** : `titulaires[].id` → SIREN = `substr(id,1,9)`. Aussi côté **acheteur**
