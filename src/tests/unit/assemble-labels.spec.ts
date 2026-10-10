@@ -184,6 +184,15 @@ describe("assembleCase — lot labels (RGE, Agence BIO, Alim'confiance, Qualiopi
     expect(sources.some((s) => s.source === "qualiopi")).toBe(false);
   });
 
+  it("organisme de formation déclaré, sans Qualiopi : la liste DGEFP est quand même consultée", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    state.labels = ["Organisme de formation"];
+    const { bundle, sources } = await assembleCase("552032534");
+    expect(state.calls).toEqual({ rge: 0, bio: 0, alim: 0, qualiopi: 1 });
+    expect(sources.some((s) => s.source === "qualiopi")).toBe(true);
+    expect(subjectOf(bundle)?.attributes?.["Organisme de formation (DGEFP)"]).toBeDefined();
+  });
+
   it("aucun label signalé : aucun appel ni ligne de source (jamais une absence inventée)", async () => {
     process.env.NEXT_PUBLIC_DEMO_MODE = "false";
     state.labels = ["ESS"];

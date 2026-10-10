@@ -15,6 +15,7 @@ import { companiesHouse } from "@/lib/connectors/companies-house";
 import {
   LABEL_ALIM_CONFIANCE,
   LABEL_BIO,
+  LABEL_ORGANISME_FORMATION,
   LABEL_QUALIOPI,
   LABEL_RGE,
   rechercheEntreprises,
@@ -255,7 +256,11 @@ export async function assembleCase(
     live && isAlimConfianceEnabled() && flaggedLabels.has(LABEL_ALIM_CONFIANCE)
       ? alimConfiance.bySiren(siren)
       : none,
-    live && isQualiopiEnabled() && flaggedLabels.has(LABEL_QUALIOPI)
+    // Organisme de formation déclaré OU certifié Qualiopi : un organisme non
+    // certifié n'a que le premier indicateur mais figure dans la liste DGEFP.
+    live &&
+    isQualiopiEnabled() &&
+    (flaggedLabels.has(LABEL_QUALIOPI) || flaggedLabels.has(LABEL_ORGANISME_FORMATION))
       ? qualiopi.bySiren(siren)
       : none,
   ]);

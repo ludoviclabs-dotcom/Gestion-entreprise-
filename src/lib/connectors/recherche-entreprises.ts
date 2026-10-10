@@ -80,6 +80,12 @@ function shouldMock(): boolean {
 export const LABEL_BIO = "Agriculture biologique";
 export const LABEL_RGE = "RGE";
 export const LABEL_QUALIOPI = "Qualiopi";
+/**
+ * Organisme de formation DÉCLARÉ (indicateur distinct de Qualiopi) : un organisme
+ * non certifié porte ce seul indicateur, mais figure bien dans la liste publique
+ * DGEFP avec son numéro de déclaration d'activité.
+ */
+export const LABEL_ORGANISME_FORMATION = "Organisme de formation";
 export const LABEL_ALIM_CONFIANCE = "Alim'confiance";
 
 /** Indicateurs `complements.est_*` retenus → libellé français. */
@@ -87,7 +93,7 @@ const LABELS: [string, string][] = [
   ["est_bio", LABEL_BIO],
   ["est_rge", LABEL_RGE],
   ["est_qualiopi", LABEL_QUALIOPI],
-  ["est_organisme_formation", "Organisme de formation"],
+  ["est_organisme_formation", LABEL_ORGANISME_FORMATION],
   ["est_alim_confiance", LABEL_ALIM_CONFIANCE],
   ["est_ess", "ESS"],
   ["est_association", "Association"],
