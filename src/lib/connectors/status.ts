@@ -17,6 +17,10 @@ import {
   isBoampEnabled,
   isJoafeEnabled,
   isDcaEnabled,
+  isRgeEnabled,
+  isAgenceBioEnabled,
+  isAlimConfianceEnabled,
+  isQualiopiEnabled,
 } from "@/lib/env";
 
 /**
@@ -201,6 +205,50 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isDcaEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "DCA_ENABLED non activé → inactif.",
+    },
+    {
+      key: "rge",
+      label: "RGE (ADEME)",
+      live: !demo && isRgeEnabled(),
+      detail:
+        !demo && isRgeEnabled()
+          ? "Qualifications RGE, appelé quand Recherche d'entreprises signale le label."
+          : isRgeEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "RGE_ENABLED non activé → inactif.",
+    },
+    {
+      key: "agence_bio",
+      label: "Agence BIO",
+      live: !demo && isAgenceBioEnabled(),
+      detail:
+        !demo && isAgenceBioEnabled()
+          ? "Certifications agriculture biologique, appelé quand le label est signalé."
+          : isAgenceBioEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "AGENCE_BIO_ENABLED non activé → inactif.",
+    },
+    {
+      key: "alim_confiance",
+      label: "Alim'confiance (DGAL)",
+      live: !demo && isAlimConfianceEnabled(),
+      detail:
+        !demo && isAlimConfianceEnabled()
+          ? "Résultats publiés des contrôles sanitaires, appelé quand le label est signalé."
+          : isAlimConfianceEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "ALIM_CONFIANCE_ENABLED non activé → inactif.",
+    },
+    {
+      key: "qualiopi",
+      label: "Organismes de formation (DGEFP)",
+      live: !demo && isQualiopiEnabled(),
+      detail:
+        !demo && isQualiopiEnabled()
+          ? "Déclaration d'activité et catégories Qualiopi, appelé quand le label est signalé."
+          : isQualiopiEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "QUALIOPI_ENABLED non activé → inactif.",
     },
     {
       key: "companies_house",

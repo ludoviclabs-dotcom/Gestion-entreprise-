@@ -16,5 +16,9 @@ export type SourceKind =
   | "boamp"
   | "joafe"
   | "dca"
+  | "rge"
+  | "agence_bio"
+  | "alim_confiance"
+  | "qualiopi"
   | "manual"
   | "fixture";

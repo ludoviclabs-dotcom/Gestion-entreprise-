@@ -12,12 +12,24 @@ import { ban, banAddressFrom } from "@/lib/connectors/ban";
 import { gdelt } from "@/lib/connectors/gdelt";
 import { pappers } from "@/lib/connectors/pappers";
 import { companiesHouse } from "@/lib/connectors/companies-house";
-import { rechercheEntreprises } from "@/lib/connectors/recherche-entreprises";
+import {
+  LABEL_ALIM_CONFIANCE,
+  LABEL_BIO,
+  LABEL_QUALIOPI,
+  LABEL_RGE,
+  rechercheEntreprises,
+} from "@/lib/connectors/recherche-entreprises";
 import { balo } from "@/lib/connectors/balo";
 import { boamp } from "@/lib/connectors/boamp";
 import { dca, joafe, isRna } from "@/lib/connectors/associations";
+import { rge } from "@/lib/connectors/rge";
+import { agenceBio } from "@/lib/connectors/agence-bio";
+import { alimConfiance } from "@/lib/connectors/alim-confiance";
+import { qualiopi } from "@/lib/connectors/qualiopi";
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
 import {
+  isAgenceBioEnabled,
+  isAlimConfianceEnabled,
   isBaloEnabled,
   isBoampEnabled,
   isCompaniesHouseEnabled,
@@ -25,7 +37,9 @@ import {
   isDemoMode,
   isInpiUboExposed,
   isJoafeEnabled,
+  isQualiopiEnabled,
   isRechercheEntreprisesEnabled,
+  isRgeEnabled,
 } from "@/lib/env";
 import {
   dilaAttributes,
@@ -34,6 +48,7 @@ import {
   normalizeDca,
   normalizeJoafe,
 } from "./normalize-dila";
+import { labelsAttributes } from "./normalize-labels";
 import { normalizeSirene, sireneAddress } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
@@ -207,17 +222,48 @@ export async function assembleCase(
     dcaRes && !dcaRes.isFixture ? rnaOf(dcaRes.raw) : null,
     rechercheRes && !rechercheRes.isFixture ? rnaOf(rechercheRes.raw) : null,
   ].find(isRna);
-  const joafeRes =
-    live && isJoafeEnabled() && isAssociation && rna ? await joafe.byRna(rna) : null;
-  if (joafeRes) sources.push(toSource("joafe", joafeRes));
-
-  // Consultation DILA exploitable : réussie (2xx), non fixture, non dégradée.
-  const dilaUsable = (r: ConnectorResult<unknown> | null): r is ConnectorResult<unknown> =>
+  // Consultation de jeu ouvert exploitable : réussie (2xx), non fixture, non
+  // dégradée (DILA, labels).
+  const openDataUsable = (
+    r: ConnectorResult<unknown> | null,
+  ): r is ConnectorResult<unknown> =>
     r !== null &&
     !r.isFixture &&
     r.httpStatus >= 200 &&
     r.httpStatus < 300 &&
     !isDegradedEndpoint(r.endpoint);
+
+  // Détail des LABELS publics (RGE, Agence BIO, Alim'confiance, Qualiopi) :
+  // interrogé SEULEMENT quand Recherche d'entreprises signale le label (donc
+  // après elle) — jamais pour une société qui ne le porte pas. Sans réponse
+  // exploitable de Recherche d'entreprises, aucun label n'est connu : aucun appel.
+  const flaggedLabels = new Set<string>(
+    openDataUsable(rechercheRes) && Array.isArray((rechercheRes.raw as { labels?: unknown })?.labels)
+      ? ((rechercheRes.raw as { labels: unknown[] }).labels.filter(
+          (l) => typeof l === "string",
+        ) as string[])
+      : [],
+  );
+  // Une seule vague parallèle : JOAFE (dépend du RNA) et les 4 labels.
+  const none = Promise.resolve(null);
+  const [joafeRes, rgeRes, bioRes, alimRes, qualiopiRes] = await Promise.all([
+    live && isJoafeEnabled() && isAssociation && rna ? joafe.byRna(rna) : none,
+    live && isRgeEnabled() && flaggedLabels.has(LABEL_RGE) ? rge.bySiren(siren) : none,
+    live && isAgenceBioEnabled() && flaggedLabels.has(LABEL_BIO)
+      ? agenceBio.bySiren(siren)
+      : none,
+    live && isAlimConfianceEnabled() && flaggedLabels.has(LABEL_ALIM_CONFIANCE)
+      ? alimConfiance.bySiren(siren)
+      : none,
+    live && isQualiopiEnabled() && flaggedLabels.has(LABEL_QUALIOPI)
+      ? qualiopi.bySiren(siren)
+      : none,
+  ]);
+  if (joafeRes) sources.push(toSource("joafe", joafeRes));
+  if (rgeRes) sources.push(toSource("rge", rgeRes));
+  if (bioRes) sources.push(toSource("agence_bio", bioRes));
+  if (alimRes) sources.push(toSource("alim_confiance", alimRes));
+  if (qualiopiRes) sources.push(toSource("qualiopi", qualiopiRes));
 
   // Repli fixture (BODACC en panne) ou mode live : jamais d'annonces d'échantillon
   // sur un dossier réel.
@@ -226,10 +272,10 @@ export async function assembleCase(
     : [];
   const events = [
     ...bodaccEvents,
-    ...(dilaUsable(baloRes) ? normalizeBalo(baloRes.raw, companyId) : []),
-    ...(dilaUsable(boampRes) ? normalizeBoamp(boampRes.raw, companyId) : []),
-    ...(dilaUsable(dcaRes) ? normalizeDca(dcaRes.raw, companyId) : []),
-    ...(dilaUsable(joafeRes) ? normalizeJoafe(joafeRes.raw, companyId) : []),
+    ...(openDataUsable(baloRes) ? normalizeBalo(baloRes.raw, companyId) : []),
+    ...(openDataUsable(boampRes) ? normalizeBoamp(boampRes.raw, companyId) : []),
+    ...(openDataUsable(dcaRes) ? normalizeDca(dcaRes.raw, companyId) : []),
+    ...(openDataUsable(joafeRes) ? normalizeJoafe(joafeRes.raw, companyId) : []),
   ];
 
   // Sans identifiants INPI en mode live, `inpiRes` est la fixture (dirigeants
@@ -414,10 +460,17 @@ export async function assembleCase(
     subject.attributes = {
       ...subject.attributes,
       ...dilaAttributes({
-        balo: dilaUsable(baloRes) ? baloRes.raw : null,
-        boamp: dilaUsable(boampRes) ? boampRes.raw : null,
-        dca: dilaUsable(dcaRes) ? dcaRes.raw : null,
-        joafe: dilaUsable(joafeRes) ? joafeRes.raw : null,
+        balo: openDataUsable(baloRes) ? baloRes.raw : null,
+        boamp: openDataUsable(boampRes) ? boampRes.raw : null,
+        dca: openDataUsable(dcaRes) ? dcaRes.raw : null,
+        joafe: openDataUsable(joafeRes) ? joafeRes.raw : null,
+      }),
+      // Détail des labels publics (RGE, bio, Alim'confiance, Qualiopi).
+      ...labelsAttributes({
+        rge: openDataUsable(rgeRes) ? rgeRes.raw : null,
+        bio: openDataUsable(bioRes) ? bioRes.raw : null,
+        alim: openDataUsable(alimRes) ? alimRes.raw : null,
+        qualiopi: openDataUsable(qualiopiRes) ? qualiopiRes.raw : null,
       }),
     };
   }
