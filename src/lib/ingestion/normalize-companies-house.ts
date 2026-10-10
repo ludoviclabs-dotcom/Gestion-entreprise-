@@ -54,14 +54,43 @@ function natureLabel(code: string): string {
   return code;
 }
 
-/** « MURPHY, Ken » → « Ken MURPHY » ; les noms de sociétés sont laissés tels quels. */
+/**
+ * Titres, civilités et suffixes que Companies House insère dans le nom. Comparés
+ * en minuscules, sans point. Liste volontairement limitée aux valeurs courantes
+ * et non ambiguës (un prénom ne doit jamais être pris pour un titre).
+ */
+const TITLES = new Set([
+  "mr", "mrs", "ms", "miss", "mx", "dr", "prof", "professor", "sir", "dame",
+  "lord", "lady", "rev", "reverend", "hon", "honourable", "esq", "esquire",
+  "jr", "sr", "kc", "qc", "cbe", "obe", "mbe", "lvo", "kbe", "dbe", "mp",
+]);
+
+function isTitleSegment(segment: string): boolean {
+  const tokens = segment
+    .toLowerCase()
+    .replace(/\./g, "")
+    .split(/\s+/)
+    .filter(Boolean);
+  return tokens.length > 0 && tokens.every((t) => TITLES.has(t));
+}
+
+/**
+ * « MURPHY, Ken » → « Ken MURPHY ». Companies House publie `NOM, Prénoms` mais y
+ * glisse parfois un titre, AVANT ou APRÈS les prénoms :
+ *   « BRANCH, Sonya Judith Clara, Ms. »   (titre après)
+ *   « BROOKS-STEPHENSON, ESQ, Philip Edward Paul Archer » (titre avant)
+ * Les segments reconnus comme titres sont écartés (ce n'est pas une partie du
+ * nom et ils empêcheraient le rapprochement avec les autres sources) ; les
+ * autres segments restent des prénoms. Les noms de sociétés ne sont jamais
+ * découpés.
+ */
 export function displayName(name: string, corporate: boolean): string {
   const n = name.trim();
   if (corporate) return n;
-  const comma = n.indexOf(",");
-  if (comma <= 0) return n;
-  const surname = n.slice(0, comma).trim();
-  const forenames = n.slice(comma + 1).trim();
+  const parts = n.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2) return n;
+  const [surname, ...rest] = parts;
+  const forenames = rest.filter((p) => !isTitleSegment(p)).join(" ");
   return forenames ? `${forenames} ${surname}` : surname;
 }
 

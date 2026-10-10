@@ -223,6 +223,40 @@ describe("normalizeCompaniesHouse", () => {
   };
   const COMPANY = "co:lei:2138002P5RNKC5W2JZ46";
 
+  it("écarte les titres (Mr., Ms., Dame, Dr.…) publiés après le prénom", () => {
+    expect(displayName("BRANCH, Sonya Judith Clara, Ms.", false)).toBe("Sonya Judith Clara BRANCH");
+    expect(displayName("FAIRBAIRN, Carolyn Julie, Dame", false)).toBe("Carolyn Julie FAIRBAIRN");
+    expect(displayName("MEADE KURIBRENA, Jose Antonio, Dr.", false)).toBe("Jose Antonio MEADE KURIBRENA");
+    expect(displayName("DE JONG, Michiel Gerrit Jan, Mr.", false)).toBe("Michiel Gerrit Jan DE JONG");
+    // Titre AVANT les prénoms : les prénoms ne doivent pas être perdus.
+    expect(displayName("BROOKS-STEPHENSON, ESQ, Philip Edward Paul Archer", false)).toBe(
+      "Philip Edward Paul Archer BROOKS-STEPHENSON",
+    );
+    expect(displayName("SMITH, Dr, John", false)).toBe("John SMITH");
+    expect(displayName("SMITH, Sir Prof, John Paul", false)).toBe("John Paul SMITH");
+    // Rien que des titres : on garde le nom de famille, sans inventer de prénom.
+    expect(displayName("SMITH, Mr.", false)).toBe("SMITH");
+    // Un prénom qui ressemble à un titre n'est écarté que s'il est SEUL dans son segment.
+    expect(displayName("DAME, Hon Michael", false)).toBe("Hon Michael DAME");
+    // Sans virgule : inchangé ; société : jamais découpée.
+    expect(displayName("ELEPHANT", false)).toBe("ELEPHANT");
+    expect(displayName("EXEMPLE, HOLDINGS LIMITED", true)).toBe("EXEMPLE, HOLDINGS LIMITED");
+  });
+
+  it("l'identifiant ne dépend pas du titre (fusion possible avec les autres sources)", () => {
+    const withTitle = normalizeCompaniesHouse(
+      {
+        status: "ok",
+        company: { number: "1", name: "X", status: null, type: null, createdOn: null, jurisdiction: null, sicCodes: [] },
+        officers: [{ name: "BRANCH, Sonya Judith Clara, Ms.", role: "director", corporate: false, appointedOn: null, resignedOn: null }],
+        pscs: [],
+      },
+      { companyId: "co:x" },
+    );
+    expect(withTitle.entities[0].id).toBe("pe:sonya-judith-clara-branch");
+    expect(withTitle.entities[0].label).toBe("Sonya Judith Clara BRANCH");
+  });
+
   it("convertit « NOM, Prénom » et crée dirigeants + arêtes DIRIGE datées", () => {
     expect(displayName("MURPHY, Ken", false)).toBe("Ken MURPHY");
     expect(displayName("EXEMPLE LIMITED", true)).toBe("EXEMPLE LIMITED");
