@@ -11,6 +11,7 @@ import ExportMenu from "@/components/cases/ExportMenu.client";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
 import { reviewStateFromEvents } from "@/lib/audit/journal";
+import { formatDateFr } from "@/lib/format-date";
 
 export default async function CaseWorkspaceLayout(props: {
   children: React.ReactNode;
@@ -30,7 +31,7 @@ export default async function CaseWorkspaceLayout(props: {
 
   // Provenance honnête, dérivée des sources réellement consultées.
   const updatedLabel = summaryEntry?.updatedAt
-    ? new Intl.DateTimeFormat("fr-FR").format(new Date(summaryEntry.updatedAt))
+    ? formatDateFr(summaryEntry.updatedAt)
     : null;
 
   // Axe de revue (P4) — projeté depuis le journal append-only.

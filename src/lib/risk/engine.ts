@@ -8,12 +8,35 @@ import type {
 } from "@/lib/graph/graph-types";
 import { familyForRule } from "@/lib/graph/graph-types";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
+import { structuralDegree } from "@/lib/graph/build-graph";
 import { DEFAULT_RULES } from "./rules";
 import { DEFAULT_THRESHOLDS } from "./types";
 import type { Rule, Thresholds } from "./types";
 
-/** Version publique du modèle de scoring utilisé dans les dossiers et exports. */
-export const SCORE_MODEL_VERSION = "kyb-risk-2026.1";
+/**
+ * Version publique du modèle de scoring utilisé dans les dossiers et exports.
+ *
+ * 2026.2 — la complexité ne compte plus les annonces rattachées (nœuds
+ * événement) dans le degré maximal : seule la structure compte.
+ */
+export const SCORE_MODEL_VERSION = "kyb-risk-2026.2";
+
+/**
+ * Version du modèle qui a produit les dossiers créés AVANT 2026.2. Leurs scores
+ * sont persistés tels quels : on ne les relabellise jamais « 2026.2 ». Sa formule
+ * de complexité comptait toutes les arêtes (annonces comprises) dans le degré max.
+ */
+export const LEGACY_SCORE_MODEL_VERSION = "kyb-risk-2026.1";
+
+/**
+ * Version du modèle enregistrée dans les métadonnées d'un dossier persisté.
+ * Absente ou illisible → modèle historique (seul modèle existant avant 2026.2).
+ */
+export function scoreModelVersionOf(metadata: unknown): string {
+  const v = (metadata as { scoreModelVersion?: unknown } | null | undefined)
+    ?.scoreModelVersion;
+  return typeof v === "string" && v.trim() ? v.trim() : LEGACY_SCORE_MODEL_VERSION;
+}
 
 /** Poids appliqué à chaque sévérité dans le score de vigilance. */
 export const SEVERITY_WEIGHT: Record<Severity, number> = {
@@ -139,17 +162,25 @@ export type ComplexiteExplanation = {
 /**
  * Décompose le score de complexité structurelle en ses 3 termes (densité,
  * taille, degré max) — rend le chiffre auditable plutôt qu'opaque. Calibré pour
- * qu'un dossier solo soit < 20, un réseau dense > 70.
+ * qu'un dossier solo soit < 20, un réseau dense > 70. Depuis 2026.2 le degré max
+ * est STRUCTUREL (voir `structuralDegree`) : le volume d'annonces publiées n'entre
+ * pas dans la complexité.
+ *
+ * `modelVersion` permet d'expliquer un score PERSISTÉ avec le modèle qui l'a
+ * produit (2026.1 : toutes les arêtes comptaient) — un audit doit retrouver le
+ * chiffre stocké avec la version annoncée. Par défaut : modèle courant.
  */
 export function explainComplexite(
   bundle: CaseBundle,
   graph: Graph,
+  modelVersion: string = SCORE_MODEL_VERSION,
 ): ComplexiteExplanation {
   const n = bundle.entities.length;
   const e = bundle.edges.length;
+  const legacy = modelVersion === LEGACY_SCORE_MODEL_VERSION;
   let maxDegree = 0;
   graph.forEachNode((node) => {
-    const d = graph.degree(node);
+    const d = legacy ? graph.degree(node) : structuralDegree(graph, node);
     if (d > maxDegree) maxDegree = d;
   });
   const density = n === 0 ? 0 : e / Math.max(n - 1, 1);

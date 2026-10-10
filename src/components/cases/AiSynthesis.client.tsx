@@ -10,6 +10,7 @@ import {
   ClipboardPaste,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateTimeFr } from "@/lib/format-date";
 import {
   Dialog,
   DialogContent,
@@ -95,7 +96,7 @@ export default function AiSynthesis({
               </p>
               <p className="text-xs text-muted-foreground">
                 {existing
-                  ? `Rédigée le ${new Date(existing.updatedAt).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}.`
+                  ? `Rédigée le ${formatDateTimeFr(existing.updatedAt)}.`
                   : "Workflow manuel — copie le briefing dans ta session Claude Code, colle la réponse ici."}
               </p>
             </div>

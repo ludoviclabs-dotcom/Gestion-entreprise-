@@ -68,6 +68,12 @@ export type CaseDetail = {
   bundle: CaseBundle;
   sources: SourceRow[];
   evidence: EvidenceRow[];
+  /**
+   * Version du modèle de score qui a produit les scores PERSISTÉS du dossier
+   * (métadonnées en base). Absente pour les fixtures et dossiers de session :
+   * les scores y sont calculés à la volée, donc avec le modèle courant.
+   */
+  scoreModelVersion?: string;
 };
 
 /**

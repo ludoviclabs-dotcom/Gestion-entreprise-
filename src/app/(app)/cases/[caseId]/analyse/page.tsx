@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import KpiCard from "@/components/cases/KpiCard";
 import EmptyState from "@/components/empty/EmptyState";
 import { getCasesRepository } from "@/lib/data/cases-repository";
-import { buildGraph } from "@/lib/graph/build-graph";
+import { buildGraph, structuralDegree } from "@/lib/graph/build-graph";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
 import { NODE_COLORS, NODE_LABELS } from "@/lib/graph/graph-types";
 import { AlgorithmExplainer } from "@/components/cases/AlgorithmExplainer";
@@ -68,9 +68,10 @@ export default async function AnalyseTab(props: {
     .filter((c) => c.size >= 2)
     .sort((a, b) => b.size - a.size);
 
-  // Degrés moyen et max.
+  // Degrés moyen et max — STRUCTURELS (sans les annonces rattachées), comme la
+  // composition du score de complexité.
   const degrees = bundle.entities.map((e) =>
-    graph.hasNode(e.id) ? graph.degree(e.id) : 0,
+    graph.hasNode(e.id) ? structuralDegree(graph, e.id) : 0,
   );
   const avgDegree = degrees.length
     ? Math.round(

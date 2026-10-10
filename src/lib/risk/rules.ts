@@ -7,6 +7,7 @@ import type {
   Severity,
 } from "@/lib/graph/graph-types";
 import { computeGraphMetrics } from "@/lib/graph/algorithms";
+import { structuralDegree } from "@/lib/graph/build-graph";
 import { compareDeclaredUbo, parsePct } from "@/lib/graph/ubo";
 import { normalizeName, stripLegalForms } from "@/lib/match/normalize";
 import { denominationSimilarity } from "@/lib/match/similarity";
@@ -153,8 +154,10 @@ export const SOCIETE_RECENTE_TRES_LIEE: Rule = {
       if (!created) continue;
       const elapsed = monthsBetween(created, now);
       if (elapsed > months) continue;
+      // Degré STRUCTUREL : les annonces publiées (BODACC, BALO…) ne sont pas des
+      // liens — une société récente et très publiée n'est pas « très liée ».
       const degree = ctx.graph.hasNode(entity.id)
-        ? ctx.graph.degree(entity.id)
+        ? structuralDegree(ctx.graph, entity.id)
         : 0;
       if (degree < minDegree) continue;
       signals.push(

@@ -22,6 +22,7 @@ import type {
 } from "@/lib/data/types";
 import type { MitigatingFactor } from "@/lib/risk/mitigating";
 import type { FaisceauResult, VigilanceContribution } from "@/lib/risk/engine";
+import { formatDateFr } from "@/lib/format-date";
 
 // Palette PDF — version contrastée pour impression (les tokens UI sombres
 // sont remplacés par des nuances claires lisibles sur fond blanc).
@@ -207,12 +208,7 @@ function SeverityBadge({ severity }: { severity: Severity }) {
 }
 
 function formatDate(iso?: string): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("fr-FR");
-  } catch {
-    return iso;
-  }
+  return formatDateFr(iso);
 }
 
 function shortHash(input?: string): string {

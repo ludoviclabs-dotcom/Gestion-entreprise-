@@ -13,6 +13,8 @@ describe("DbCasesRepository persistence contract", () => {
     expect(source).toContain(".insert(evidence)");
     expect(source).toContain("sourceRecordIdFor(");
     expect(source).toContain("scoreModelVersion: SCORE_MODEL_VERSION");
+    // Lecture : la version persistée du dossier est restituée, jamais la courante.
+    expect(source).toContain("scoreModelVersion: scoreModelVersionOf(caseRow.metadata)");
     expect(source).toContain("attributes: edgeAttributes(edge)");
     expect(source).toContain("readEdgeAttributes(e.attributes)");
   });

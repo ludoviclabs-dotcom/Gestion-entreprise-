@@ -108,6 +108,15 @@ export function buildCaseAnalytics(detail: CaseDetail, now: Date) {
   };
 }
 
+/**
+ * Version du modèle de score à afficher dans un export : celle qui a produit les
+ * scores persistés du dossier, à défaut le modèle courant (scores calculés à la
+ * volée : fixtures, session).
+ */
+export function exportScoreModelVersion(detail: CaseDetail): string {
+  return detail.scoreModelVersion ?? SCORE_MODEL_VERSION;
+}
+
 /** Manifeste JSON d'audit (forme de la route export/json + mode de redaction). */
 export function buildManifest(
   detail: CaseDetail,
@@ -117,7 +126,7 @@ export function buildManifest(
   const analytics = buildCaseAnalytics(detail, new Date(meta.generatedAt));
   return {
     generator: "KYB Graph",
-    scoreModelVersion: SCORE_MODEL_VERSION,
+    scoreModelVersion: exportScoreModelVersion(detail),
     generatedAt: meta.generatedAt,
     payloadHash: meta.payloadHash,
     origin: meta.sourceHealth.origin,
@@ -147,7 +156,7 @@ export async function renderCasePdf(
       evidence: detail.evidence,
       sourceHealth: meta.sourceHealth,
       scoreStatus: meta.scoreStatus,
-      scoreModelVersion: SCORE_MODEL_VERSION,
+      scoreModelVersion: exportScoreModelVersion(detail),
       generatedAt: meta.generatedAt,
       payloadHash: meta.payloadHash,
       redaction,

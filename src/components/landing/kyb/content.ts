@@ -42,7 +42,7 @@ export const SCORES = [
 export const SCORES_INTRO =
   "Le produit ne qualifie jamais une structure de « frauduleuse ». Il parle de complexité, de vigilance et de qualité de preuve.";
 
-export const SCORE_MODEL = "Modèle de score kyb-risk-2026.1";
+export const SCORE_MODEL = "Modèle de score kyb-risk-2026.2";
 
 /** m = modéré, e = élevé, c = critique. */
 export type Threat = "m" | "e" | "c";
