@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import {
@@ -138,14 +139,24 @@ function isMissingTableError(error: unknown): boolean {
 }
 
 /**
+ * Découpe un lot de lignes à insérer (limite de paramètres d'une requête
+ * Postgres ≈ 65 535). Renvoie [] pour un lot vide : Drizzle refuse `values([])`.
+ */
+function chunkRows<T>(rows: T[], size = 500): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < rows.length; i += size) out.push(rows.slice(i, i + size));
+  return out;
+}
+
+/**
  * Implémentation Neon Postgres (Drizzle) du repository.
  * S'active automatiquement dès que `DATABASE_URL` est défini.
  *
  * Notes :
- *  - Pas de transaction interactive avec le driver neon-http. La création
- *    d'un dossier est rendue idempotente par l'index unique (caseId,type,
- *    naturalKey) sur entities ; en cas d'erreur partielle, le dossier reste
- *    en `status:'error'` (pas de rollback).
+ *  - Pas de transaction INTERACTIVE avec le driver neon-http, mais `db.batch`
+ *    exécute plusieurs instructions en UNE requête transactionnelle : la
+ *    création d'un dossier est atomique (tout ou rien) et ne coûte qu'un
+ *    aller-retour. En cas d'échec, le dossier est marqué `status:'error'`.
  *  - Les champs CaseEntity.source/excerpt sont stockés sous les clés
  *    réservées `__source` / `__excerpt` dans entities.attributes (jsonb).
  */
@@ -507,50 +518,75 @@ export class DbCasesRepository implements CasesRepository {
     const caseId = caseRow.id;
 
     try {
+      // PERFORMANCE : la version précédente faisait ~300 INSERT successifs (un
+      // aller-retour HTTPS Neon chacun, ≈ 55 s pour un dossier de 40 entités).
+      // Les identifiants sont désormais générés ICI et toutes les lignes partent
+      // en UNE requête transactionnelle (`db.batch`) : tout ou rien, une seule
+      // latence réseau. Si une écriture échoue, rien n'est persisté et le dossier
+      // est marqué « error » (catch plus bas).
+      const completedAt = new Date();
+
+      // 1. Source records (chaîne de preuve) — ids pré-générés pour que evidence
+      // puisse les référencer sans attendre un `returning()`.
       const sourceRecordBySource = new Map<SourceKind, string>();
-      for (const src of sources) {
-        const [row] = await db
-          .insert(sourceRecords)
-          .values({
-            caseId,
-            source: src.source,
-            endpoint: src.endpoint,
-            httpStatus: String(src.httpStatus),
-            payload: src.raw,
-            // Convention historique source_records (JSON.stringify verbatim).
-            payloadHash: payloadHash(src.raw),
-            isFixture: src.isFixture ? "true" : "false",
-          })
-          .returning();
+      const sourceRecordRows = sources.map((src) => {
+        const id = randomUUID();
         if (!sourceRecordBySource.has(src.source)) {
-          sourceRecordBySource.set(src.source, row.id);
+          sourceRecordBySource.set(src.source, id);
         }
-      }
+        return {
+          id,
+          caseId,
+          source: src.source,
+          endpoint: src.endpoint,
+          httpStatus: String(src.httpStatus),
+          payload: src.raw,
+          // Convention historique source_records (JSON.stringify verbatim).
+          payloadHash: payloadHash(src.raw),
+          isFixture: src.isFixture ? "true" : "false",
+        };
+      });
+
+      type EntityInsert = typeof entities.$inferInsert;
+      type CompanyInsert = typeof companies.$inferInsert;
+      type PersonInsert = typeof persons.$inferInsert;
+      type AddressInsert = typeof addresses.$inferInsert;
+      type EdgeInsert = typeof edges.$inferInsert;
+      type EventInsert = typeof events.$inferInsert;
+      type SignalInsert = typeof riskSignals.$inferInsert;
+      type EvidenceInsert = typeof evidence.$inferInsert;
+
+      const entityRows: EntityInsert[] = [];
+      const companyRows: CompanyInsert[] = [];
+      const personRows: PersonInsert[] = [];
+      const addressRows: AddressInsert[] = [];
+      const edgeRows: EdgeInsert[] = [];
+      const eventRows: EventInsert[] = [];
+      const signalRows: SignalInsert[] = [];
+      const evidenceRows: EvidenceInsert[] = [];
 
       // 2. Entities + sous-tables (map fixture-id → uuid pour edges/events/signaux)
       const idMap = new Map<string, string>();
       for (const ent of bundle.entities) {
+        const entityId = randomUUID();
+        idMap.set(ent.id, entityId);
         const mergedAttrs: Record<string, string> = { ...(ent.attributes ?? {}) };
         if (ent.source) mergedAttrs.__source = ent.source;
         if (ent.excerpt) mergedAttrs.__excerpt = ent.excerpt;
 
-        const [row] = await db
-          .insert(entities)
-          .values({
-            caseId,
-            type: ent.type,
-            label: ent.label,
-            evidenceLevel: ent.evidenceLevel,
-            naturalKey: ent.id,
-            attributes: mergedAttrs,
-          })
-          .returning();
-        idMap.set(ent.id, row.id);
-
-        await db.insert(evidence).values({
+        entityRows.push({
+          id: entityId,
+          caseId,
+          type: ent.type,
+          label: ent.label,
+          evidenceLevel: ent.evidenceLevel,
+          naturalKey: ent.id,
+          attributes: mergedAttrs,
+        });
+        evidenceRows.push({
           caseId,
           subjectType: "entity",
-          subjectId: row.id,
+          subjectId: entityId,
           sourceRecordId: sourceRecordIdFor(
             inferEntitySource(ent),
             sourceRecordBySource,
@@ -562,15 +598,15 @@ export class DbCasesRepository implements CasesRepository {
 
         if (ent.type === "company") {
           const a = ent.attributes ?? {};
-          await db.insert(companies).values({
-            entityId: row.id,
+          companyRows.push({
+            entityId,
             // Le SIREN racine ne sert de repli QUE pour la société sujet : une
             // société sans SIREN propre (ex. mère étrangère GLEIF, LEI seul) ne
             // doit pas hériter du SIREN racine (corromprait la recherche). On
             // retombe alors sur son LEI, sinon l'identifiant du nœud.
             siren:
               (a["SIREN"] ?? "").replace(/\s/g, "") ||
-              (ent.id === `co:${siren}` ? siren : (a["LEI"] ?? row.id)),
+              (ent.id === `co:${siren}` ? siren : (a["LEI"] ?? entityId)),
             denomination: ent.label,
             formeJuridique: a["Forme juridique"] ?? null,
             nafCode: a["Activité (NAF)"]?.split(/\s|—/)[0] ?? null,
@@ -580,8 +616,8 @@ export class DbCasesRepository implements CasesRepository {
         } else if (ent.type === "person") {
           const { prenoms, nom } = splitPersonName(ent.label);
           const a = ent.attributes ?? {};
-          await db.insert(persons).values({
-            entityId: row.id,
+          personRows.push({
+            entityId,
             nom,
             prenoms,
             qualite: a["Qualité"] ?? null,
@@ -589,8 +625,8 @@ export class DbCasesRepository implements CasesRepository {
           });
         } else if (ent.type === "address") {
           const a = ent.attributes ?? {};
-          await db.insert(addresses).values({
-            entityId: row.id,
+          addressRows.push({
+            entityId,
             ligne: ent.label,
             codePostal: a["Code postal"] ?? null,
             commune: a["Commune"] ?? null,
@@ -605,24 +641,23 @@ export class DbCasesRepository implements CasesRepository {
         const src = idMap.get(edge.source);
         const tgt = idMap.get(edge.target);
         if (!src || !tgt) continue;
-        const [edgeRow] = await db
-          .insert(edges)
-          .values({
-            caseId,
-            type: edge.type,
-            sourceId: src,
-            targetId: tgt,
-            evidenceLevel: edge.evidenceLevel,
-            weight: edge.weight ?? null,
-            validFrom: edge.validFrom ?? null,
-            validTo: edge.validTo ?? null,
-            attributes: edgeAttributes(edge),
-          })
-          .returning();
-        await db.insert(evidence).values({
+        const edgeId = randomUUID();
+        edgeRows.push({
+          id: edgeId,
+          caseId,
+          type: edge.type,
+          sourceId: src,
+          targetId: tgt,
+          evidenceLevel: edge.evidenceLevel,
+          weight: edge.weight ?? null,
+          validFrom: edge.validFrom ?? null,
+          validTo: edge.validTo ?? null,
+          attributes: edgeAttributes(edge),
+        });
+        evidenceRows.push({
           caseId,
           subjectType: "edge",
-          subjectId: edgeRow.id,
+          subjectId: edgeId,
           sourceRecordId: sourceRecordIdFor(
             inferEdgeSource(edge, bundle),
             sourceRecordBySource,
@@ -643,23 +678,22 @@ export class DbCasesRepository implements CasesRepository {
         const subj = idMap.get(ev.entityId);
         if (!subj) continue;
         const eventSource = inferEventSource(ev) ?? "bodacc";
-        const [eventRow] = await db
-          .insert(events)
-          .values({
-            caseId,
-            entityId: subj,
-            kind: ev.kind,
-            source: eventSource,
-            occurredOn: ev.occurredOn ?? null,
-            title: ev.title,
-            evidenceLevel: ev.evidenceLevel,
-            payload: { source: ev.source },
-          })
-          .returning();
-        await db.insert(evidence).values({
+        const eventId = randomUUID();
+        eventRows.push({
+          id: eventId,
+          caseId,
+          entityId: subj,
+          kind: ev.kind,
+          source: eventSource,
+          occurredOn: ev.occurredOn ?? null,
+          title: ev.title,
+          evidenceLevel: ev.evidenceLevel,
+          payload: { source: ev.source },
+        });
+        evidenceRows.push({
           caseId,
           subjectType: "event",
-          subjectId: eventRow.id,
+          subjectId: eventId,
           sourceRecordId: sourceRecordIdFor(eventSource, sourceRecordBySource),
           level: ev.evidenceLevel,
           excerpt: ev.title,
@@ -670,22 +704,21 @@ export class DbCasesRepository implements CasesRepository {
       // 5. Risk signals
       for (const sig of bundle.riskSignals) {
         const subj = sig.subjectId ? (idMap.get(sig.subjectId) ?? null) : null;
-        const [signalRow] = await db
-          .insert(riskSignals)
-          .values({
-            caseId,
-            ruleId: sig.ruleId,
-            subjectType: "entity",
-            subjectId: subj,
-            severity: sig.severity,
-            category: sig.category,
-            explanation: sig.explanation,
-          })
-          .returning();
-        await db.insert(evidence).values({
+        const signalId = randomUUID();
+        signalRows.push({
+          id: signalId,
+          caseId,
+          ruleId: sig.ruleId,
+          subjectType: "entity",
+          subjectId: subj,
+          severity: sig.severity,
+          category: sig.category,
+          explanation: sig.explanation,
+        });
+        evidenceRows.push({
           caseId,
           subjectType: "risk_signal",
-          subjectId: signalRow.id,
+          subjectId: signalId,
           sourceRecordId: sourceRecordIdFor(
             inferSignalSource(sig, bundle),
             sourceRecordBySource,
@@ -696,23 +729,37 @@ export class DbCasesRepository implements CasesRepository {
         });
       }
 
-      // 6. Source records (chaîne de preuve)
-      // 7. Tag « prêt »
-      const completedAt = new Date();
-      await db
-        .update(cases)
-        .set({
-          status: "ready",
-          updatedAt: completedAt,
-          metadata: {
-            scoreModelVersion: SCORE_MODEL_VERSION,
-            origin: sourceHealth.origin,
-            sourceHealth,
-            scoreStatus: getScoreStatus(scores, "ready"),
-            lastRunAt: completedAt.toISOString(),
-          },
-        })
-        .where(eq(cases.id, caseId));
+      // 6. Écriture en UNE requête transactionnelle. L'ordre respecte les clés
+      // étrangères (source_records → entities → sous-tables / liens / événements /
+      // signaux → evidence) ; le passage à « prêt » est la DERNIÈRE instruction.
+      // Les lots sont découpés (limite de paramètres Postgres), jamais vides
+      // (Drizzle refuse `values([])`).
+      const batch = [
+        ...chunkRows(sourceRecordRows).map((r) => db.insert(sourceRecords).values(r)),
+        ...chunkRows(entityRows).map((r) => db.insert(entities).values(r)),
+        ...chunkRows(companyRows).map((r) => db.insert(companies).values(r)),
+        ...chunkRows(personRows).map((r) => db.insert(persons).values(r)),
+        ...chunkRows(addressRows).map((r) => db.insert(addresses).values(r)),
+        ...chunkRows(edgeRows).map((r) => db.insert(edges).values(r)),
+        ...chunkRows(eventRows).map((r) => db.insert(events).values(r)),
+        ...chunkRows(signalRows).map((r) => db.insert(riskSignals).values(r)),
+        ...chunkRows(evidenceRows).map((r) => db.insert(evidence).values(r)),
+        db
+          .update(cases)
+          .set({
+            status: "ready",
+            updatedAt: completedAt,
+            metadata: {
+              scoreModelVersion: SCORE_MODEL_VERSION,
+              origin: sourceHealth.origin,
+              sourceHealth,
+              scoreStatus: getScoreStatus(scores, "ready"),
+              lastRunAt: completedAt.toISOString(),
+            },
+          })
+          .where(eq(cases.id, caseId)),
+      ];
+      await db.batch(batch as unknown as Parameters<typeof db.batch>[0]);
 
       // 8. Journal de preuve (audit_logs) : la séquence de création chaînée.
       // Tolérant : si la table audit_logs n'a pas encore été migrée (0003), on
