@@ -6,6 +6,7 @@ import EmptyState from "@/components/empty/EmptyState";
 import GraphEvolution from "@/components/cases/GraphEvolution";
 import MediaFrise from "@/components/cases/MediaFrise";
 import { diffBundles } from "@/lib/graph/diff";
+import { formatDateFr } from "@/lib/format-date";
 import { SEVERITY_COLORS, maxSeverityBySubject } from "@/lib/graph/graph-types";
 import type { Severity } from "@/lib/graph/graph-types";
 
@@ -127,7 +128,7 @@ export default async function TimelineTab(props: {
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {ev.occurredOn
-                    ? new Date(ev.occurredOn).toLocaleDateString("fr-FR", {
+                    ? formatDateFr(ev.occurredOn, {
                         day: "2-digit",
                         month: "long",
                         year: "numeric",

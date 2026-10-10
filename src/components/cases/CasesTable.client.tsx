@@ -17,6 +17,7 @@ import ScorePills from "./ScorePills";
 import CaseQualityBadges from "./CaseQualityBadges";
 import EmptyState from "@/components/empty/EmptyState";
 import type { CaseSummary } from "@/lib/data/types";
+import { formatDateFr } from "@/lib/format-date";
 
 type SortKey = "title" | "updatedAt" | "vigilance";
 
@@ -154,7 +155,7 @@ export default function CasesTable({ cases }: { cases: CaseSummary[] }) {
                   <ScorePills scores={c.scores} size="sm" />
                 </TableCell>
                 <TableCell className="text-right text-xs text-muted-foreground">
-                  {new Date(c.updatedAt).toLocaleDateString("fr-FR")}
+                  {formatDateFr(c.updatedAt)}
                 </TableCell>
               </TableRow>
             ))}

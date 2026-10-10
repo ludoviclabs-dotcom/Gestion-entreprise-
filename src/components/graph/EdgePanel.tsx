@@ -5,6 +5,7 @@ import { FileSearch, X } from "lucide-react";
 import { useGraphStore } from "@/lib/store/graph-store";
 import type { CaseBundle, GraphDTO } from "@/lib/graph/graph-types";
 import { EDGE_LABELS, isHypothesis } from "@/lib/graph/graph-types";
+import { formatDateFr } from "@/lib/format-date";
 import EvidenceBadge from "./EvidenceBadge";
 
 export default function EdgePanel({
@@ -55,10 +56,10 @@ export default function EdgePanel({
           <p className="mt-1 text-xs text-[var(--muted-foreground)]">
             Valide{" "}
             {bundleEdge.validFrom
-              ? `du ${new Date(bundleEdge.validFrom).toLocaleDateString("fr-FR")}`
+              ? `du ${formatDateFr(bundleEdge.validFrom)}`
               : "jusqu'au"}
             {bundleEdge.validTo
-              ? ` au ${new Date(bundleEdge.validTo).toLocaleDateString("fr-FR")}`
+              ? ` au ${formatDateFr(bundleEdge.validTo)}`
               : bundleEdge.validFrom
                 ? " à aujourd'hui"
                 : ""}
