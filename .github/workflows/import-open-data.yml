@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: Jeu à importer (D0 vérifie uniquement le socle)
+        description: Jeu à importer (check vérifie le socle)
         required: true
         type: choice
         default: check
-        options: [check, all]
+        options: [check, camino, all]
   schedule:
     - cron: '17 3 4 * *'
 

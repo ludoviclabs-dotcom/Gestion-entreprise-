@@ -22,5 +22,6 @@ export type SourceKind =
   | "qualiopi"
   | "georisques"
   | "annuaire_administration"
+  | "camino"
   | "manual"
   | "fixture";

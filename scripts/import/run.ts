@@ -1,14 +1,19 @@
 import { appendFile } from "node:fs/promises";
 import { connectImportDatabase } from "./lib/postgres-store";
+import { importCamino } from "./camino";
 
-/** D0 vérifie le socle ; D1/D2 ajoutent leurs vrais importeurs à cette commande. */
 async function main() {
   const source = process.argv[2] ?? "check";
-  if (source !== "check" && source !== "all") throw new Error("UNKNOWN_SOURCE");
+  if (!["check", "camino", "all"].includes(source)) throw new Error("UNKNOWN_SOURCE");
   const db = connectImportDatabase();
   try {
-    await db`select id, source, status, record_count, imported_at from open_data_imports limit 0`;
-    const summary = "Infrastructure accessible. Aucun jeu importé : importeurs Camino et ICPE prévus en D1/D2.\n";
+    await db`select id from open_data_imports limit 0`;
+    let summary = "Infrastructure accessible.\n";
+    if (source !== "check") {
+      const started = Date.now();
+      const report = await importCamino(db);
+      summary += `Camino : ${report.recordCount} associations titre/SIREN ; ${report.unchanged ? "inchangé (vérification actualisée)" : "import publié"} ; ${((Date.now() - started) / 1000).toFixed(1)} s.\n`;
+    }
     console.log(summary);
     if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary);
   } finally {
@@ -16,6 +21,6 @@ async function main() {
   }
 }
 main().catch(() => {
-  console.error("Import impossible. Vérifier le SQL D0 et le secret GitHub DATABASE_URL_UNPOOLED (connexion directe). Aucun jeu n'a été publié.");
+  console.error("Import impossible. Vérifier les migrations et le secret GitHub de connexion directe. La dernière version validée est conservée.");
   process.exitCode = 1;
 });

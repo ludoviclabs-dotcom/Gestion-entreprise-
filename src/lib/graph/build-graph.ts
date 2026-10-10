@@ -42,6 +42,7 @@ export function buildGraph(bundle: CaseBundle): Graph {
       graph.addNode(event.id, {
         label: event.title,
         kind: "event",
+        eventKind: event.kind,
         evidenceLevel: event.evidenceLevel,
         color: NODE_COLORS.event,
         size: 6,

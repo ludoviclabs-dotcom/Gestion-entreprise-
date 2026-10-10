@@ -1,4 +1,5 @@
 import type Graph from "graphology";
+import { calculationGraph } from "./informational-events";
 import betweennessCentrality from "graphology-metrics/centrality/betweenness";
 import { dijkstra } from "graphology-shortest-path";
 import louvain from "graphology-communities-louvain";
@@ -24,6 +25,7 @@ export type GraphMetrics = {
  * un Web Worker (cf. Étape 2.7).
  */
 export function computeGraphMetrics(graph: Graph): GraphMetrics {
+  graph = calculationGraph(graph);
   if (graph.order === 0) {
     return { betweenness: {}, communities: {}, cycles: [], topPivot: null };
   }

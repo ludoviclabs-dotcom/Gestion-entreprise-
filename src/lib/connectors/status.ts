@@ -22,6 +22,7 @@ import {
   isAlimConfianceEnabled,
   isQualiopiEnabled,
   isGeorisquesEnabled,
+  isCaminoEnabled,
   isAnnuaireAdministrationEnabled,
 } from "@/lib/env";
 
@@ -251,6 +252,14 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isQualiopiEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "QUALIOPI_ENABLED non activé → inactif.",
+    },
+    {
+      key: "camino",
+      label: "Titres miniers (Camino)",
+      live: !demo && isCaminoEnabled(),
+      detail: !demo && isCaminoEnabled()
+        ? "Lecture du dernier import complet ; fraîcheur indiquée ci-dessous."
+        : "Camino inactif (mode démo ou CAMINO_ENABLED non activé).",
     },
     {
       key: "georisques",

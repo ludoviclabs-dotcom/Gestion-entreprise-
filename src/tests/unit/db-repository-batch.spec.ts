@@ -207,6 +207,21 @@ describe("DbCasesRepository.createCaseFromSiren — écriture groupée", () => {
     expect(aliceEvidence?.sourceRecordId).toBe(re?.id);
   });
 
+  it("persiste Camino avec sa source et sa preuve, sans repli BODACC", async () => {
+    const bundle = buildBundle(1);
+    bundle.events.push({ id: "ev:camino:mine:debut", entityId: "co:552032534", kind: "titre_minier_debut",
+      title: "Début déclaré du titre Mine", occurredOn: "2000-01-01", evidenceLevel: "declared", source: "Titres miniers (Camino)" });
+    state.bundle = bundle;
+    state.sources = [...sources, { source: "camino", endpoint: "db:camino_titres?siren=552032534", httpStatus: 200, isFixture: false, raw: { status: "ok" } }];
+    await new DbCasesRepository().createCaseFromSiren("552032534");
+    const stored = rowsOf(events).find(r => r.kind === "titre_minier_debut");
+    const source = rowsOf(sourceRecords).find(r => r.source === "camino");
+    expect(stored?.source).toBe("camino");
+    expect(source?.id).toBeDefined();
+    expect(rowsOf(evidence).find(r => r.subjectId === stored?.id)?.sourceRecordId).toBe(source?.id);
+    expect(rowsOf(events).find(r => r.kind === "modification")?.source).toBe("bodacc");
+  });
+
   it("découpe les gros lots et n'émet jamais d'insertion vide", async () => {
     state.bundle = buildBundle(1100);
     await new DbCasesRepository().createCaseFromSiren("552032534");

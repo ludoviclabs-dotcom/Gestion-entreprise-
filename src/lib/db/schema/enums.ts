@@ -49,6 +49,7 @@ export const sourceKind = pgEnum("source_kind", [
   "qualiopi",
   "georisques",
   "annuaire_administration",
+  "camino",
   "manual",
   "fixture",
 ]); // étendu au fil des connecteurs (cf. drizzle/ migrations)
