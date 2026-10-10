@@ -196,6 +196,9 @@ export async function assembleCase(
   // Annonces JOAFE : rapprochées par numéro RNA (et non par SIREN). Le RNA vient
   // d'abord des dépôts de comptes (DCA), à défaut de Recherche d'entreprises.
   // Séquentiel (dépend du RNA) ; sans RNA valide : aucune consultation.
+  // Périmètre : associations. Les fondations et fonds de dotation (9300) n'ont
+  // pas de RNA — leurs annonces sont indexées par RNF, qu'aucune source ne relie
+  // au SIREN : seuls leurs dépôts de comptes (DCA, par SIREN) sont consultés.
   const rnaOf = (raw: unknown): string | null => {
     const v = (raw as { rna?: unknown } | null)?.rna;
     return typeof v === "string" ? v : null;

@@ -104,7 +104,19 @@ export function odsToResult<T extends { status: "ok" | "indisponible" }>(
   empty: () => T,
 ): ConnectorResult<unknown> {
   if (outcome.ok) {
-    return { raw: build(outcome), endpoint: url, httpStatus: outcome.status, isFixture: false };
+    try {
+      return { raw: build(outcome), endpoint: url, httpStatus: outcome.status, isFixture: false };
+    } catch (error) {
+      // Un enregistrement illisible ne doit jamais faire échouer la création du
+      // dossier : la source est tracée comme dégradée (jamais « aucune annonce »).
+      Sentry.captureException(error);
+      return {
+        raw: empty(),
+        endpoint: `${url} (schéma non reconnu)`,
+        httpStatus: outcome.status,
+        isFixture: false,
+      };
+    }
   }
   const suffix =
     outcome.reason === "http"
@@ -136,11 +148,28 @@ export function textList(v: unknown): string[] {
   return s ? [s] : [];
 }
 
-/** Décode les entités HTML que BOAMP laisse dans certains libellés (« d&#039;… »). */
+/**
+ * Caractère d'une entité numérique, ou `null` si le point de code n'est pas
+ * représentable proprement : hors plage Unicode (`String.fromCodePoint` lèverait
+ * une RangeError), NUL, caractère de contrôle ou demi-substitut isolé — ces deux
+ * derniers sont refusés par Postgres (`jsonb`) et produiraient un UTF-8 invalide.
+ */
+function codePointChar(code: number): string | null {
+  if (!Number.isInteger(code) || code < 0 || code > 0x10ffff) return null;
+  if (code >= 0xd800 && code <= 0xdfff) return null;
+  if (code < 0x20 && code !== 0x09 && code !== 0x0a && code !== 0x0d) return null;
+  if (code >= 0x7f && code <= 0x9f) return null;
+  return String.fromCodePoint(code);
+}
+
+/**
+ * Décode les entités HTML que BOAMP laisse dans certains libellés (« d&#039;… »).
+ * Une entité numérique invalide est laissée telle quelle (jamais d'exception).
+ */
 export function decodeEntities(input: string): string {
   return input
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d{1,8});/g, (m, n: string) => codePointChar(Number(n)) ?? m)
+    .replace(/&#x([0-9a-f]{1,8});/gi, (m, h: string) => codePointChar(parseInt(h, 16)) ?? m)
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, " ")

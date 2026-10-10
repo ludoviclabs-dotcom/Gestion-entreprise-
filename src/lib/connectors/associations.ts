@@ -18,6 +18,13 @@ import type { ConnectorResult } from "./types";
  *  - `joafe` : ANNONCES du Journal officiel (création, modification,
  *              dissolution…), rapprochées par numéro RNA (`numero_rna`).
  *
+ * Fondations et fonds de dotation (catégorie 9300) : leurs dépôts de comptes
+ * (DCA) sont bien rapprochés par SIREN, mais leurs ANNONCES JOAFE ne portent
+ * qu'un numéro RNF (`numrnf`, sans `numero_rna`) et aucune source accessible ne
+ * relie ce numéro au SIREN (Recherche d'entreprises ne l'expose pas ; le texte
+ * de l'annonce ne contient pas de SIREN). Rapprocher par le nom exposerait aux
+ * homonymes — on n'interroge donc JOAFE que par RNA (« W » + 9 chiffres).
+ *
  * ⚠️ L'absence de compte déposé ne signifie pas une irrégularité ; le contenu
  * d'une annonce ne déduit aucun dirigeant.
  */

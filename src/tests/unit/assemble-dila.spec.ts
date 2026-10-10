@@ -171,6 +171,20 @@ describe("assembleCase — lot DILA (BALO, BOAMP, DCA, JOAFE)", () => {
     expect(sources.some((s) => s.source === "joafe")).toBe(false);
   });
 
+  it("fondation (9300) : comptes DCA par SIREN ; JOAFE non interrogé (annonces indexées par RNF, sans lien SIREN)", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    state.legalCategory = "9300";
+    state.dcaRna = null;
+    const { bundle, sources } = await assembleCase("552032534");
+
+    expect(state.calls.dca).toBe(1);
+    expect(state.calls.joafe).toEqual([]);
+    expect(sources.some((s) => s.source === "dca")).toBe(true);
+    expect(sources.some((s) => s.source === "joafe")).toBe(false);
+    expect(bundle.events.map((e) => e.kind)).toContain("depot_comptes_association");
+    expect(bundle.events.some((e) => e.kind === "annonce_association")).toBe(false);
+  });
+
   it("panne BALO : consultation tracée, aucun événement inventé, le dossier se crée", async () => {
     process.env.NEXT_PUBLIC_DEMO_MODE = "false";
     state.baloStatus = 503;

@@ -30,7 +30,7 @@ vi.mock("@sentry/nextjs", () => ({
 import { balo, humanizeBaloCategory } from "@/lib/connectors/balo";
 import { boamp } from "@/lib/connectors/boamp";
 import { dca, joafe, isRna } from "@/lib/connectors/associations";
-import { odsLiteral, decodeEntities } from "@/lib/connectors/opendatasoft";
+import { odsLiteral, decodeEntities, odsToResult } from "@/lib/connectors/opendatasoft";
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
 
 const reply = (status: number, body: unknown, headers: Record<string, string> = {}) =>
@@ -47,6 +47,27 @@ describe("opendatasoft helpers", () => {
   });
   it("décode les entités HTML laissées par BOAMP", () => {
     expect(decodeEntities("Commune d&#039;Oloron &amp; Cie")).toBe("Commune d'Oloron & Cie");
+    expect(decodeEntities("caf&#xE9; &#x1F600;")).toBe("café 😀");
+  });
+  it("laisse telle quelle une entité numérique invalide, sans lever", () => {
+    for (const bad of [
+      "&#999999999;", // hors plage et trop long
+      "&#99999999;", // > U+10FFFF
+      "&#x110000;",
+      "&#xFFFFFFFF;",
+      "&#0;", // NUL : refusé par Postgres (jsonb)
+      "&#xD800;", // demi-substitut isolé
+      "&#55357;",
+      "&#8;", // caractère de contrôle
+      "&#150;", // C1
+    ]) {
+      expect(() => decodeEntities(`a ${bad} b`)).not.toThrow();
+      expect(decodeEntities(`a ${bad} b`)).toBe(`a ${bad} b`);
+    }
+    // Un libellé mêlant entité invalide et entités valides reste lisible.
+    expect(decodeEntities("X &#999999999; d&#039;Y &amp; Z")).toBe("X &#999999999; d'Y & Z");
+    // Pas de double décodage.
+    expect(decodeEntities("&amp;#039;")).toBe("&#039;");
   });
   it("RNA : « W » + 9 chiffres uniquement", () => {
     expect(isRna("W172011388")).toBe(true);
@@ -188,6 +209,45 @@ describe("boamp.bySiren", () => {
     fetchMock.mockResolvedValue(reply(500, {}));
     const res = await boamp.bySiren("552081317");
     expect(isDegradedEndpoint(res.endpoint)).toBe(true);
+  });
+
+  it("entité numérique invalide dans un libellé : l'avis est conservé, aucune exception", async () => {
+    fetchMock.mockResolvedValue(
+      reply(
+        200,
+        page([
+          {
+            idweb: "26-1",
+            dateparution: "2026-09-24",
+            nomacheteur: "Commune &#999999999; X",
+            titulaire: ["ACME &#x110000; SAS"],
+            objet: "Fourniture &#0; d&#039;énergie",
+          },
+        ]),
+      ),
+    );
+    const res = await boamp.bySiren("552081317");
+    expect(isDegradedEndpoint(res.endpoint)).toBe(false);
+    const raw = res.raw as { items: { buyer: string; titulaires: string[]; object: string }[] };
+    expect(raw.items[0].buyer).toBe("Commune &#999999999; X");
+    expect(raw.items[0].object).toBe("Fourniture &#0; d'énergie");
+  });
+});
+
+describe("odsToResult — filet de sécurité", () => {
+  it("un build qui lève est tracé comme dégradé et ne fait jamais échouer le dossier", () => {
+    const res = odsToResult(
+      { ok: true, status: 200, total: 1, records: [{}] },
+      "https://dila.test/x",
+      () => {
+        throw new RangeError("boom");
+      },
+      () => ({ status: "indisponible" as const }),
+    );
+    expect(isDegradedEndpoint(res.endpoint)).toBe(true);
+    expect(res.httpStatus).toBe(200);
+    expect(res.isFixture).toBe(false);
+    expect((res.raw as { status: string }).status).toBe("indisponible");
   });
 });
 
