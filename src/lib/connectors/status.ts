@@ -13,6 +13,10 @@ import {
   isPappersEnabled,
   isCompaniesHouseEnabled,
   isRechercheEntreprisesEnabled,
+  isBaloEnabled,
+  isBoampEnabled,
+  isJoafeEnabled,
+  isDcaEnabled,
 } from "@/lib/env";
 
 /**
@@ -153,6 +157,50 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isRechercheEntreprisesEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "RECHERCHE_ENTREPRISES_ENABLED non activé → inactif.",
+    },
+    {
+      key: "balo",
+      label: "BALO (annonces financières)",
+      live: !demo && isBaloEnabled(),
+      detail:
+        !demo && isBaloEnabled()
+          ? "Annonces légales obligatoires (convocations, comptes, opérations) en temps réel."
+          : isBaloEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "BALO_ENABLED non activé → inactif.",
+    },
+    {
+      key: "boamp",
+      label: "BOAMP (marchés publics)",
+      live: !demo && isBoampEnabled(),
+      detail:
+        !demo && isBoampEnabled()
+          ? "Avis de résultat de marchés publics mentionnant l'entreprise, en temps réel."
+          : isBoampEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "BOAMP_ENABLED non activé → inactif.",
+    },
+    {
+      key: "joafe",
+      label: "JOAFE (associations)",
+      live: !demo && isJoafeEnabled(),
+      detail:
+        !demo && isJoafeEnabled()
+          ? "Annonces du Journal officiel des associations (création, modification, dissolution)."
+          : isJoafeEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "JOAFE_ENABLED non activé → inactif.",
+    },
+    {
+      key: "dca",
+      label: "Comptes des associations (DCA)",
+      live: !demo && isDcaEnabled(),
+      detail:
+        !demo && isDcaEnabled()
+          ? "Dépôts de comptes annuels des associations, fondations et fonds de dotation."
+          : isDcaEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "DCA_ENABLED non activé → inactif.",
     },
     {
       key: "companies_house",

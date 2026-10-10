@@ -60,6 +60,8 @@ export type RechercheEntreprisesRaw = {
   /** Indicateurs publics vrais (libellés français). */
   labels: string[];
   tva: string[];
+  /** Numéro RNA (associations : `complements.identifiant_association`). */
+  rna?: string | null;
 };
 
 const limiter = new RateLimiter(6, 1_000);
@@ -144,6 +146,7 @@ export function simplifyResult(r: Json): RechercheEntreprisesRaw {
     finances,
     labels,
     tva: Array.isArray(r.tva) ? r.tva.filter((t): t is string => typeof t === "string") : [],
+    rna: str(complements.identifiant_association),
   };
 }
 

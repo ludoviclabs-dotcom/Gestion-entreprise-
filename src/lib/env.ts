@@ -62,6 +62,16 @@ const serverSchema = z.object({
   RECHERCHE_ENTREPRISES_BASE_URL: z
     .string()
     .default("https://recherche-entreprises.api.gouv.fr"),
+  // Lot « DILA » — jeux de données ouverts (Opendatasoft), SANS clé ni compte.
+  // Chacun est opt-in (false par défaut) et indépendant des autres.
+  BALO_ENABLED: z.enum(["true", "false"]).default("false"),
+  BOAMP_ENABLED: z.enum(["true", "false"]).default("false"),
+  JOAFE_ENABLED: z.enum(["true", "false"]).default("false"),
+  DCA_ENABLED: z.enum(["true", "false"]).default("false"),
+  DILA_JO_BASE_URL: z
+    .string()
+    .default("https://journal-officiel-datadila.opendatasoft.com"),
+  BOAMP_BASE_URL: z.string().default("https://boamp-datadila.opendatasoft.com"),
   // Résolution d'entités : `builtin` (TS in-process, défaut) ou `splink`
   // (sidecar Python probabiliste, à raccorder). Cf. resolver-backend.ts.
   RESOLVER_BACKEND: z.enum(["builtin", "splink"]).default("builtin"),
@@ -88,6 +98,10 @@ export const isBanEnabled = (): boolean => env.BAN_ENABLED === "true";
 export const isGdeltEnabled = (): boolean => env.GDELT_ENABLED === "true";
 export const isPappersEnabled = (): boolean =>
   env.PAPPERS_ENABLED === "true" && Boolean(env.PAPPERS_API_KEY);
+export const isBaloEnabled = (): boolean => env.BALO_ENABLED === "true";
+export const isBoampEnabled = (): boolean => env.BOAMP_ENABLED === "true";
+export const isJoafeEnabled = (): boolean => env.JOAFE_ENABLED === "true";
+export const isDcaEnabled = (): boolean => env.DCA_ENABLED === "true";
 export const isRechercheEntreprisesEnabled = (): boolean =>
   env.RECHERCHE_ENTREPRISES_ENABLED === "true";
 export const isCompaniesHouseEnabled = (): boolean =>

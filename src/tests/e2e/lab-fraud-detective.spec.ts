@@ -20,7 +20,12 @@ test("le Lab est accessible depuis la navigation publique et lance Fraud Detecti
   await page.getByRole("button", { name: /Démarrer l'investigation/i }).click();
   await page.waitForSelector('[data-testid="fd-node"]', { state: "attached", timeout: 15_000 });
 
-  await page.locator(".fd-node-core").first().click({ force: true });
+  // Événement `click` envoyé directement au nœud (et non un clic souris) : le
+  // premier nœud peut se trouver SOUS le bandeau du jeu (« .stat » intercepte les
+  // clics) et il bouge tant que la simulation D3 n'a pas convergé. Un clic souris,
+  // forcé ou non, atterrit alors sur le bandeau et le compteur reste inchangé
+  // (flaky en CI). Ici on vérifie la règle de jeu, pas la géométrie de l'écran.
+  await page.getByTestId("fd-node").first().dispatchEvent("click");
   await expect(page.getByText(/Risque \d+\/100/)).toBeVisible();
 
   await page.getByRole("button", { name: /Soumettre verdict/i }).click();
@@ -40,6 +45,6 @@ test("le mode Expert affiche et décrémente la capacité d'analyse", async ({ p
   await page.waitForSelector('[data-testid="fd-node"]', { state: "attached", timeout: 15_000 });
 
   await expect(page.getByTestId("fd-capacity")).toHaveText("20");
-  await page.locator(".fd-node-core").first().click({ force: true });
+  await page.getByTestId("fd-node").first().dispatchEvent("click"); // cf. note ci-dessus
   await expect(page.getByTestId("fd-capacity")).toHaveText("19");
 });

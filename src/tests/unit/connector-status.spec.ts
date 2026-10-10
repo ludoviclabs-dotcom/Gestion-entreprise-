@@ -11,13 +11,17 @@ describe("getConnectorStatuses", () => {
   const statuses = getConnectorStatuses();
   const byKey = Object.fromEntries(statuses.map((s) => [s.key, s]));
 
-  it("couvre les 13 connecteurs attendus", () => {
+  it("couvre les 17 connecteurs attendus", () => {
     expect(statuses.map((s) => s.key).sort()).toEqual(
       [
+        "balo",
         "ban",
+        "boamp",
         "bodacc",
         "companies_house",
         "database",
+        "dca",
+        "joafe",
         "gdelt",
         "gleif",
         "inpi",
