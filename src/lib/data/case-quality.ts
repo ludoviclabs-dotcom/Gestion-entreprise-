@@ -109,6 +109,7 @@ function sourceFromText(text: string | undefined): SourceKind | null {
   // Avant INPI : « dirigeants (RNE) » cite le RNE sans en être issu directement.
   if (/recherche d['’]entreprises/.test(haystack)) return "recherche_entreprises";
   // Lot DILA : mots entiers (évite « dca » dans un autre mot).
+  if (/\bcamino\b/.test(haystack)) return "camino";
   if (/\bbalo\b/.test(haystack)) return "balo";
   if (/\bboamp\b/.test(haystack)) return "boamp";
   if (/\bjoafe\b/.test(haystack)) return "joafe";

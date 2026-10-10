@@ -147,3 +147,5 @@ SQL est vérifiée par doubles de test : absence/import manquant/erreur, paramé
 requête unique, schéma et plafond. La transaction réelle, la répétition dans Neon,
 le quota occupé et la latence cible < 100 ms restent à mesurer après configuration
 sécurisée. Aucun secret local périmé n'a été utilisé et aucun flag n'a été activé.
+
+Relecture D1 : les événements enregistrés référencent explicitement la source Camino et sa preuve. Le filtrage des événements informatifs est partagé par le moteur de risque, les métriques de l’onglet Analyse et le repository de requêtes de graphe ; les anciennes annonces restent inchangées. Tests de régression dédiés.

@@ -8,6 +8,9 @@ import { caminoAttributes, normalizeCamino } from "@/lib/ingestion/normalize-cam
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
 import { computeRisk, explainQualitePreuve } from "@/lib/risk/engine";
 import { reseauMultiDirigeantsBundle } from "@/lib/fixtures/cases/reseau-multi-dirigeants";
+import { computeGraphMetrics } from "@/lib/graph/algorithms";
+import { GraphologyQueryRepository } from "@/lib/data/graph-query-repository";
+import { inferEventSource } from "@/lib/data/case-quality";
 import { buildGraph } from "@/lib/graph/build-graph";
 import type { CaseBundle } from "@/lib/graph/graph-types";
 import type { CaminoRaw } from "@/lib/ingestion/camino-data";
@@ -80,6 +83,23 @@ describe("Camino lecture et rendu", () => {
     expect(JSON.stringify(events)).not.toMatch(/octroi|fraude|sanction|infraction/i);
     expect(normalizeCamino({ ...data, items: [{ ...data.items[0], startsOn: null, endsOn: null }] }, "co:x")).toEqual([]);
     expect(Object.values(caminoAttributes(data))[0]).toContain("2026-10-10");
+  });
+  it("reconnaît la provenance des dates Camino", () => {
+    for (const event of normalizeCamino(data, "co:x")) expect(inferEventSource(event)).toBe("camino");
+  });
+  it("préserve les métriques de l'Analyse et du repository sans supprimer les anciens événements", async () => {
+    const bundle: CaseBundle = { case: { id: "x", title: "X", rootSiren: "552081317" },
+      entities: [{ id: "co:x", type: "company", label: "X", evidenceLevel: "confirmed" },
+        { id: "co:y", type: "company", label: "Y", evidenceLevel: "confirmed" }],
+      edges: [{ id: "edge", source: "co:x", target: "co:y", type: "DETIENT", evidenceLevel: "declared" }],
+      events: [{ id: "old", entityId: "co:x", kind: "modification", title: "Annonce", evidenceLevel: "confirmed", source: "BODACC" }], riskSignals: [] };
+    const expected = computeGraphMetrics(buildGraph(bundle));
+    const enriched = { ...bundle, events: [...bundle.events, ...normalizeCamino(data, "co:x")] };
+    const graph = buildGraph(enriched), before = graph.export();
+    expect(computeGraphMetrics(graph)).toEqual(expected);
+    expect(await new GraphologyQueryRepository().metrics(enriched)).toEqual(expected);
+    expect(Object.keys(expected.communities).sort()).toEqual(["co:x", "co:y", "old"]);
+    expect(graph.export()).toEqual(before);
   });
   it("ne change aucun score, signal ou métrique de règle, ni le graphe affiché", () => {
     const bundle: CaseBundle = { case: { id: "x", title: "x", rootSiren: "552081317" },

@@ -1,5 +1,5 @@
 import type Graph from "graphology";
-import { isInformationalEvent } from "@/lib/graph/informational-events";
+import { calculationGraph, isInformationalEvent } from "@/lib/graph/informational-events";
 import type {
   CaseBundle,
   CaseRiskSignal,
@@ -263,10 +263,7 @@ export function computeRisk(
   const contextEvents = bundle.events.filter(isInformationalEvent);
   if (contextEvents.length) {
     bundle = { ...bundle, events: bundle.events.filter(e => !isInformationalEvent(e)) };
-    graph = graph.copy();
-    for (const event of contextEvents) {
-      if (graph.hasNode(event.id) && graph.getNodeAttribute(event.id, "kind") === "event") graph.dropNode(event.id);
-    }
+    graph = calculationGraph(graph, contextEvents);
   }
   const rules = options.rules ?? DEFAULT_RULES;
   const thresholds = options.thresholds ?? DEFAULT_THRESHOLDS;
