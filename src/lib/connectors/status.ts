@@ -21,6 +21,8 @@ import {
   isAgenceBioEnabled,
   isAlimConfianceEnabled,
   isQualiopiEnabled,
+  isGeorisquesEnabled,
+  isAnnuaireAdministrationEnabled,
 } from "@/lib/env";
 
 /**
@@ -249,6 +251,28 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isQualiopiEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "QUALIOPI_ENABLED non activé → inactif.",
+    },
+    {
+      key: "georisques",
+      label: "Géorisques (installations classées)",
+      live: !demo && isGeorisquesEnabled(),
+      detail:
+        !demo && isGeorisquesEnabled()
+          ? "Installations classées (ICPE) du siège et des établissements ouverts (si peu nombreux)."
+          : isGeorisquesEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "GEORISQUES_ENABLED non activé → inactif.",
+    },
+    {
+      key: "annuaire_administration",
+      label: "Annuaire de l'administration",
+      live: !demo && isAnnuaireAdministrationEnabled(),
+      detail:
+        !demo && isAnnuaireAdministrationEnabled()
+          ? "Services référencés d'une personne morale de droit public (catégorie 7xxx)."
+          : isAnnuaireAdministrationEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "ANNUAIRE_ADMINISTRATION_ENABLED non activé → inactif.",
     },
     {
       key: "companies_house",

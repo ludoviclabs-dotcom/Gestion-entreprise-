@@ -53,6 +53,8 @@ export type RechercheEntreprisesRaw = {
     createdOn: string | null;
     /** Dernière mise à jour du RNE : borne la fraîcheur des dirigeants. */
     rneUpdatedOn: string | null;
+    /** Établissements ouverts (borne la couverture des sources par SIRET). */
+    openEstablishments?: number | null;
   } | null;
   dirigeants: ReDirigeant[];
   /** Triés par année décroissante. */
@@ -157,6 +159,10 @@ export function simplifyResult(r: Json): RechercheEntreprisesRaw {
       legalCategory: str(r.nature_juridique),
       createdOn: str(r.date_creation),
       rneUpdatedOn: str(r.date_mise_a_jour_rne),
+      openEstablishments:
+        typeof r.nombre_etablissements_ouverts === "number"
+          ? r.nombre_etablissements_ouverts
+          : null,
     },
     dirigeants,
     finances,

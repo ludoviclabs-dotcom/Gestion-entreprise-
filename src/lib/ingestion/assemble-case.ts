@@ -27,10 +27,14 @@ import { rge } from "@/lib/connectors/rge";
 import { agenceBio } from "@/lib/connectors/agence-bio";
 import { alimConfiance } from "@/lib/connectors/alim-confiance";
 import { qualiopi } from "@/lib/connectors/qualiopi";
+import { georisques, MAX_ICPE_SIRETS } from "@/lib/connectors/georisques";
+import { annuaireAdministration } from "@/lib/connectors/annuaire-administration";
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
 import {
   isAgenceBioEnabled,
   isAlimConfianceEnabled,
+  isAnnuaireAdministrationEnabled,
+  isGeorisquesEnabled,
   isBaloEnabled,
   isBoampEnabled,
   isCompaniesHouseEnabled,
@@ -50,6 +54,7 @@ import {
   normalizeJoafe,
 } from "./normalize-dila";
 import { labelsAttributes } from "./normalize-labels";
+import { regulatoryAttributes } from "./normalize-regulatory";
 import { normalizeSirene, sireneAddress } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
@@ -183,6 +188,9 @@ export async function assembleCase(
   const baloOn = live && isBaloEnabled();
   const boampOn = live && isBoampEnabled();
   const dcaOn = live && isDcaEnabled() && isAssociation;
+  // Annuaire de l'administration : seulement une personne morale de droit public.
+  const annuaireOn =
+    live && isAnnuaireAdministrationEnabled() && /^7/.test(sireneNorm.legalCategory ?? "");
   // Consultation de jeu ouvert exploitable : réussie (2xx), non fixture, non
   // dégradée (DILA, labels).
   const openDataUsable = (
@@ -255,6 +263,37 @@ export async function assembleCase(
     ]);
   });
 
+  // Installations classées (Géorisques) — l'API ne se rapproche que par SIRET :
+  // on interroge le siège et, SI le SIREN a peu d'établissements ouverts (≤ 10,
+  // connu par Recherche d'entreprises), ces établissements (une liste Sirene). Au-delà,
+  // siège seul — la couverture partielle est dite dans l'attribut, jamais masquée.
+  const icpeHop = rechercheP.then(async (rechercheRes) => {
+    if (!(live && isGeorisquesEnabled())) return null;
+    const sirets: string[] = nic ? [`${siren}${nic}`] : [];
+    const open = openDataUsable(rechercheRes)
+      ? ((rechercheRes.raw as { company?: { openEstablishments?: unknown } | null }).company
+          ?.openEstablishments ?? null)
+      : null;
+    const openTotal = typeof open === "number" ? open : null;
+    if (openTotal !== null && openTotal >= 2 && openTotal <= MAX_ICPE_SIRETS) {
+      try {
+        const listed = await timed("sirene_etablissements", () =>
+          sirene.listOpenEtablissements(siren, MAX_ICPE_SIRETS),
+        );
+        if (!listed.isFixture && listed.httpStatus >= 200 && listed.httpStatus < 300) {
+          const rows = (listed.raw as { etablissements?: { siret?: unknown }[] }).etablissements;
+          for (const e of Array.isArray(rows) ? rows : []) {
+            if (typeof e?.siret === "string" && /^\d{14}$/.test(e.siret)) sirets.push(e.siret);
+          }
+        }
+      } catch {
+        // Liste indisponible : siège seul (couverture partielle, dite).
+      }
+    }
+    if (sirets.length === 0) return null;
+    return timed("georisques", () => georisques.bySirets(sirets, { openTotal }));
+  });
+
   // Companies House — SECOND SAUT : dirigeants et personnes à contrôle significatif
   // des sociétés mères BRITANNIQUES repérées par GLEIF (registre RA000585/586/587).
   // Appelé seulement en mode live ET connecteur activé : sinon aucune consultation,
@@ -285,6 +324,8 @@ export async function assembleCase(
     dcaRes,
     [joafeRes, rgeRes, bioRes, alimRes, qualiopiRes],
     { parents: chParents, results: chResults },
+    annuaireRes,
+    icpeRes,
   ] = await Promise.all([
     timed("bodacc", () => bodacc.bySiren(siren)),
     timed("inpi", () => inpi.getRne(siren)),
@@ -308,6 +349,10 @@ export async function assembleCase(
     dcaP,
     labelsHop,
     chHop,
+    annuaireOn
+      ? timed("annuaire_administration", () => annuaireAdministration.bySiren(siren))
+      : none,
+    icpeHop,
   ]);
   // Ordre des source_records déterministe, indépendant de l'ordre d'arrivée.
   sources.push(
@@ -329,6 +374,8 @@ export async function assembleCase(
   if (bioRes) sources.push(toSource("agence_bio", bioRes));
   if (alimRes) sources.push(toSource("alim_confiance", alimRes));
   if (qualiopiRes) sources.push(toSource("qualiopi", qualiopiRes));
+  if (icpeRes) sources.push(toSource("georisques", icpeRes));
+  if (annuaireRes) sources.push(toSource("annuaire_administration", annuaireRes));
 
   // Repli fixture (BODACC en panne) ou mode live : jamais d'annonces d'échantillon
   // sur un dossier réel.
@@ -526,6 +573,11 @@ export async function assembleCase(
         bio: openDataUsable(bioRes) ? bioRes.raw : null,
         alim: openDataUsable(alimRes) ? alimRes.raw : null,
         qualiopi: openDataUsable(qualiopiRes) ? qualiopiRes.raw : null,
+      }),
+      // Installations classées (siège et établissements interrogés) et annuaire.
+      ...regulatoryAttributes({
+        icpe: openDataUsable(icpeRes) ? icpeRes.raw : null,
+        annuaire: openDataUsable(annuaireRes) ? annuaireRes.raw : null,
       }),
     };
   }

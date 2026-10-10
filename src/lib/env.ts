@@ -79,6 +79,14 @@ const serverSchema = z.object({
   AGENCE_BIO_ENABLED: z.enum(["true", "false"]).default("false"),
   ALIM_CONFIANCE_ENABLED: z.enum(["true", "false"]).default("false"),
   QUALIOPI_ENABLED: z.enum(["true", "false"]).default("false"),
+  // Lot « réglementaire » — Géorisques (ICPE, par SIRET) et Annuaire de
+  // l'administration (personnes morales de droit public) : SANS clé, opt-in.
+  GEORISQUES_ENABLED: z.enum(["true", "false"]).default("false"),
+  ANNUAIRE_ADMINISTRATION_ENABLED: z.enum(["true", "false"]).default("false"),
+  GEORISQUES_BASE_URL: z.string().default("https://www.georisques.gouv.fr"),
+  ANNUAIRE_BASE_URL: z
+    .string()
+    .default("https://api-lannuaire.service-public.fr"),
   ADEME_BASE_URL: z.string().default("https://data.ademe.fr"),
   AGENCE_BIO_BASE_URL: z.string().default("https://opendata.agencebio.org"),
   DGAL_BASE_URL: z.string().default("https://dgal.opendatasoft.com"),
@@ -118,6 +126,9 @@ export const isAgenceBioEnabled = (): boolean => env.AGENCE_BIO_ENABLED === "tru
 export const isAlimConfianceEnabled = (): boolean =>
   env.ALIM_CONFIANCE_ENABLED === "true";
 export const isQualiopiEnabled = (): boolean => env.QUALIOPI_ENABLED === "true";
+export const isGeorisquesEnabled = (): boolean => env.GEORISQUES_ENABLED === "true";
+export const isAnnuaireAdministrationEnabled = (): boolean =>
+  env.ANNUAIRE_ADMINISTRATION_ENABLED === "true";
 export const isRechercheEntreprisesEnabled = (): boolean =>
   env.RECHERCHE_ENTREPRISES_ENABLED === "true";
 export const isCompaniesHouseEnabled = (): boolean =>
