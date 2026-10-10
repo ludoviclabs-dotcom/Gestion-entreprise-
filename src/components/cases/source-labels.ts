@@ -24,6 +24,7 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   qualiopi: "Organismes de formation (DGEFP)",
   georisques: "Géorisques (installations classées)",
   annuaire_administration: "Annuaire de l'administration",
+  camino: "Titres miniers (Camino)",
   manual: "Manuel",
   fixture: "Fixture",
 };

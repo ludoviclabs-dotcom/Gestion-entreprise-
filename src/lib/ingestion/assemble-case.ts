@@ -20,6 +20,8 @@ import {
   LABEL_RGE,
   rechercheEntreprises,
 } from "@/lib/connectors/recherche-entreprises";
+import { camino } from "@/lib/connectors/camino";
+import { caminoAttributes, normalizeCamino } from "./normalize-camino";
 import { balo } from "@/lib/connectors/balo";
 import { boamp } from "@/lib/connectors/boamp";
 import { dca, joafe, isRna } from "@/lib/connectors/associations";
@@ -35,6 +37,7 @@ import {
   isAlimConfianceEnabled,
   isAnnuaireAdministrationEnabled,
   isGeorisquesEnabled,
+  isCaminoEnabled,
   isBaloEnabled,
   isBoampEnabled,
   isCompaniesHouseEnabled,
@@ -326,6 +329,7 @@ export async function assembleCase(
     { parents: chParents, results: chResults },
     annuaireRes,
     icpeRes,
+    caminoRes,
   ] = await Promise.all([
     timed("bodacc", () => bodacc.bySiren(siren)),
     timed("inpi", () => inpi.getRne(siren)),
@@ -353,6 +357,7 @@ export async function assembleCase(
       ? timed("annuaire_administration", () => annuaireAdministration.bySiren(siren))
       : none,
     icpeHop,
+    live && isCaminoEnabled() ? timed("camino", () => camino.bySiren(siren)) : none,
   ]);
   // Ordre des source_records déterministe, indépendant de l'ordre d'arrivée.
   sources.push(
@@ -374,6 +379,7 @@ export async function assembleCase(
   if (bioRes) sources.push(toSource("agence_bio", bioRes));
   if (alimRes) sources.push(toSource("alim_confiance", alimRes));
   if (qualiopiRes) sources.push(toSource("qualiopi", qualiopiRes));
+  if (caminoRes) sources.push(toSource("camino", caminoRes));
   if (icpeRes) sources.push(toSource("georisques", icpeRes));
   if (annuaireRes) sources.push(toSource("annuaire_administration", annuaireRes));
 
@@ -384,6 +390,7 @@ export async function assembleCase(
     : [];
   const events = [
     ...bodaccEvents,
+    ...(openDataUsable(caminoRes) ? normalizeCamino(caminoRes.raw, companyId) : []),
     ...(openDataUsable(baloRes) ? normalizeBalo(baloRes.raw, companyId) : []),
     ...(openDataUsable(boampRes) ? normalizeBoamp(boampRes.raw, companyId) : []),
     ...(openDataUsable(dcaRes) ? normalizeDca(dcaRes.raw, companyId) : []),
@@ -575,6 +582,7 @@ export async function assembleCase(
         qualiopi: openDataUsable(qualiopiRes) ? qualiopiRes.raw : null,
       }),
       // Installations classées (siège et établissements interrogés) et annuaire.
+      ...caminoAttributes(openDataUsable(caminoRes) ? caminoRes.raw : null),
       ...regulatoryAttributes({
         icpe: openDataUsable(icpeRes) ? icpeRes.raw : null,
         annuaire: openDataUsable(annuaireRes) ? annuaireRes.raw : null,

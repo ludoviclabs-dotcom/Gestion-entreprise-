@@ -81,6 +81,7 @@ const serverSchema = z.object({
   QUALIOPI_ENABLED: z.enum(["true", "false"]).default("false"),
   // Lot « réglementaire » — Géorisques (ICPE, par SIRET) et Annuaire de
   // l'administration (personnes morales de droit public) : SANS clé, opt-in.
+  CAMINO_ENABLED: z.enum(["true", "false"]).default("false"),
   GEORISQUES_ENABLED: z.enum(["true", "false"]).default("false"),
   ANNUAIRE_ADMINISTRATION_ENABLED: z.enum(["true", "false"]).default("false"),
   GEORISQUES_BASE_URL: z.string().default("https://www.georisques.gouv.fr"),
@@ -126,6 +127,7 @@ export const isAgenceBioEnabled = (): boolean => env.AGENCE_BIO_ENABLED === "tru
 export const isAlimConfianceEnabled = (): boolean =>
   env.ALIM_CONFIANCE_ENABLED === "true";
 export const isQualiopiEnabled = (): boolean => env.QUALIOPI_ENABLED === "true";
+export const isCaminoEnabled = (): boolean => env.CAMINO_ENABLED === "true";
 export const isGeorisquesEnabled = (): boolean => env.GEORISQUES_ENABLED === "true";
 export const isAnnuaireAdministrationEnabled = (): boolean =>
   env.ANNUAIRE_ADMINISTRATION_ENABLED === "true";

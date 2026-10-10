@@ -1,4 +1,5 @@
 import type Graph from "graphology";
+import { isInformationalEvent } from "@/lib/graph/informational-events";
 import type {
   CaseBundle,
   CaseRiskSignal,
@@ -219,7 +220,7 @@ export type QualitePreuveExplanation = {
  * c'est haut, plus le dossier est fiable.
  */
 export function explainQualitePreuve(bundle: CaseBundle): QualitePreuveExplanation {
-  const items = [...bundle.entities, ...bundle.edges, ...bundle.events];
+  const items = [...bundle.entities, ...bundle.edges, ...bundle.events.filter(e => !isInformationalEvent(e))];
   const byLevel: Record<EvidenceLevel, number> = {
     confirmed: 0,
     declared: 0,
@@ -257,6 +258,16 @@ export function computeRisk(
   graph: Graph,
   options: { rules?: Rule[]; thresholds?: Thresholds } = {},
 ): RiskComputationResult {
+  // Le lot D enrichit la chronologie, sans modifier métriques, règles ni scores.
+  // Conserver le graphe affiché intact ; filtrer uniquement la copie de calcul.
+  const contextEvents = bundle.events.filter(isInformationalEvent);
+  if (contextEvents.length) {
+    bundle = { ...bundle, events: bundle.events.filter(e => !isInformationalEvent(e)) };
+    graph = graph.copy();
+    for (const event of contextEvents) {
+      if (graph.hasNode(event.id) && graph.getNodeAttribute(event.id, "kind") === "event") graph.dropNode(event.id);
+    }
+  }
   const rules = options.rules ?? DEFAULT_RULES;
   const thresholds = options.thresholds ?? DEFAULT_THRESHOLDS;
   // Métriques de graphe calculées UNE seule fois et partagées aux règles
