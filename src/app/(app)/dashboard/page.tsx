@@ -1,115 +1,157 @@
 import Link from "next/link";
-import { FolderOpen, ShieldAlert, BadgeCheck, Building2, ArrowRight } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import KpiCard from "@/components/cases/KpiCard";
-import CaseStatusBadge from "@/components/cases/CaseStatusBadge";
-import ScorePills from "@/components/cases/ScorePills";
-import CaseQualityBadges from "@/components/cases/CaseQualityBadges";
+import { BadgeCheck, Building2, FolderOpen, ShieldAlert } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { Reveal } from "@/components/ui/reveal";
+import { StatCard } from "@/components/ui/stat-card";
+import PageHeader from "@/components/shell/PageHeader";
+import NextActionBanner from "@/components/dashboard/NextActionBanner";
+import ReviewQueuePanel from "@/components/dashboard/ReviewQueuePanel.client";
+import RiskSignalsPanel from "@/components/dashboard/RiskSignalsPanel";
+import RecentActivityPanel from "@/components/dashboard/RecentActivityPanel";
+import QuickAccessPanel from "@/components/dashboard/QuickAccessPanel";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { curateCaseSummaries } from "@/lib/data/case-curation";
+import {
+  buildReviewQueue,
+  computePortfolioKpis,
+  nextAction,
+  proofQualityStatus,
+  recentActivity,
+  summarizeSignals,
+} from "@/lib/dashboard/portfolio";
+import { formatDateTimeFr } from "@/lib/format-date";
 
 export const metadata = { title: "Tableau de bord — KYB Graph" };
 
+const fr = (n: number) => n.toLocaleString("fr-FR");
+const s = (n: number) => (n > 1 ? "s" : "");
+
+/**
+ * Tableau de bord : répondre en moins de 5 secondes à
+ *   1. quels dossiers exigent une revue  → « Dossiers à revoir » ;
+ *   2. quels signaux sont critiques      → « Signaux de sévérité élevée » ;
+ *   3. quelle est la prochaine action    → bandeau « Prochaine action » ;
+ *   4. où trouver le reste               → « Accès rapides » (+ sidebar).
+ * Toutes les valeurs dérivent de `listCases` (une seule lecture, calculs
+ * historiques conservés — lib/dashboard/portfolio).
+ */
 export default async function DashboardPage() {
   const allCases = await getCasesRepository().listCases();
   const curated = curateCaseSummaries(allCases);
   const cases = curated.visible;
+  const now = new Date();
 
-  const totalCompanies = cases.reduce((n, c) => n + c.counts.entities, 0);
-  const totalHigh = cases.reduce((n, c) => n + c.counts.signalsHigh, 0);
-  const withProof = cases.filter((c) => c.scores.qualitePreuve !== undefined);
-  const avgProof =
-    withProof.length > 0
-      ? Math.round(
-          withProof.reduce((n, c) => n + (c.scores.qualitePreuve ?? 0), 0) /
-            withProof.length,
-        )
-      : 0;
-  const recent = cases.slice(0, 5);
+  const kpis = computePortfolioKpis(cases);
+  const queue = buildReviewQueue(cases);
+  const signals = summarizeSignals(cases);
+  const activity = recentActivity(cases, now);
+  const action = nextAction(queue, cases.length);
+  const proof = proofQualityStatus(kpis.avgProof, kpis.proofScored);
+
+  const hidden = curated.hidden.length;
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold">
-            Tableau de bord
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Vue d&apos;ensemble de vos dossiers de cartographie.
-            {curated.hidden.length > 0
-              ? ` ${curated.hidden.length} dossier(s) masque(s): doublons ou erreurs.`
-              : ""}
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/cases/new">Nouveau dossier</Link>
-        </Button>
-      </div>
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Dossiers" value={cases.length} icon={FolderOpen} />
-        <KpiCard
-          label="Signaux élevés"
-          value={totalHigh}
-          icon={ShieldAlert}
-          accent="var(--red)"
-          hint="à vérifier en priorité"
-        />
-        <KpiCard
-          label="Qualité de preuve moy."
-          value={`${avgProof}`}
-          icon={BadgeCheck}
-          accent="var(--emerald)"
-        />
-        <KpiCard
-          label="Entités cartographiées"
-          value={totalCompanies}
-          icon={Building2}
-        />
-      </div>
-
-      <div className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-            Dossiers récents
-          </h2>
-          <Link
-            href="/cases"
-            className="flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
-          >
-            Tout voir <ArrowRight size={14} />
-          </Link>
-        </div>
-        <div className="grid gap-3">
-          {recent.map((c) => (
-            <Link key={c.id} href={`/cases/${c.id}/graphe`}>
-              <Card className="flex-row items-center justify-between p-4 transition hover:border-primary/50">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                    <Building2 size={16} />
-                  </span>
-                  <div>
-                    <p className="font-medium">{c.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      SIREN {c.rootSiren} · {c.counts.entities} entités
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <ScorePills scores={c.scores} size="sm" />
-                  <CaseQualityBadges
-                    origin={c.origin}
-                    scoreStatus={c.scoreStatus}
-                    sourceHealth={c.sourceHealth}
-                    compact
-                  />
-                  <CaseStatusBadge status={c.status} />
-                </div>
-              </Card>
+    <div className="mx-auto max-w-[var(--layout-page-max)] space-y-6 px-4 py-6 sm:px-6 lg:py-8">
+      <Reveal index={0} className="space-y-4">
+        <PageHeader
+          eyebrow="Vue portefeuille"
+          title="Tableau de bord"
+          description={
+            <>
+              État des dossiers actifs au{" "}
+              <time dateTime={now.toISOString()}>{formatDateTimeFr(now)}</time> (heure de Paris).
+              {hidden > 0
+                ? ` ${hidden} dossier${s(hidden)} masqué${s(hidden)} : doublons ou erreurs.`
+                : ""}
+            </>
+          }
+          actions={
+            <Link href="/cases" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <FolderOpen aria-hidden /> Tous les dossiers
             </Link>
-          ))}
+          }
+        />
+        <NextActionBanner action={action} />
+      </Reveal>
+
+      <Reveal index={1} as="section" aria-labelledby="kpi-title">
+        <h2 id="kpi-title" className="sr-only">
+          Indicateurs du portefeuille
+        </h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+          <StatCard
+            label="Dossiers actifs"
+            value={fr(kpis.cases)}
+            icon={FolderOpen}
+            href="/cases"
+            context={
+              kpis.cases === 0
+                ? "Aucun dossier créé"
+                : [
+                    kpis.byStatus.ready > 0 && `${fr(kpis.byStatus.ready)} prêt${s(kpis.byStatus.ready)}`,
+                    kpis.byStatus.enriching > 0 && `${fr(kpis.byStatus.enriching)} en enrichissement`,
+                    kpis.byStatus.draft > 0 && `${fr(kpis.byStatus.draft)} brouillon${s(kpis.byStatus.draft)}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+            }
+          />
+          <StatCard
+            label="Signaux élevés"
+            value={fr(kpis.signalsHigh)}
+            icon={ShieldAlert}
+            status={
+              kpis.signalsHigh > 0
+                ? { tone: "critical", label: "À instruire" }
+                : { tone: "success", label: "Aucun" }
+            }
+            context={
+              kpis.signalsHigh > 0
+                ? `Sur ${fr(kpis.casesWithHigh)} dossier${s(kpis.casesWithHigh)}`
+                : "Sévérité élevée, tous dossiers actifs"
+            }
+          />
+          <StatCard
+            label="Qualité de preuve moyenne"
+            value={kpis.proofScored > 0 ? kpis.avgProof : "—"}
+            unit={kpis.proofScored > 0 ? "/100" : undefined}
+            icon={BadgeCheck}
+            status={proof}
+            context={
+              kpis.proofScored > 0
+                ? `Moyenne sur ${fr(kpis.proofScored)} dossier${s(kpis.proofScored)} scoré${s(kpis.proofScored)}`
+                : "Aucun dossier ne porte encore ce score"
+            }
+          />
+          <StatCard
+            label="Entités cartographiées"
+            value={fr(kpis.entities)}
+            icon={Building2}
+            context={`${fr(kpis.edges)} lien${s(kpis.edges)} · ${fr(kpis.cases)} dossier${s(kpis.cases)}`}
+          />
         </div>
+      </Reveal>
+
+      <div className="grid gap-6 lg:grid-cols-12">
+        <Reveal index={2} className="min-w-0 lg:col-span-7 xl:col-span-8">
+          <ReviewQueuePanel queue={queue} totalCases={cases.length} />
+        </Reveal>
+        <Reveal index={2} className="min-w-0 lg:col-span-5 xl:col-span-4">
+          <RiskSignalsPanel signals={signals} totalCases={cases.length} />
+        </Reveal>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-12">
+        <Reveal index={3} className="min-w-0 lg:col-span-7 xl:col-span-8">
+          <RecentActivityPanel
+            items={activity.items}
+            updatedInWindow={activity.updatedInWindow}
+            now={now}
+          />
+        </Reveal>
+        <Reveal index={3} className="min-w-0 lg:col-span-5 xl:col-span-4">
+          <QuickAccessPanel />
+        </Reveal>
       </div>
     </div>
   );

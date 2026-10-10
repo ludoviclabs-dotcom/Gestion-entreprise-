@@ -12,8 +12,10 @@ import {
 } from "@/components/ui/sheet";
 import { IconButton } from "@/components/ui/icon-button";
 import SidebarContent from "./SidebarContent";
+import type { NavReview } from "./nav";
 
-export default function MobileSidebar({ demoMode }: { demoMode: boolean }) {
+/** Tiroir de navigation (< md) : mêmes entrées et libellés complets que la sidebar. */
+export default function MobileSidebar({ review }: { review?: NavReview }) {
   const [open, setOpen] = useState(false);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -26,12 +28,12 @@ export default function MobileSidebar({ demoMode }: { demoMode: boolean }) {
           className="md:hidden"
         />
       </SheetTrigger>
-      <SheetContent side="left" className="w-64 bg-sidebar p-0">
+      <SheetContent side="left" className="w-[var(--layout-sidebar-width)] max-w-[85vw] bg-sidebar p-0">
         <SheetHeader className="sr-only">
           <SheetTitle>Navigation</SheetTitle>
           <SheetDescription>Menu principal de l&apos;application.</SheetDescription>
         </SheetHeader>
-        <SidebarContent demoMode={demoMode} onNavigate={() => setOpen(false)} />
+        <SidebarContent review={review} instance="drawer" onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>
   );

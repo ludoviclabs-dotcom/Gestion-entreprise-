@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun, Monitor } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
@@ -10,9 +11,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const noopSubscribe = () => () => {};
+
 export default function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
-  const Icon = resolvedTheme === "light" ? Sun : Moon;
+  // Le serveur ne connaît pas le thème résolu (stocké côté navigateur) : on rend
+  // l'icône par défaut jusqu'à l'hydratation, sinon React lève une erreur de
+  // concordance en thème clair.
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
+  const Icon = hydrated && resolvedTheme === "light" ? Sun : Moon;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

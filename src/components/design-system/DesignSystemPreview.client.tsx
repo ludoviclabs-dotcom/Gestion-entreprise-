@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun, Monitor } from "lucide-react";
 import BrandMark from "@/components/shell/BrandMark";
@@ -38,8 +39,12 @@ const FORBIDDEN = [
   "Une autre police que celles déjà chargées par src/app/layout.tsx.",
 ];
 
+const noopSubscribe = () => () => {};
+
 export default function DesignSystemPreview() {
   const { theme, setTheme } = useTheme();
+  // Thème inconnu du serveur : valeur par défaut jusqu'à l'hydratation (pas d'écart SSR).
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
@@ -64,7 +69,7 @@ export default function DesignSystemPreview() {
           <SegmentedControl
             label="Thème"
             size="sm"
-            value={theme ?? "dark"}
+            value={hydrated ? (theme ?? "dark") : "dark"}
             onValueChange={setTheme}
             options={[
               { value: "dark", label: "Sombre", icon: Moon },

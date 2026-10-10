@@ -3,19 +3,25 @@
 import { useState } from "react";
 import { useReducedMotion } from "motion/react";
 import {
+  BadgeCheck,
   Bell,
+  Coins,
   Download,
   FolderOpen,
+  LayoutDashboard,
   LayoutGrid,
   List,
   Network,
   Plus,
   RefreshCw,
   Search,
+  Settings,
+  ShieldAlert,
   Table2,
 } from "lucide-react";
 import AppShell from "@/components/shell/AppShell";
 import AppSidebar from "@/components/shell/AppSidebar";
+import { Sidebar, SidebarCount, SidebarItem, SidebarNav } from "@/components/shell/Sidebar";
 import TopBar from "@/components/shell/TopBar";
 import PageHeader from "@/components/shell/PageHeader";
 import EmptyState from "@/components/empty/EmptyState";
@@ -48,6 +54,8 @@ import {
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { MetricChip } from "@/components/ui/metric-chip";
+import { Reveal } from "@/components/ui/reveal";
+import { StatCard } from "@/components/ui/stat-card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { SidePanel } from "@/components/ui/side-panel";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -92,6 +100,7 @@ export default function ComponentGallery() {
   const [pressed, setPressed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [replay, setReplay] = useState(0);
+  const [revealRun, setRevealRun] = useState(0);
 
   return (
     <div>
@@ -99,13 +108,13 @@ export default function ComponentGallery() {
       <Section
         id="coque"
         title="Coque : AppShell · Sidebar · Topbar · PageHeader"
-        description="Assemblée dans (app)/layout.tsx. Ici : la vraie coque, dans un cadre de 420 px. La sidebar apparaît dès le breakpoint md (768 px) ; en dessous, un tiroir s'ouvre depuis la Topbar."
+        description="Assemblée dans (app)/layout.tsx. Ici : la vraie coque, dans un cadre de 420 px. Sidebar pleine dès lg (1024 px), rail compact icône + libellé court entre md et lg, tiroir depuis la Topbar sous md. Topbar : recherche globale (Ctrl K / ⌘ K), « Nouveau dossier », thème, statut de session."
       >
         <div className="overflow-hidden rounded-lg border border-border-strong">
           <AppShell
             className="h-[420px]"
-            sidebar={<AppSidebar demoMode />}
-            topbar={<TopBar demoMode />}
+            sidebar={<AppSidebar review={{ count: 3, tone: "critical" }} />}
+            topbar={<TopBar demoMode review={{ count: 3, tone: "critical" }} />}
             canvas="grid"
           >
             <div className="space-y-5 p-6">
@@ -235,6 +244,35 @@ export default function ComponentGallery() {
           <MetricChip label="Sources" value="3/16" size="sm" tone="info" />
           <MetricChip label="Vigilance" value="—" size="sm" tone="neutral" />
         </Specimen>
+        <div className="space-y-2">
+          <p className="text-eyebrow">StatCard — libellé · valeur · lecture qualitative · variation · contexte</p>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard label="Dossiers actifs" value={12} icon={FolderOpen} href="#statuts" context="9 prêts · 3 en enrichissement" />
+            <StatCard
+              label="Signaux élevés"
+              value={4}
+              icon={ShieldAlert}
+              status={{ tone: "critical", label: "À instruire" }}
+              context="Sur 2 dossiers"
+            />
+            <StatCard
+              label="Qualité de preuve moyenne"
+              value={64}
+              unit="/100"
+              icon={BadgeCheck}
+              status={{ tone: "vigilance", label: "Moyenne" }}
+              delta={{ value: "+6", direction: "up", label: "vs 30 jours (exemple)" }}
+              context="Moyenne sur 10 dossiers scorés"
+            />
+            <StatCard
+              label="Qualité de preuve moyenne"
+              value="—"
+              icon={BadgeCheck}
+              status={{ tone: "neutral", label: "Aucun dossier scoré" }}
+              context="Valeur absente : « — », jamais 0"
+            />
+          </div>
+        </div>
       </Section>
 
       {/* ───────────── Actions ───────────── */}
@@ -305,6 +343,34 @@ export default function ComponentGallery() {
             </TabsList>
           </Tabs>
         </Specimen>
+        <div className="space-y-2">
+          <p className="text-eyebrow">Sidebar — actif · survol · compteur · désactivé</p>
+          <div className="h-56 w-[var(--layout-sidebar-width)] overflow-hidden rounded-lg border border-border-strong">
+            <Sidebar className="w-full">
+              <SidebarNav label="Démonstration des états de navigation">
+                <SidebarItem href="#navigation" icon={LayoutDashboard} active>
+                  Tableau de bord
+                </SidebarItem>
+                <SidebarItem
+                  href="#navigation"
+                  icon={FolderOpen}
+                  badge={<SidebarCount value={3} tone="critical" srLabel="dossiers à revoir" />}
+                >
+                  Dossiers
+                </SidebarItem>
+                <SidebarItem href="#navigation" icon={Coins}>
+                  Transactions
+                </SidebarItem>
+                <SidebarItem href="#navigation" icon={Settings} disabled>
+                  Réglages (désactivé)
+                </SidebarItem>
+              </SidebarNav>
+            </Sidebar>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Clavier : Tab parcourt les entrées, ↑ ↓ Début Fin s&apos;y déplacent. Entrée désactivée : non focalisable, aria-disabled.
+          </p>
+        </div>
         <Specimen label="SegmentedControl — md et sm">
           <SegmentedControl
             label="Mode d'affichage"
@@ -502,7 +568,7 @@ export default function ComponentGallery() {
         title="Motion"
         description="Fonctionnelle et courte. Les états changent par couleur / bordure / halo ; seuls les panneaux se déplacent (12 px) à l'entrée. Rien ne boucle sur un contenu opérationnel."
       >
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Panel>
             <PanelHeader>
               <PanelTitle>Durées</PanelTitle>
@@ -558,6 +624,26 @@ export default function ComponentGallery() {
               >
                 Bordure + halo, sans mouvement
               </Card>
+            </PanelBody>
+          </Panel>
+
+          <Panel>
+            <PanelHeader>
+              <PanelTitle>Apparition par groupes</PanelTitle>
+              <Button size="xs" variant="outline" onClick={() => setRevealRun((n) => n + 1)}>
+                Rejouer
+              </Button>
+            </PanelHeader>
+            <PanelBody key={revealRun} className="h-24 space-y-1.5 overflow-hidden">
+              {["En-tête", "Indicateurs", "Panneaux"].map((label, index) => (
+                <Reveal
+                  key={label}
+                  index={index}
+                  className="rounded-md border border-border bg-surface-2 px-3 py-1 text-xs"
+                >
+                  {index + 1}. {label}
+                </Reveal>
+              ))}
             </PanelBody>
           </Panel>
         </div>

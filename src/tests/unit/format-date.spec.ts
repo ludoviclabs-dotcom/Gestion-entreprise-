@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { formatDateFr, formatDateTimeFr } from "@/lib/format-date";
+import { formatDateFr, formatDateTimeFr, formatRelativeFr } from "@/lib/format-date";
 
 const ORIGINAL_TZ = process.env.TZ;
 afterEach(() => {
@@ -47,5 +47,23 @@ describe("formatDateFr / formatDateTimeFr", () => {
     expect(formatDateFr("n'importe quoi")).toBe("n'importe quoi");
     expect(formatDateTimeFr("n'importe quoi")).toBe("n'importe quoi");
     expect(formatDateFr("n'importe quoi")).not.toMatch(/Invalid/);
+  });
+});
+
+describe("formatRelativeFr — relatif à un instant fourni (déterministe)", () => {
+  const now = new Date("2026-10-10T12:00:00Z");
+  it("secondes, minutes, heures, jours", () => {
+    expect(formatRelativeFr("2026-10-10T11:59:30Z", now)).toBe("à l'instant");
+    expect(formatRelativeFr("2026-10-10T11:45:00Z", now)).toBe("il y a 15 minutes");
+    expect(formatRelativeFr("2026-10-10T09:00:00Z", now)).toBe("il y a 3 heures");
+    expect(formatRelativeFr("2026-10-09T10:00:00Z", now)).toBe("hier");
+    expect(formatRelativeFr("2026-10-06T10:00:00Z", now)).toBe("il y a 4 jours");
+  });
+  it("au-delà de 7 jours ou dans le futur : date absolue", () => {
+    expect(formatRelativeFr("2026-09-01T10:00:00Z", now)).toBe("01/09/2026");
+    expect(formatRelativeFr("2026-10-12T10:00:00Z", now)).toBe("12/10/2026");
+  });
+  it("valeur absente : « — »", () => {
+    expect(formatRelativeFr(undefined, now)).toBe("—");
   });
 });

@@ -44,6 +44,8 @@ export const MOTION = {
     panel: 12,
     fade: 4,
   },
+  /** Décalage entre deux groupes d'une apparition progressive (`--motion-stagger`), en s. */
+  stagger: toSeconds(50),
   /** Ressort doux pour l'entrée d'un panneau (≈ 2 % de dépassement). */
   spring: {
     type: "spring",
@@ -55,3 +57,9 @@ export const MOTION = {
 
 /** Bornes de la règle « durée fonctionnelle » (ms). */
 export const MOTION_RANGE_MS = { min: 120, max: 220 } as const;
+
+/**
+ * Apparition progressive par groupes : au-delà de ce nombre de groupes, les
+ * suivants apparaissent avec le dernier (l'ensemble reste sous ~400 ms).
+ */
+export const REVEAL_MAX_GROUPS = 5;

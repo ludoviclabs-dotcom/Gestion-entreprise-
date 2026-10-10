@@ -9,12 +9,12 @@ const ORIGIN_META: Record<
 > = {
   live: { label: "Live", icon: DatabaseZap },
   mixed: { label: "Mixte", icon: Activity },
-  fixture: { label: "Demo", icon: FlaskConical },
+  fixture: { label: "Démo", icon: FlaskConical },
   unknown: { label: "Origine inconnue", icon: DatabaseZap },
 };
 
 const SCORE_LABELS: Record<ScoreStatus, string> = {
-  computed: "Score calcule",
+  computed: "Score calculé",
   partial: "Score partiel",
   missing: "Score manquant",
   error: "Score erreur",
@@ -31,7 +31,7 @@ export function OriginBadge({
 }) {
   const meta = ORIGIN_META[origin];
   const title = sourceHealth
-    ? `${sourceHealth.live} live, ${sourceHealth.fixture} demo, ${sourceHealth.failed} echec(s)`
+    ? `${sourceHealth.live} live, ${sourceHealth.fixture} démo, ${sourceHealth.failed} échec(s)`
     : meta.label;
   return (
     <StatusBadge tone={CASE_ORIGIN_TONE[origin]} icon={meta.icon} title={title}>
@@ -67,11 +67,11 @@ export function SourceHealthBadge({
     <StatusBadge
       tone={hasFailure ? "critical" : "neutral"}
       icon={ShieldCheck}
-      title={`${sourceHealth.total} source(s), ${sourceHealth.failed} echec(s)`}
+      title={`${sourceHealth.total} source(s), ${sourceHealth.failed} échec(s)`}
     >
       {compact
         ? `${sourceHealth.failed}/${sourceHealth.total}`
-        : `${sourceHealth.failed} echec source`}
+        : `${sourceHealth.failed} échec source`}
     </StatusBadge>
   );
 }

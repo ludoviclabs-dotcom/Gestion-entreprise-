@@ -65,3 +65,23 @@ export function formatDateTimeFr(input: Input): string {
   if (!d) return typeof input === "string" && input ? input : "—";
   return dateTimeFormatter.format(d);
 }
+
+const relativeFormatter = new Intl.RelativeTimeFormat("fr-FR", { numeric: "auto" });
+
+/**
+ * « il y a 3 heures », « hier », « il y a 4 jours » — relatif à `now`, FOURNI
+ * par l'appelant (résultat déterministe, testable). Au-delà de 7 jours, ou pour
+ * un instant futur, on revient à la date absolue (« 02/10/2026 »).
+ */
+export function formatRelativeFr(input: Input, now: Date): string {
+  const d = toDate(input);
+  if (!d) return typeof input === "string" && input ? input : "—";
+  const seconds = Math.round((d.getTime() - now.getTime()) / 1000);
+  if (seconds > 60) return formatDateFr(d);
+  const ago = -seconds;
+  if (ago < 60) return "à l'instant";
+  if (ago < 3600) return relativeFormatter.format(-Math.floor(ago / 60), "minute");
+  if (ago < 86400) return relativeFormatter.format(-Math.floor(ago / 3600), "hour");
+  if (ago < 7 * 86400) return relativeFormatter.format(-Math.floor(ago / 86400), "day");
+  return formatDateFr(d);
+}

@@ -10,7 +10,7 @@ import {
   type ParsedColor,
   type Rgb,
 } from "@/lib/design/color";
-import { MOTION, MOTION_MS, MOTION_RANGE_MS } from "@/lib/design/motion";
+import { MOTION, MOTION_MS, MOTION_RANGE_MS, REVEAL_MAX_GROUPS } from "@/lib/design/motion";
 import { RISK_TONES } from "@/lib/design/tone";
 import {
   parseCss,
@@ -323,6 +323,12 @@ describe("design-tokens — motion fonctionnelle", () => {
     });
     expect(`${MOTION.distance.panel}px`).toBe(tokens["--motion-distance-panel"]);
     expect(`${MOTION.distance.fade}px`).toBe(tokens["--motion-distance-fade"]);
+    expect(`${Math.round(MOTION.stagger * 1000)}ms`).toBe(tokens["--motion-stagger"]);
+  });
+
+  it("apparition par groupes : la page entière apparaît en moins de 500 ms", () => {
+    const total = REVEAL_MAX_GROUPS * ms("--motion-stagger") + ms("--motion-duration-base");
+    expect(total).toBeLessThan(500);
   });
 
   it("les courbes cubic-bezier TypeScript reflètent les tokens CSS", () => {

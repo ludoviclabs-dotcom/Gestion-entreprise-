@@ -38,7 +38,8 @@ export default function PageHeader({
         className,
       )}
     >
-      <div className="min-w-0 flex-1">
+      {/* Base de 20 rem : sur petit écran, les actions passent SOUS le titre au lieu de le casser. */}
+      <div className="min-w-0 flex-[1_1_20rem]">
         {eyebrow ? <p className="text-eyebrow mb-1.5">{eyebrow}</p> : null}
         <Heading className="font-display text-2xl font-bold text-foreground">
           {title}

@@ -8,9 +8,9 @@ import path from "node:path";
  * Les primitives (ui, shell, empty), la couche TypeScript du design system
  * (lib/design) et la page de prévisualisation n'utilisent QUE des tokens :
  * aucun littéral de couleur, aucune ombre/flou ad hoc, aucun z-index brut,
- * aucune taille de texte arbitraire, aucun alias de couleur historique. Les
- * pages métier et le graphe migrent lot par lot (cf. DESIGN_SYSTEM.md § Dette) :
- * ils ne sont pas dans ce périmètre.
+ * aucune taille de texte arbitraire, aucun alias de couleur historique. Le
+ * tableau de bord (refondu sur le design system) y est inclus ; les autres pages
+ * métier et le graphe migrent lot par lot (cf. DESIGN_SYSTEM.md § Dette).
  */
 
 const ROOT = process.cwd();
@@ -21,6 +21,8 @@ const TERRITORY = [
   "src/components/shell",
   "src/components/empty",
   "src/components/design-system",
+  "src/components/dashboard",
+  "src/app/(app)/dashboard",
   "src/lib/design",
 ];
 
@@ -69,6 +71,10 @@ describe("design-contract — territoire du design system", () => {
       "src/components/empty/EmptyState.tsx",
       "src/components/empty/LoadingState.tsx",
       "src/components/empty/ErrorState.tsx",
+      "src/components/ui/stat-card.tsx",
+      "src/components/ui/reveal.tsx",
+      "src/components/shell/nav.ts",
+      "src/components/shell/SessionStatus.tsx",
     ]) {
       expect(FILES, expected).toContain(expected);
     }
@@ -206,6 +212,7 @@ describe("design-contract — documentation synchronisée", () => {
       "AppShell", "Sidebar", "TopBar", "PageHeader", "Card", "Panel", "MetricChip",
       "StatusBadge", "IconButton", "Tabs", "SegmentedControl", "DataTable",
       "EmptyState", "LoadingState", "ErrorState", "Tooltip", "Dialog", "SidePanel",
+      "StatCard", "Reveal", "SidebarCount", "SessionStatus", "APP_NAV",
     ]) {
       expect(doc, name).toContain(name);
     }

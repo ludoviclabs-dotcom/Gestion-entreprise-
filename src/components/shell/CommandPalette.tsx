@@ -11,15 +11,16 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import {
-  LayoutDashboard,
-  FolderOpen,
-  Settings,
-  FilePlus2,
-  Building2,
-} from "lucide-react";
+import { FilePlus2, Building2 } from "lucide-react";
 import type { CaseSummary } from "@/lib/data/types";
+import { APP_NAV } from "./nav";
+import { OPEN_COMMAND_EVENT } from "./TopBar";
 
+/**
+ * Recherche globale (⌘K / Ctrl+K, ou champ de la Topbar) : pages de
+ * l'application (APP_NAV, avec leurs mots-clés), action « Nouveau dossier » et
+ * dossiers actifs (par nom ou SIREN).
+ */
 export default function CommandPalette({ cases }: { cases: CaseSummary[] }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -34,10 +35,10 @@ export default function CommandPalette({ cases }: { cases: CaseSummary[] }) {
     document.addEventListener("keydown", onKey);
     // Ouverture depuis un clic externe (champ de recherche de la topbar).
     const onOpen = () => setOpen(true);
-    window.addEventListener("kyb:open-command", onOpen);
+    window.addEventListener(OPEN_COMMAND_EVENT, onOpen);
     return () => {
       document.removeEventListener("keydown", onKey);
-      window.removeEventListener("kyb:open-command", onOpen);
+      window.removeEventListener(OPEN_COMMAND_EVENT, onOpen);
     };
   }, []);
 
@@ -50,25 +51,31 @@ export default function CommandPalette({ cases }: { cases: CaseSummary[] }) {
   );
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Rechercher une commande, un dossier…" />
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      title="Recherche globale"
+      description="Rechercher une page, un dossier ou un SIREN."
+    >
+      <CommandInput placeholder="Rechercher une page, un dossier, un SIREN…" />
       <CommandList>
         <CommandEmpty>Aucun résultat.</CommandEmpty>
-        <CommandGroup heading="Navigation">
-          <CommandItem onSelect={() => go("/dashboard")}>
-            <LayoutDashboard /> Tableau de bord
-          </CommandItem>
-          <CommandItem onSelect={() => go("/cases")}>
-            <FolderOpen /> Dossiers
-          </CommandItem>
-          <CommandItem onSelect={() => go("/reglages")}>
-            <Settings /> Réglages
-          </CommandItem>
+        <CommandGroup heading="Pages">
+          {APP_NAV.map(({ href, label, icon: Icon, keywords }) => (
+            <CommandItem
+              key={href}
+              value={label}
+              keywords={keywords}
+              onSelect={() => go(href)}
+            >
+              <Icon aria-hidden /> {label}
+            </CommandItem>
+          ))}
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Actions">
           <CommandItem onSelect={() => go("/cases/new")}>
-            <FilePlus2 /> Nouveau dossier
+            <FilePlus2 aria-hidden /> Nouveau dossier
           </CommandItem>
         </CommandGroup>
         {cases.length > 0 && (
@@ -81,8 +88,8 @@ export default function CommandPalette({ cases }: { cases: CaseSummary[] }) {
                   value={`${c.title} ${c.rootSiren}`}
                   onSelect={() => go(`/cases/${c.id}/graphe`)}
                 >
-                  <Building2 /> {c.title}
-                  <span className="ml-auto text-xs text-muted-foreground">
+                  <Building2 aria-hidden /> {c.title}
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                     {c.rootSiren}
                   </span>
                 </CommandItem>

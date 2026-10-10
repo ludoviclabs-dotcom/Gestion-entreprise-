@@ -212,6 +212,7 @@
 
   /* Mise en page */
   --layout-sidebar-width: 15rem;
+  --layout-sidebar-rail-width: 5rem; /* sidebar compacte (tablette) : icône + libellé court */
   --layout-topbar-height: 3.5rem;
   --layout-page-gutter: 1.5rem;
   --layout-page-max: 72rem;
@@ -243,6 +244,7 @@
   --motion-duration-exit: 140ms; /* sortie : toujours plus courte que l'entrée */
   --motion-distance-panel: 12px; /* translation d'entrée d'un panneau */
   --motion-distance-fade: 4px; /* translation d'entrée d'une page / d'un bloc */
+  --motion-stagger: 50ms; /* décalage entre deux groupes qui apparaissent l'un après l'autre */
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
