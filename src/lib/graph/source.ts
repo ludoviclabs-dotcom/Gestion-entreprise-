@@ -12,5 +12,9 @@ export type SourceKind =
   | "pappers"
   | "companies_house"
   | "recherche_entreprises"
+  | "balo"
+  | "boamp"
+  | "joafe"
+  | "dca"
   | "manual"
   | "fixture";

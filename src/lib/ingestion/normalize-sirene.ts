@@ -111,6 +111,8 @@ export type SireneNormalized = {
   companyId: string;
   denomination: string | null;
   nic: string | null;
+  /** Catégorie juridique INSEE (ex. « 5599 », « 9220 » = association déclarée). */
+  legalCategory: string | null;
   entities: CaseEntity[];
   edges: CaseEdge[];
 };
@@ -205,6 +207,7 @@ export function normalizeSirene(
     denomination,
     // Réponse réelle : le NIC est dans la période ; niveau 1 = fixtures/historique.
     nic: period.nicSiegeUniteLegale ?? ul.nicSiegeUniteLegale ?? null,
+    legalCategory: period.categorieJuridiqueUniteLegale ?? null,
     entities,
     edges,
   };

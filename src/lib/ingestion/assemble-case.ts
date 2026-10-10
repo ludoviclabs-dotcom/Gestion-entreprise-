@@ -13,13 +13,27 @@ import { gdelt } from "@/lib/connectors/gdelt";
 import { pappers } from "@/lib/connectors/pappers";
 import { companiesHouse } from "@/lib/connectors/companies-house";
 import { rechercheEntreprises } from "@/lib/connectors/recherche-entreprises";
+import { balo } from "@/lib/connectors/balo";
+import { boamp } from "@/lib/connectors/boamp";
+import { dca, joafe, isRna } from "@/lib/connectors/associations";
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
 import {
+  isBaloEnabled,
+  isBoampEnabled,
   isCompaniesHouseEnabled,
+  isDcaEnabled,
   isDemoMode,
   isInpiUboExposed,
+  isJoafeEnabled,
   isRechercheEntreprisesEnabled,
 } from "@/lib/env";
+import {
+  dilaAttributes,
+  normalizeBalo,
+  normalizeBoamp,
+  normalizeDca,
+  normalizeJoafe,
+} from "./normalize-dila";
 import { normalizeSirene, sireneAddress } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
@@ -123,6 +137,15 @@ export async function assembleCase(
   // « Recherche d'entreprises » : appelée seulement en live ET activée — sinon
   // aucune consultation, donc aucune ligne source_records (source non interrogée).
   const rechercheOn = !isDemoMode() && isRechercheEntreprisesEnabled();
+  // Lot « DILA » (BALO, BOAMP, DCA) : mêmes règles — live ET activé, sinon aucune
+  // consultation ni ligne source_records. Les deux jeux « associations » ne sont
+  // interrogés que pour une catégorie juridique 9xxx (associations, fondations,
+  // fonds de dotation) : aucun appel inutile pour une société commerciale.
+  const live = !isDemoMode();
+  const isAssociation = /^9/.test(sireneNorm.legalCategory ?? "");
+  const baloOn = live && isBaloEnabled();
+  const boampOn = live && isBoampEnabled();
+  const dcaOn = live && isDcaEnabled() && isAssociation;
   const [
     bodaccRes,
     inpiRes,
@@ -133,6 +156,9 @@ export async function assembleCase(
     pappersRes,
     gdeltRes,
     rechercheRes,
+    baloRes,
+    boampRes,
+    dcaRes,
   ] =
     await Promise.all([
       bodacc.bySiren(siren),
@@ -148,6 +174,9 @@ export async function assembleCase(
       pappers.bySiren(siren),
       gdelt.byName(subjectLabel),
       rechercheOn ? rechercheEntreprises.bySiren(siren) : Promise.resolve(null),
+      baloOn ? balo.bySiren(siren) : Promise.resolve(null),
+      boampOn ? boamp.bySiren(siren) : Promise.resolve(null),
+      dcaOn ? dca.bySiren(siren) : Promise.resolve(null),
     ]);
   sources.push(
     toSource("bodacc", bodaccRes),
@@ -160,12 +189,45 @@ export async function assembleCase(
     toSource("gdelt", gdeltRes),
   );
   if (rechercheRes) sources.push(toSource("recherche_entreprises", rechercheRes));
+  if (baloRes) sources.push(toSource("balo", baloRes));
+  if (boampRes) sources.push(toSource("boamp", boampRes));
+  if (dcaRes) sources.push(toSource("dca", dcaRes));
+
+  // Annonces JOAFE : rapprochées par numéro RNA (et non par SIREN). Le RNA vient
+  // d'abord des dépôts de comptes (DCA), à défaut de Recherche d'entreprises.
+  // Séquentiel (dépend du RNA) ; sans RNA valide : aucune consultation.
+  const rnaOf = (raw: unknown): string | null => {
+    const v = (raw as { rna?: unknown } | null)?.rna;
+    return typeof v === "string" ? v : null;
+  };
+  const rna = [
+    dcaRes && !dcaRes.isFixture ? rnaOf(dcaRes.raw) : null,
+    rechercheRes && !rechercheRes.isFixture ? rnaOf(rechercheRes.raw) : null,
+  ].find(isRna);
+  const joafeRes =
+    live && isJoafeEnabled() && isAssociation && rna ? await joafe.byRna(rna) : null;
+  if (joafeRes) sources.push(toSource("joafe", joafeRes));
+
+  // Consultation DILA exploitable : réussie (2xx), non fixture, non dégradée.
+  const dilaUsable = (r: ConnectorResult<unknown> | null): r is ConnectorResult<unknown> =>
+    r !== null &&
+    !r.isFixture &&
+    r.httpStatus >= 200 &&
+    r.httpStatus < 300 &&
+    !isDegradedEndpoint(r.endpoint);
 
   // Repli fixture (BODACC en panne) ou mode live : jamais d'annonces d'échantillon
   // sur un dossier réel.
-  const events = usableResult(bodaccRes)
+  const bodaccEvents = usableResult(bodaccRes)
     ? normalizeBodacc(bodaccRes.raw, companyId)
     : [];
+  const events = [
+    ...bodaccEvents,
+    ...(dilaUsable(baloRes) ? normalizeBalo(baloRes.raw, companyId) : []),
+    ...(dilaUsable(boampRes) ? normalizeBoamp(boampRes.raw, companyId) : []),
+    ...(dilaUsable(dcaRes) ? normalizeDca(dcaRes.raw, companyId) : []),
+    ...(dilaUsable(joafeRes) ? normalizeJoafe(joafeRes.raw, companyId) : []),
+  ];
 
   // Sans identifiants INPI en mode live, `inpiRes` est la fixture (dirigeants
   // DANONE) : on ne l'applique pas à un dossier réel.
@@ -345,6 +407,16 @@ export async function assembleCase(
         ...rechercheAttributes(rechercheRes.raw),
       };
     }
+    // Volumes publiés (BALO, BOAMP, JOAFE, DCA) — la liste d'événements est plafonnée.
+    subject.attributes = {
+      ...subject.attributes,
+      ...dilaAttributes({
+        balo: dilaUsable(baloRes) ? baloRes.raw : null,
+        boamp: dilaUsable(boampRes) ? boampRes.raw : null,
+        dca: dilaUsable(dcaRes) ? dcaRes.raw : null,
+        joafe: dilaUsable(joafeRes) ? joafeRes.raw : null,
+      }),
+    };
   }
 
   // GDELT — couverture médiatique (presse), appariée au graphe CANONIQUE.

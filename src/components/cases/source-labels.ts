@@ -14,6 +14,10 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   pappers: "Pappers",
   companies_house: "Companies House (UK)",
   recherche_entreprises: "Recherche d'entreprises (DINUM)",
+  balo: "BALO (annonces financières)",
+  boamp: "BOAMP (marchés publics)",
+  joafe: "JOAFE (associations)",
+  dca: "Comptes des associations (DCA)",
   manual: "Manuel",
   fixture: "Fixture",
 };
