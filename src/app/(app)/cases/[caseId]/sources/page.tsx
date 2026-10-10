@@ -16,6 +16,7 @@ import EvidenceExplorer from "@/components/cases/EvidenceExplorer.client";
 import ProofJournal from "@/components/cases/ProofJournal";
 import EmptyState from "@/components/empty/EmptyState";
 import { SOURCE_LABELS } from "@/components/cases/source-labels";
+import { formatDuration, sortedTimings } from "@/lib/data/timings";
 
 export default async function SourcesTab(props: {
   params: Promise<{ caseId: string }>;
@@ -31,7 +32,7 @@ export default async function SourcesTab(props: {
     repository.getSourceRecords(caseId),
   ]);
 
-  const { sources, evidence } = detail;
+  const { sources, evidence, timings } = detail;
   const sourceHealth = getSourceHealth(sources);
   const scoreStatus = getScoreStatus(detail.bundle.case.scores ?? {});
 
@@ -106,6 +107,32 @@ export default async function SourcesTab(props: {
         </Table>
       </div>
       )}
+
+      {timings && Object.keys(timings).length > 0 ? (
+        <div
+          className="mt-4 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted-foreground"
+          data-testid="source-timings"
+        >
+          <span className="font-medium text-foreground">
+            Durée de collecte
+            {typeof timings._total === "number"
+              ? ` : ${formatDuration(timings._total)}`
+              : ""}
+          </span>
+          {" — "}
+          {sortedTimings(timings)
+            .map(([key, ms]) => {
+              const label =
+                key === "sirene_siege"
+                  ? "INSEE Sirene (siège)"
+                  : (SOURCE_LABELS[key as keyof typeof SOURCE_LABELS] ?? key);
+              return `${label} ${formatDuration(ms)}`;
+            })
+            .join(" · ")}
+          . Les sources sont interrogées en parallèle : la durée totale est celle de
+          la plus lente.
+        </div>
+      ) : null}
 
       {evidence.length > 0 ? (
         <EvidenceExplorer
