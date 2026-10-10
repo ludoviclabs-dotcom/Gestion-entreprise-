@@ -223,6 +223,30 @@ describe("normalizeCompaniesHouse", () => {
   };
   const COMPANY = "co:lei:2138002P5RNKC5W2JZ46";
 
+  it("écarte les titres (Mr., Ms., Dame, Dr.…) publiés après le prénom", () => {
+    expect(displayName("BRANCH, Sonya Judith Clara, Ms.", false)).toBe("Sonya Judith Clara BRANCH");
+    expect(displayName("FAIRBAIRN, Carolyn Julie, Dame", false)).toBe("Carolyn Julie FAIRBAIRN");
+    expect(displayName("MEADE KURIBRENA, Jose Antonio, Dr.", false)).toBe("Jose Antonio MEADE KURIBRENA");
+    expect(displayName("DE JONG, Michiel Gerrit Jan, Mr.", false)).toBe("Michiel Gerrit Jan DE JONG");
+    // Sans virgule : inchangé ; société : jamais découpée.
+    expect(displayName("ELEPHANT", false)).toBe("ELEPHANT");
+    expect(displayName("EXEMPLE, HOLDINGS LIMITED", true)).toBe("EXEMPLE, HOLDINGS LIMITED");
+  });
+
+  it("l'identifiant ne dépend pas du titre (fusion possible avec les autres sources)", () => {
+    const withTitle = normalizeCompaniesHouse(
+      {
+        status: "ok",
+        company: { number: "1", name: "X", status: null, type: null, createdOn: null, jurisdiction: null, sicCodes: [] },
+        officers: [{ name: "BRANCH, Sonya Judith Clara, Ms.", role: "director", corporate: false, appointedOn: null, resignedOn: null }],
+        pscs: [],
+      },
+      { companyId: "co:x" },
+    );
+    expect(withTitle.entities[0].id).toBe("pe:sonya-judith-clara-branch");
+    expect(withTitle.entities[0].label).toBe("Sonya Judith Clara BRANCH");
+  });
+
   it("convertit « NOM, Prénom » et crée dirigeants + arêtes DIRIGE datées", () => {
     expect(displayName("MURPHY, Ken", false)).toBe("Ken MURPHY");
     expect(displayName("EXEMPLE LIMITED", true)).toBe("EXEMPLE LIMITED");

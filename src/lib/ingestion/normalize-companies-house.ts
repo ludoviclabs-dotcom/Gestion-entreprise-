@@ -54,15 +54,20 @@ function natureLabel(code: string): string {
   return code;
 }
 
-/** « MURPHY, Ken » → « Ken MURPHY » ; les noms de sociétés sont laissés tels quels. */
+/**
+ * « MURPHY, Ken » → « Ken MURPHY ». Companies House ajoute parfois le titre après
+ * un 2ᵉ séparateur (« BRANCH, Sonya Judith Clara, Ms. », « FAIRBAIRN, Carolyn
+ * Julie, Dame ») : il est ÉCARTÉ (ce n'est pas une partie du nom, et il
+ * empêcherait le rapprochement avec les autres sources). Les noms de sociétés
+ * sont laissés tels quels.
+ */
 export function displayName(name: string, corporate: boolean): string {
   const n = name.trim();
   if (corporate) return n;
-  const comma = n.indexOf(",");
-  if (comma <= 0) return n;
-  const surname = n.slice(0, comma).trim();
-  const forenames = n.slice(comma + 1).trim();
-  return forenames ? `${forenames} ${surname}` : surname;
+  const parts = n.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length < 2) return n;
+  const [surname, forenames] = parts;
+  return `${forenames} ${surname}`;
 }
 
 function holderId(name: string, corporate: boolean, registration?: string | null): string {
