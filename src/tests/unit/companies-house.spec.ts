@@ -228,6 +228,16 @@ describe("normalizeCompaniesHouse", () => {
     expect(displayName("FAIRBAIRN, Carolyn Julie, Dame", false)).toBe("Carolyn Julie FAIRBAIRN");
     expect(displayName("MEADE KURIBRENA, Jose Antonio, Dr.", false)).toBe("Jose Antonio MEADE KURIBRENA");
     expect(displayName("DE JONG, Michiel Gerrit Jan, Mr.", false)).toBe("Michiel Gerrit Jan DE JONG");
+    // Titre AVANT les prénoms : les prénoms ne doivent pas être perdus.
+    expect(displayName("BROOKS-STEPHENSON, ESQ, Philip Edward Paul Archer", false)).toBe(
+      "Philip Edward Paul Archer BROOKS-STEPHENSON",
+    );
+    expect(displayName("SMITH, Dr, John", false)).toBe("John SMITH");
+    expect(displayName("SMITH, Sir Prof, John Paul", false)).toBe("John Paul SMITH");
+    // Rien que des titres : on garde le nom de famille, sans inventer de prénom.
+    expect(displayName("SMITH, Mr.", false)).toBe("SMITH");
+    // Un prénom qui ressemble à un titre n'est écarté que s'il est SEUL dans son segment.
+    expect(displayName("DAME, Hon Michael", false)).toBe("Hon Michael DAME");
     // Sans virgule : inchangé ; société : jamais découpée.
     expect(displayName("ELEPHANT", false)).toBe("ELEPHANT");
     expect(displayName("EXEMPLE, HOLDINGS LIMITED", true)).toBe("EXEMPLE, HOLDINGS LIMITED");
