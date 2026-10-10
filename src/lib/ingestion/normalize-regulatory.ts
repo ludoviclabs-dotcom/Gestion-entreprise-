@@ -1,3 +1,4 @@
+import { importedIcpeData } from "./icpe-data";
 import type { GeorisquesRaw } from "@/lib/connectors/georisques";
 import type { AnnuaireRaw } from "@/lib/connectors/annuaire-administration";
 
@@ -33,11 +34,30 @@ export const REGULATORY_ATTRIBUTE_KEYS = {
 } as const;
 
 export function icpeSummary(raw: unknown): string | null {
+  if (asData<{ coverage: string }>(raw).coverage === "national-import") {
+    const parsed = importedIcpeData.safeParse(raw);
+    if (!parsed.success) return null;
+    const d = parsed.data;
+    const groups = (list: typeof d.byRegime) => list.map(g => `${g.label || "non renseigné"} ×${nf(g.count)}`).join(", ");
+    return [
+      d.total ? `${nf(d.total)} installations classées rapprochées sur ${nf(d.establishments)} établissements` : "Aucune installation classée rapprochée de ce SIREN dans le jeu importé",
+      d.total ? `régimes : ${groups(d.byRegime)}` : null,
+      d.total ? `états : ${groups(d.byStatus)}` : null,
+      d.total ? `Seveso : ${groups(d.bySeveso)}` : null,
+      d.ied ? `directive IED ×${nf(d.ied)}` : null,
+      d.nationalPriority ? `priorité nationale ×${nf(d.nationalPriority)}` : null,
+      d.inspections ? `${nf(d.inspections)} inspections référencées` : null,
+      d.lastInspection ? `dernière inspection : ${d.lastInspection}` : null,
+      `jeu national importé le ${d.importedAt.slice(0, 10)} ; rapprochement limité aux SIRET exploitables publiés`,
+      d.total > 20 ? "totaux complets, détail limité à 20 installations" : null,
+    ].filter(Boolean).join(" — ");
+  }
   const d = asData<GeorisquesRaw>(raw);
   if (d.status !== "ok" || !Array.isArray(d.sites)) return null;
   // « Non ICPE » : site référencé mais NON classé — ce n'est pas une installation classée.
   const classified = d.sites.filter((s) => s?.regime && !/non\s*icpe/i.test(s.regime));
-  if (classified.length === 0) return null;
+  if (classified.length === 0) return d.importFallback
+    ? `Import national non encore réalisé — aucun site classé trouvé lors de la consultation directe des ${d.queried ?? 0} établissements interrogés (couverture limitée)` : null;
 
   const queried = typeof d.queried === "number" && d.queried > 0 ? d.queried : classified.length;
   const regimes = count(classified.map((s) => s.regime as string))
@@ -76,7 +96,7 @@ export function icpeSummary(raw: unknown): string | null {
     open !== null && queried < open
       ? ` — couverture partielle : ${queried} ${plural(queried, "établissement", "établissements")} sur ${nf(open)} ouverts (l'API Géorisques ne se rapproche que par SIRET)`
       : "";
-  return parts.join(" — ") + coverage;
+  return parts.join(" — ") + coverage + (d.importFallback ? " — import national non encore réalisé ; repli sur la consultation directe limitée aux établissements interrogés" : "");
 }
 
 export function annuaireSummary(raw: unknown): string | null {

@@ -8,7 +8,7 @@ on:
         required: true
         type: choice
         default: check
-        options: [check, camino, all]
+        options: [check, camino, icpe, all]
   schedule:
     - cron: '17 3 4 * *'
 
@@ -23,7 +23,8 @@ jobs:
   import:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.OPEN_DATA_IMPORTS_ENABLED == 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Deux sources séquentielles, chacune bornée à 25 min, plus installation.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -29,6 +29,7 @@ import { rge } from "@/lib/connectors/rge";
 import { agenceBio } from "@/lib/connectors/agence-bio";
 import { alimConfiance } from "@/lib/connectors/alim-confiance";
 import { qualiopi } from "@/lib/connectors/qualiopi";
+import { icpeImport } from "@/lib/connectors/icpe-import";
 import { georisques, MAX_ICPE_SIRETS } from "@/lib/connectors/georisques";
 import { annuaireAdministration } from "@/lib/connectors/annuaire-administration";
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
@@ -38,6 +39,7 @@ import {
   isAnnuaireAdministrationEnabled,
   isGeorisquesEnabled,
   isCaminoEnabled,
+  isIcpeImportEnabled,
   isBaloEnabled,
   isBoampEnabled,
   isCompaniesHouseEnabled,
@@ -270,8 +272,16 @@ export async function assembleCase(
   // on interroge le siège et, SI le SIREN a peu d'établissements ouverts (≤ 10,
   // connu par Recherche d'entreprises), ces établissements (une liste Sirene). Au-delà,
   // siège seul — la couverture partielle est dite dans l'attribut, jamais masquée.
-  const icpeHop = rechercheP.then(async (rechercheRes) => {
+  let icpeImportAttempt: ConnectorResult<unknown> | null = null;
+  const icpeHop = (async () => {
     if (!(live && isGeorisquesEnabled())) return null;
+    if (isIcpeImportEnabled()) {
+      const imported = await timed("icpe_import", () => icpeImport.bySiren(siren));
+      // Seul l'absence d'import autorise le repli ; une panne DB reste visible.
+      if ((imported.raw as { status?: string })?.status !== "non_importe") return imported;
+      icpeImportAttempt = imported;
+    }
+    const rechercheRes = await rechercheP;
     const sirets: string[] = nic ? [`${siren}${nic}`] : [];
     const open = openDataUsable(rechercheRes)
       ? ((rechercheRes.raw as { company?: { openEstablishments?: unknown } | null }).company
@@ -294,8 +304,10 @@ export async function assembleCase(
       }
     }
     if (sirets.length === 0) return null;
-    return timed("georisques", () => georisques.bySirets(sirets, { openTotal }));
-  });
+    const direct = await timed("georisques", () => georisques.bySirets(sirets, { openTotal }));
+    return icpeImportAttempt && openDataUsable(direct)
+      ? { ...direct, raw: { ...(direct.raw as object), importFallback: true } } : direct;
+  })();
 
   // Companies House — SECOND SAUT : dirigeants et personnes à contrôle significatif
   // des sociétés mères BRITANNIQUES repérées par GLEIF (registre RA000585/586/587).
@@ -380,6 +392,7 @@ export async function assembleCase(
   if (alimRes) sources.push(toSource("alim_confiance", alimRes));
   if (qualiopiRes) sources.push(toSource("qualiopi", qualiopiRes));
   if (caminoRes) sources.push(toSource("camino", caminoRes));
+  if (icpeImportAttempt) sources.push(toSource("georisques", icpeImportAttempt));
   if (icpeRes) sources.push(toSource("georisques", icpeRes));
   if (annuaireRes) sources.push(toSource("annuaire_administration", annuaireRes));
 

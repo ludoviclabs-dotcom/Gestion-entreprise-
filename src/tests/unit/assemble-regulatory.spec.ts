@@ -9,13 +9,26 @@ vi.hoisted(() => {
 });
 
 const state = vi.hoisted(() => ({
+  importOn: false,
+  importMode: "ok",
   legalCategory: "5599",
   rechercheStatus: 200,
   openEstablishments: 1 as number | null,
   listed: [] as string[],
   listStatus: 200,
-  calls: { georisques: [] as string[][], annuaire: 0, listed: 0 },
+  calls: { imported: 0, georisques: [] as string[][], annuaire: 0, listed: 0 },
 }));
+
+vi.mock("@/lib/env", async () => ({ ...await vi.importActual("@/lib/env"), isIcpeImportEnabled: () => state.importOn }));
+vi.mock("@/lib/connectors/icpe-import", () => ({ icpeImport: { async bySiren() {
+  state.calls.imported++;
+  if (state.importMode === "missing") return { raw: { status: "non_importe" }, endpoint: "db:icpe_sites (source non importée)", httpStatus: 503, isFixture: false };
+  if (state.importMode === "failed") return { raw: { status: "indisponible" }, endpoint: "db:icpe_sites (exception)", httpStatus: 503, isFixture: false };
+  const total = state.importMode === "absent" ? 0 : 50;
+  return ok({ status: "ok", coverage: "national-import", importedAt: "2026-10-10T10:00:00.000Z", total, establishments: total,
+    byRegime: total ? [{ label: "Autorisation", count: total }] : [], byStatus: [], bySeveso: [],
+    ied: 0, nationalPriority: 0, inspections: 0, lastInspection: null, sites: [] }, "db:icpe_sites?siren=552032534");
+} } }));
 
 const ok = <T,>(raw: T, endpoint: string, httpStatus = 200) => ({
   raw,
@@ -143,12 +156,49 @@ const subjectOf = (bundle: Awaited<ReturnType<typeof assembleCase>>["bundle"]) =
 describe("assembleCase — lot réglementaire (Géorisques, Annuaire)", () => {
   afterEach(() => {
     delete process.env.NEXT_PUBLIC_DEMO_MODE;
+    state.importOn = false; state.importMode = "ok";
     state.legalCategory = "5599";
     state.rechercheStatus = 200;
     state.openEstablishments = 1;
     state.listed = [];
     state.listStatus = 200;
-    state.calls = { georisques: [], annuaire: 0, listed: 0 };
+    state.calls = { imported: 0, georisques: [], annuaire: 0, listed: 0 };
+  });
+
+  it("import national : aucune liste Sirene ni API directe, scores inchangés", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false";
+    const baseline = await assembleCase("552032534");
+    state.calls.georisques = []; state.calls.listed = 0; state.openEstablishments = 3; state.importOn = true;
+    const { bundle, sources } = await assembleCase("552032534");
+    expect(state.calls.imported).toBe(1); expect(state.calls.listed).toBe(0); expect(state.calls.georisques).toHaveLength(0);
+    expect(sources.filter(s => s.source === "georisques")).toHaveLength(1);
+    expect(subjectOf(bundle)?.attributes?.["Installations classées (Géorisques)"]).toContain("50 installations classées");
+    expect(bundle.case.scores).toEqual(baseline.bundle.case.scores); expect(bundle.riskSignals).toEqual(baseline.bundle.riskSignals);
+    expect(bundle.events).toEqual(baseline.bundle.events);
+  });
+  it("absence nationale valide : aucun repli ; panne DB : consultation dégradée", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false"; state.importOn = true; state.importMode = "absent";
+    const absent = await assembleCase("552032534");
+    expect(subjectOf(absent.bundle)?.attributes?.["Installations classées (Géorisques)"]).toContain("Aucune installation classée rapprochée");
+    state.importMode = "failed";
+    const failed = await assembleCase("552032534");
+    expect(subjectOf(failed.bundle)?.attributes?.["Installations classées (Géorisques)"]).toBeUndefined();
+    expect(failed.sources.find(s => s.source === "georisques")?.httpStatus).toBe(503);
+    expect(state.calls.georisques).toHaveLength(0); expect(state.calls.listed).toBe(0);
+  });
+  it("aucun import : repli direct avec couverture limitée et deux traces explicites", async () => {
+    process.env.NEXT_PUBLIC_DEMO_MODE = "false"; state.importOn = true; state.importMode = "missing";
+    state.openEstablishments = 100;
+    const { bundle, sources } = await assembleCase("552032534");
+    expect(state.calls.georisques).toHaveLength(1);
+    expect(sources.filter(s => s.source === "georisques").map(s => s.httpStatus)).toEqual([503, 200]);
+    expect(subjectOf(bundle)?.attributes?.["Installations classées (Géorisques)"]).toContain("import national non encore réalisé");
+    expect(subjectOf(bundle)?.attributes?.["Installations classées (Géorisques)"]).toContain("couverture partielle");
+  });
+  it("flag national actif en démo : aucun appel ni trace d'import", async () => {
+    state.importOn = true;
+    const { sources } = await assembleCase("552032534");
+    expect(state.calls.imported).toBe(0); expect(sources.some(s => s.source === "georisques")).toBe(false);
   });
 
   it("société à un seul établissement : le siège est interrogé, aucune liste Sirene", async () => {
