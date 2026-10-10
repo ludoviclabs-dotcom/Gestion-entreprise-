@@ -3,6 +3,7 @@ import { connectImportDatabase } from "./lib/postgres-store";
 import { importCamino } from "./camino";
 import type { ImportReport } from "./lib/runner";
 import { importIcpe, type IcpeStats } from "./icpe";
+import { runSources } from "./lib/run-sources";
 
 async function summary(text: string) {
   console.log(text);
@@ -15,12 +16,12 @@ async function main() {
   try {
     await db`select id from open_data_imports limit 0`;
     if (source === "check") await summary("Infrastructure accessible.");
-    for (const key of source === "all" ? ["camino", "icpe"] : source === "check" ? [] : [source]) {
+    await runSources(source === "all" ? ["camino", "icpe"] : source === "check" ? [] : [source], async (key) => {
       const started = Date.now();
       const report: ImportReport & { stats?: IcpeStats } = key === "camino" ? await importCamino(db) : await importIcpe(db);
       const stats = report.stats ? ` Reçues : ${report.stats.received} ; Non ICPE exclus : ${report.stats.nonIcpe} ; identifiants inutilisables : ${report.stats.unusableIdentifier}.` : "";
       await summary(`${key} : ${report.recordCount} lignes ; ${report.unchanged ? "inchangé (vérification actualisée)" : "import publié"} ; ${((Date.now() - started) / 1000).toFixed(1)} s.${stats}`);
-    }
+    }, summary);
   } finally { await db.end({ timeout: 5 }); }
 }
 main().catch(() => {

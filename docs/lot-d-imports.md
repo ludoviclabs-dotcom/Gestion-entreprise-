@@ -55,7 +55,10 @@ après attente du verrou soit classé après le succès qui l'a précédé.
    Le résumé doit indiquer « Infrastructure accessible ». D0 n'importe encore aucun jeu.
 5. Après D1/D2 et leurs premiers imports validés seulement, ajouter la **variable GitHub**
    OPEN_DATA_IMPORTS_ENABLED=true pour activer la planification mensuelle
-   (le 4 du mois à 03 h 17 UTC). Le job est limité à 30 minutes.
+   (le 4 du mois à 03 h 17 UTC). Le job est limité à 60 minutes pour les deux sources
+   séquentielles (25 minutes de téléchargement maximum par source, plus installation).
+   Une source en échec ne bloque pas la suivante ; le job termine en échec si au moins
+   un import échoue, avec un compte rendu distinct pour chaque jeu.
    Le déclenchement manuel reste disponible sans cette variable.
 
 Aucun nouveau flag Vercel n'est nécessaire pour D0. La base déjà configurée suffit pour
