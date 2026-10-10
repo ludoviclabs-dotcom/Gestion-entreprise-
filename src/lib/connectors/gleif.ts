@@ -29,6 +29,10 @@ export type GleifEntityLite = {
   lei: string;
   legalName: string | null;
   country: string | null;
+  /** N° d'immatriculation au registre d'origine (`entity.registeredAs`). */
+  registeredAs?: string | null;
+  /** Code RA GLEIF du registre (`entity.registeredAt.id`, ex. RA000585). */
+  registrationAuthority?: string | null;
 };
 export type GleifSimplified = {
   subject: (GleifEntityLite & { registeredAs: string | null }) | null;
@@ -50,6 +54,7 @@ type LeiRecord = {
       legalName?: { name?: string } | null;
       legalAddress?: { country?: string } | null;
       registeredAs?: string | null;
+      registeredAt?: { id?: string | null } | null;
     } | null;
   };
 };
@@ -61,6 +66,8 @@ function liteFrom(rec: LeiRecord | undefined | null): GleifEntityLite | null {
     lei,
     legalName: rec?.attributes?.entity?.legalName?.name ?? null,
     country: rec?.attributes?.entity?.legalAddress?.country ?? null,
+    registeredAs: rec?.attributes?.entity?.registeredAs ?? null,
+    registrationAuthority: rec?.attributes?.entity?.registeredAt?.id ?? null,
   };
 }
 

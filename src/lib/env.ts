@@ -48,6 +48,14 @@ const serverSchema = z.object({
   PAPPERS_ENABLED: z.enum(["true", "false"]).default("false"),
   PAPPERS_API_KEY: z.string().optional(),
   PAPPERS_BASE_URL: z.string().default("https://api.pappers.fr/v2"),
+  // Companies House (Royaume-Uni) — registre officiel gratuit : dirigeants et
+  // personnes à contrôle significatif des SOCIÉTÉS MÈRES britanniques repérées par
+  // GLEIF (second saut). Opt-in : flag ET clé API (auth HTTP Basic, clé en login).
+  COMPANIES_HOUSE_ENABLED: z.enum(["true", "false"]).default("false"),
+  COMPANIES_HOUSE_API_KEY: z.string().optional(),
+  COMPANIES_HOUSE_BASE_URL: z
+    .string()
+    .default("https://api.company-information.service.gov.uk"),
   // Résolution d'entités : `builtin` (TS in-process, défaut) ou `splink`
   // (sidecar Python probabiliste, à raccorder). Cf. resolver-backend.ts.
   RESOLVER_BACKEND: z.enum(["builtin", "splink"]).default("builtin"),
@@ -74,6 +82,8 @@ export const isBanEnabled = (): boolean => env.BAN_ENABLED === "true";
 export const isGdeltEnabled = (): boolean => env.GDELT_ENABLED === "true";
 export const isPappersEnabled = (): boolean =>
   env.PAPPERS_ENABLED === "true" && Boolean(env.PAPPERS_API_KEY);
+export const isCompaniesHouseEnabled = (): boolean =>
+  env.COMPANIES_HOUSE_ENABLED === "true" && Boolean(env.COMPANIES_HOUSE_API_KEY);
 export const hasOpenSanctionsKey = (): boolean =>
   Boolean(env.OPENSANCTIONS_API_KEY);
 export const hasInpiCreds = (): boolean =>

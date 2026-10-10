@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { env, hasOpenSanctionsKey, isDemoMode } from "@/lib/env";
 import { fetchJson } from "./http";
 import fixture from "@/lib/fixtures/opensanctions.sample.json";
@@ -55,21 +56,44 @@ export const openSanctions = {
         ]),
       ),
     };
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `ApiKey ${env.OPENSANCTIONS_API_KEY}`,
-      },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    return {
-      raw: data,
-      endpoint: url,
-      httpStatus: res.status,
+    // Échec : résultat VIDE à la forme attendue (`responses`) + endpoint suffixé,
+    // jamais un corps d'erreur lu comme une donnée ni une exception qui ferait
+    // échouer tout le dossier (les sources sont appelées en parallèle).
+    const degraded = (httpStatus: number, suffix: string): ConnectorResult<unknown> => ({
+      raw: { responses: {} },
+      endpoint: `${url} ${suffix}`,
+      httpStatus,
       isFixture: false,
-    };
+    });
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `ApiKey ${env.OPENSANCTIONS_API_KEY}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (res.status < 200 || res.status >= 300) {
+        // 401 « Invalid API key », 403 licence, 429 quota…
+        Sentry.captureMessage(`OpenSanctions: HTTP ${res.status}`, "warning");
+        return degraded(res.status, `(erreur ${res.status})`);
+      }
+      const data: unknown = await res.json();
+      if (!data || typeof data !== "object") {
+        return degraded(res.status, "(schéma non reconnu)");
+      }
+      return {
+        raw: data,
+        endpoint: url,
+        httpStatus: res.status,
+        isFixture: false,
+      };
+    } catch (error) {
+      Sentry.captureException(error);
+      return degraded(0, "(exception)");
+    }
   },
 };
 

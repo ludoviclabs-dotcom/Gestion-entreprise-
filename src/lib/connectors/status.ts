@@ -11,6 +11,7 @@ import {
   isBanEnabled,
   isGdeltEnabled,
   isPappersEnabled,
+  isCompaniesHouseEnabled,
 } from "@/lib/env";
 
 /**
@@ -140,6 +141,17 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isPappersEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "PAPPERS_API_KEY non posée → fixture.",
+    },
+    {
+      key: "companies_house",
+      label: "Companies House (UK)",
+      live: !demo && isCompaniesHouseEnabled(),
+      detail:
+        !demo && isCompaniesHouseEnabled()
+          ? "Dirigeants et contrôle des sociétés mères britanniques (via GLEIF)."
+          : isCompaniesHouseEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "COMPANIES_HOUSE_ENABLED / COMPANIES_HOUSE_API_KEY non posés → inactif.",
     },
     {
       key: "database",

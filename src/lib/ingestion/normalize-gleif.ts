@@ -14,6 +14,30 @@ export type GleifNormalized = {
   subjectLei: string | null;
 };
 
+/**
+ * Registres GLEIF (codes RA) de Companies House : Angleterre et Pays de Galles,
+ * Irlande du Nord, Écosse. Vérifiés sur l'API GLEIF (registration-authorities).
+ */
+const COMPANIES_HOUSE_RA = new Set(["RA000585", "RA000586", "RA000587"]);
+
+/**
+ * Sociétés mères (directe / ultime) immatriculées à Companies House, avec leur
+ * LEI : cibles du second saut Companies House. Dédoublonné par numéro. Pur.
+ */
+export function companiesHouseParents(
+  raw: unknown,
+): { lei: string; number: string }[] {
+  const data = (raw && typeof raw === "object" ? raw : {}) as Partial<GleifSimplified>;
+  const out: { lei: string; number: string }[] = [];
+  for (const p of [data.directParent, data.ultimateParent]) {
+    if (!p?.lei || !p.registeredAs || !p.registrationAuthority) continue;
+    if (!COMPANIES_HOUSE_RA.has(p.registrationAuthority)) continue;
+    if (out.some((x) => x.number === p.registeredAs)) continue;
+    out.push({ lei: p.lei, number: p.registeredAs });
+  }
+  return out;
+}
+
 function parentEntity(p: GleifEntityLite): CaseEntity {
   return {
     id: `co:lei:${p.lei}`,
@@ -23,6 +47,7 @@ function parentEntity(p: GleifEntityLite): CaseEntity {
     attributes: {
       LEI: p.lei,
       ...(p.country ? { Pays: p.country } : {}),
+      ...(p.registeredAs ? { "N° au registre": p.registeredAs } : {}),
     },
     source: "GLEIF — société mère (niveau 2)",
     excerpt: "Société mère de consolidation déclarée au référentiel GLEIF (LEI).",
