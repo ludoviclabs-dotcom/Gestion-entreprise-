@@ -38,6 +38,7 @@ import {
   getSourceHealth,
 } from "./case-quality";
 import { SCORE_MODEL_VERSION, scoreModelVersionOf } from "@/lib/risk/engine";
+import { timingsOf } from "@/lib/data/timings";
 
 /** Format UUID (les ids de dossiers réels) — un id non-UUID est une fixture. */
 const UUID_RE =
@@ -463,6 +464,7 @@ export class DbCasesRepository implements CasesRepository {
       // Les scores ci-dessus sont ceux de la base : on conserve la version du
       // modèle qui les a produits (jamais l'actuelle par défaut).
       scoreModelVersion: scoreModelVersionOf(caseRow.metadata),
+      timings: timingsOf(caseRow.metadata),
     };
   }
 
@@ -494,7 +496,12 @@ export class DbCasesRepository implements CasesRepository {
 
   async createCaseFromSiren(siren: string): Promise<CaseSummary> {
     const db = getDb();
-    const { bundle, sources } = await assembleCase(siren);
+    const { bundle, sources, timings = {} } = await assembleCase(siren);
+    // Une ligne par dossier dans les journaux serveur : repérer la source lente.
+    console.info(
+      "[case-timing]",
+      JSON.stringify({ siren, totalMs: timings._total, ...timings }),
+    );
     const sourceRows = toSourceRows(sources);
     const sourceHealth = getSourceHealth(sourceRows);
     const scores = bundle.case.scores ?? {};
@@ -758,6 +765,7 @@ export class DbCasesRepository implements CasesRepository {
               sourceHealth,
               scoreStatus: getScoreStatus(scores, "ready"),
               lastRunAt: completedAt.toISOString(),
+              timings,
             },
           })
           .where(eq(cases.id, caseId)),

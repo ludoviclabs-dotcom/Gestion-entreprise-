@@ -17,6 +17,12 @@ import {
   isBoampEnabled,
   isJoafeEnabled,
   isDcaEnabled,
+  isRgeEnabled,
+  isAgenceBioEnabled,
+  isAlimConfianceEnabled,
+  isQualiopiEnabled,
+  isGeorisquesEnabled,
+  isAnnuaireAdministrationEnabled,
 } from "@/lib/env";
 
 /**
@@ -201,6 +207,72 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isDcaEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "DCA_ENABLED non activé → inactif.",
+    },
+    {
+      key: "rge",
+      label: "RGE (ADEME)",
+      live: !demo && isRgeEnabled(),
+      detail:
+        !demo && isRgeEnabled()
+          ? "Qualifications RGE, appelé quand Recherche d'entreprises signale le label."
+          : isRgeEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "RGE_ENABLED non activé → inactif.",
+    },
+    {
+      key: "agence_bio",
+      label: "Agence BIO",
+      live: !demo && isAgenceBioEnabled(),
+      detail:
+        !demo && isAgenceBioEnabled()
+          ? "Certifications agriculture biologique, appelé quand le label est signalé."
+          : isAgenceBioEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "AGENCE_BIO_ENABLED non activé → inactif.",
+    },
+    {
+      key: "alim_confiance",
+      label: "Alim'confiance (DGAL)",
+      live: !demo && isAlimConfianceEnabled(),
+      detail:
+        !demo && isAlimConfianceEnabled()
+          ? "Résultats publiés des contrôles sanitaires, appelé quand le label est signalé."
+          : isAlimConfianceEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "ALIM_CONFIANCE_ENABLED non activé → inactif.",
+    },
+    {
+      key: "qualiopi",
+      label: "Organismes de formation (DGEFP)",
+      live: !demo && isQualiopiEnabled(),
+      detail:
+        !demo && isQualiopiEnabled()
+          ? "Déclaration d'activité et catégories Qualiopi, appelé quand le label est signalé."
+          : isQualiopiEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "QUALIOPI_ENABLED non activé → inactif.",
+    },
+    {
+      key: "georisques",
+      label: "Géorisques (installations classées)",
+      live: !demo && isGeorisquesEnabled(),
+      detail:
+        !demo && isGeorisquesEnabled()
+          ? "Installations classées (ICPE) du siège et des établissements ouverts (si peu nombreux)."
+          : isGeorisquesEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "GEORISQUES_ENABLED non activé → inactif.",
+    },
+    {
+      key: "annuaire_administration",
+      label: "Annuaire de l'administration",
+      live: !demo && isAnnuaireAdministrationEnabled(),
+      detail:
+        !demo && isAnnuaireAdministrationEnabled()
+          ? "Services référencés d'une personne morale de droit public (catégorie 7xxx)."
+          : isAnnuaireAdministrationEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "ANNUAIRE_ADMINISTRATION_ENABLED non activé → inactif.",
     },
     {
       key: "companies_house",

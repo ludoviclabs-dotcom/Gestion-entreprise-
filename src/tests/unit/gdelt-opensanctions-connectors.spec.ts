@@ -54,26 +54,54 @@ describe("gdelt.byName (live)", () => {
     expect(isDegradedEndpoint(res.endpoint)).toBe(false);
   });
 
-  it("429 puis succès : une 2ᵉ tentative suffit", async () => {
-    fetchMock
-      .mockResolvedValueOnce(reply(429, "Please limit requests to one every 5 seconds"))
-      .mockResolvedValueOnce(reply(200, JSON.stringify({ articles: [] })));
-    const res = await gdelt.byName("ACME");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(res.httpStatus).toBe(200);
-  });
-
-  it("429 persistant : indisponibilité explicite (statut 429), jamais une exception", async () => {
+  it("429 : UNE seule tentative (jamais de nouvel essai), indisponibilité explicite sans exception", async () => {
     // Une réponse NEUVE par appel : un corps HTTP ne se lit qu'une fois.
     fetchMock.mockImplementation(() =>
       Promise.resolve(reply(429, "Please limit requests to one every 5 seconds")),
     );
     const res = await gdelt.byName("ACME");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.httpStatus).toBe(429);
     expect(res.isFixture).toBe(false);
     expect(isDegradedEndpoint(res.endpoint)).toBe(true);
     expect((res.raw as { articles: unknown[] }).articles).toEqual([]);
+    // 429 = situation attendue en environnement partagé : pas de bruit Sentry.
+    expect(mocks.captureMessage).not.toHaveBeenCalled();
+    expect(mocks.captureException).not.toHaveBeenCalled();
+  });
+
+  it("autre erreur HTTP (5xx) : tracée, une seule tentative", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(reply(503, "maintenance")));
+    const res = await gdelt.byName("ACME");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.httpStatus).toBe(503);
+    expect(isDegradedEndpoint(res.endpoint)).toBe(true);
+    expect(mocks.captureMessage).toHaveBeenCalled();
+  });
+
+  it("délai dépassé : consultation dégradée « délai dépassé », sans exception ni bruit", async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(
+        (_url: string, init: { signal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init.signal.addEventListener("abort", () =>
+              reject(new DOMException("aborted", "AbortError")),
+            );
+          }),
+      );
+      const pending = gdelt.byName("ACME");
+      await vi.advanceTimersByTimeAsync(15_000);
+      const res = await pending;
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(res.httpStatus).toBe(0);
+      expect(res.endpoint).toContain("délai dépassé");
+      expect(isDegradedEndpoint(res.endpoint)).toBe(true);
+      expect((res.raw as { articles: unknown[] }).articles).toEqual([]);
+      expect(mocks.captureException).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("HTTP 200 mais corps non JSON : schéma non reconnu, pas un « aucun article »", async () => {

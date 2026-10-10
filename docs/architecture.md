@@ -165,3 +165,8 @@ Interface Cypher-shaped : `shortestPath`, `metrics`, `expandSubgraph`.
 | `GRAPH_QUERY_BACKEND=age` | AgeCypherRepository | Graphology in-memory |
 
 Voir `.env.example` pour la liste exhaustive.
+
+## Imports nationaux (lot D)
+
+Le socle, les garanties transactionnelles et l'activation sont décrits dans
+[lot-d-imports.md](lot-d-imports.md).

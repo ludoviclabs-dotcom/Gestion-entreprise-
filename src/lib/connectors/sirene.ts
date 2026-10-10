@@ -59,6 +59,34 @@ export const sirene = {
     return { raw: data, endpoint, httpStatus: status, isFixture: false };
   },
 
+  /**
+   * SIRET des établissements OUVERTS d'un SIREN (au plus `max`). Sert à borner la
+   * couverture des sources interrogées par SIRET (ex. installations classées).
+   * Ne lève jamais de façon inattendue : l'appelant traite un statut ≠ 2xx.
+   */
+  async listOpenEtablissements(
+    siren: string,
+    max: number,
+  ): Promise<ConnectorResult<unknown>> {
+    if (shouldMock()) {
+      return {
+        raw: { etablissements: [] },
+        endpoint: "fixture:sirene-etablissements",
+        httpStatus: 0,
+        isFixture: true,
+      };
+    }
+    const query = `siren:${siren} AND periode(etatAdministratifEtablissement:A)`;
+    const endpoint = `${env.INSEE_SIRENE_BASE_URL}/siret?q=${encodeURIComponent(
+      query,
+    )}&nombre=${max}&champs=siret`;
+    const { data, status } = await fetchJson(endpoint, {
+      headers: authHeaders(),
+      limiter,
+    });
+    return { raw: data, endpoint, httpStatus: status, isFixture: false };
+  },
+
   async search(q: string): Promise<ConnectorResult<unknown>> {
     if (shouldMock()) {
       return {

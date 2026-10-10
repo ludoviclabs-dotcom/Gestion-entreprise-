@@ -6,3 +6,4 @@ export * from "./evidence";
 export * from "./risk";
 export * from "./snapshots";
 export * from "./audit";
+export * from "./open-data";

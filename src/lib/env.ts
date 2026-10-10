@@ -72,6 +72,25 @@ const serverSchema = z.object({
     .string()
     .default("https://journal-officiel-datadila.opendatasoft.com"),
   BOAMP_BASE_URL: z.string().default("https://boamp-datadila.opendatasoft.com"),
+  // Lot « labels » — RGE (ADEME), Agence BIO, Alim'confiance (DGAL), Qualiopi
+  // (DGEFP) : jeux ouverts, SANS clé. Opt-in ; interrogés seulement quand
+  // « Recherche d'entreprises » signale le label (donc après elle).
+  RGE_ENABLED: z.enum(["true", "false"]).default("false"),
+  AGENCE_BIO_ENABLED: z.enum(["true", "false"]).default("false"),
+  ALIM_CONFIANCE_ENABLED: z.enum(["true", "false"]).default("false"),
+  QUALIOPI_ENABLED: z.enum(["true", "false"]).default("false"),
+  // Lot « réglementaire » — Géorisques (ICPE, par SIRET) et Annuaire de
+  // l'administration (personnes morales de droit public) : SANS clé, opt-in.
+  GEORISQUES_ENABLED: z.enum(["true", "false"]).default("false"),
+  ANNUAIRE_ADMINISTRATION_ENABLED: z.enum(["true", "false"]).default("false"),
+  GEORISQUES_BASE_URL: z.string().default("https://www.georisques.gouv.fr"),
+  ANNUAIRE_BASE_URL: z
+    .string()
+    .default("https://api-lannuaire.service-public.fr"),
+  ADEME_BASE_URL: z.string().default("https://data.ademe.fr"),
+  AGENCE_BIO_BASE_URL: z.string().default("https://opendata.agencebio.org"),
+  DGAL_BASE_URL: z.string().default("https://dgal.opendatasoft.com"),
+  DGEFP_BASE_URL: z.string().default("https://dgefp.opendatasoft.com"),
   // Résolution d'entités : `builtin` (TS in-process, défaut) ou `splink`
   // (sidecar Python probabiliste, à raccorder). Cf. resolver-backend.ts.
   RESOLVER_BACKEND: z.enum(["builtin", "splink"]).default("builtin"),
@@ -102,6 +121,14 @@ export const isBaloEnabled = (): boolean => env.BALO_ENABLED === "true";
 export const isBoampEnabled = (): boolean => env.BOAMP_ENABLED === "true";
 export const isJoafeEnabled = (): boolean => env.JOAFE_ENABLED === "true";
 export const isDcaEnabled = (): boolean => env.DCA_ENABLED === "true";
+export const isRgeEnabled = (): boolean => env.RGE_ENABLED === "true";
+export const isAgenceBioEnabled = (): boolean => env.AGENCE_BIO_ENABLED === "true";
+export const isAlimConfianceEnabled = (): boolean =>
+  env.ALIM_CONFIANCE_ENABLED === "true";
+export const isQualiopiEnabled = (): boolean => env.QUALIOPI_ENABLED === "true";
+export const isGeorisquesEnabled = (): boolean => env.GEORISQUES_ENABLED === "true";
+export const isAnnuaireAdministrationEnabled = (): boolean =>
+  env.ANNUAIRE_ADMINISTRATION_ENABLED === "true";
 export const isRechercheEntreprisesEnabled = (): boolean =>
   env.RECHERCHE_ENTREPRISES_ENABLED === "true";
 export const isCompaniesHouseEnabled = (): boolean =>

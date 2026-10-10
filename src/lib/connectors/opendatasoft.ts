@@ -3,8 +3,10 @@ import { RateLimiter } from "./http";
 import type { ConnectorResult } from "./types";
 
 /**
- * Socle commun des jeux de données ouverts de la DILA (Opendatasoft Explore v2.1) :
- * BALO, BOAMP, JOAFE / DCA. API publique, sans clé.
+ * Socle commun des jeux de données ouverts (Opendatasoft Explore v2.1) : DILA
+ * (BALO, BOAMP, JOAFE / DCA), DGAL (Alim'confiance), DGEFP (Qualiopi). Sert aussi
+ * aux listes JSON de même forme (`results` / `items` + total) : ADEME data-fair
+ * (RGE) et Agence BIO. API publiques, sans clé.
  *
  * Responsabilités : construire l'URL (valeurs échappées), timeout, UNE nouvelle
  * tentative sur 429 (Retry-After plafonné), et classer l'issue — jamais une
@@ -32,6 +34,8 @@ export function odsUrl(opts: {
   where: string;
   orderBy?: string;
   select?: string[];
+  /** Agrégation ODSQL (`group_by`) : `select` porte alors les agrégats. */
+  groupBy?: string;
   limit?: number;
 }): string {
   const p = new URLSearchParams();
@@ -39,6 +43,7 @@ export function odsUrl(opts: {
   p.set("limit", String(opts.limit ?? 20));
   if (opts.orderBy) p.set("order_by", opts.orderBy);
   if (opts.select?.length) p.set("select", opts.select.join(","));
+  if (opts.groupBy) p.set("group_by", opts.groupBy);
   return `${opts.baseUrl}/api/explore/v2.1/catalog/datasets/${opts.dataset}/records?${p.toString()}`;
 }
 
@@ -78,16 +83,38 @@ export async function odsFetch(url: string, label: string): Promise<OdsOutcome> 
         Sentry.captureMessage(`${label}: réponse non JSON`, "warning");
         return { ok: false, status: res.status, reason: "schema" };
       }
-      const obj = json as { results?: unknown; total_count?: unknown };
-      if (!obj || typeof obj !== "object" || !Array.isArray(obj.results)) {
+      // Opendatasoft : { total_count, results } · data-fair (ADEME) : { total,
+      // results } · Agence BIO : { nbTotal (texte), items }.
+      // Géorisques : { results: <nombre>, data: [...] }.
+      const obj = json as {
+        results?: unknown;
+        items?: unknown;
+        data?: unknown;
+        total_count?: unknown;
+        total?: unknown;
+        nbTotal?: unknown;
+      };
+      const rows =
+        obj && typeof obj === "object"
+          ? Array.isArray(obj.results)
+            ? obj.results
+            : Array.isArray(obj.items)
+              ? obj.items
+              : Array.isArray(obj.data)
+                ? obj.data
+                : null
+          : null;
+      if (rows === null) {
         Sentry.captureMessage(`${label}: schéma inattendu`, "warning");
         return { ok: false, status: res.status, reason: "schema" };
       }
-      const records = obj.results.filter(
+      const records = rows.filter(
         (r): r is OdsRecord => !!r && typeof r === "object" && !Array.isArray(r),
       );
-      const total = typeof obj.total_count === "number" ? obj.total_count : records.length;
-      return { ok: true, status: res.status, total, records };
+      const total = [obj.total_count, obj.total, obj.nbTotal, obj.results]
+        .map((v) => (typeof v === "string" && v.trim() ? Number(v) : v))
+        .find((v): v is number => typeof v === "number" && Number.isFinite(v));
+      return { ok: true, status: res.status, total: total ?? records.length, records };
     }
     return { ok: false, status: 429, reason: "http" };
   } catch (error) {

@@ -12,12 +12,29 @@ import { ban, banAddressFrom } from "@/lib/connectors/ban";
 import { gdelt } from "@/lib/connectors/gdelt";
 import { pappers } from "@/lib/connectors/pappers";
 import { companiesHouse } from "@/lib/connectors/companies-house";
-import { rechercheEntreprises } from "@/lib/connectors/recherche-entreprises";
+import {
+  LABEL_ALIM_CONFIANCE,
+  LABEL_BIO,
+  LABEL_ORGANISME_FORMATION,
+  LABEL_QUALIOPI,
+  LABEL_RGE,
+  rechercheEntreprises,
+} from "@/lib/connectors/recherche-entreprises";
 import { balo } from "@/lib/connectors/balo";
 import { boamp } from "@/lib/connectors/boamp";
 import { dca, joafe, isRna } from "@/lib/connectors/associations";
+import { rge } from "@/lib/connectors/rge";
+import { agenceBio } from "@/lib/connectors/agence-bio";
+import { alimConfiance } from "@/lib/connectors/alim-confiance";
+import { qualiopi } from "@/lib/connectors/qualiopi";
+import { georisques, MAX_ICPE_SIRETS } from "@/lib/connectors/georisques";
+import { annuaireAdministration } from "@/lib/connectors/annuaire-administration";
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
 import {
+  isAgenceBioEnabled,
+  isAlimConfianceEnabled,
+  isAnnuaireAdministrationEnabled,
+  isGeorisquesEnabled,
   isBaloEnabled,
   isBoampEnabled,
   isCompaniesHouseEnabled,
@@ -25,7 +42,9 @@ import {
   isDemoMode,
   isInpiUboExposed,
   isJoafeEnabled,
+  isQualiopiEnabled,
   isRechercheEntreprisesEnabled,
+  isRgeEnabled,
 } from "@/lib/env";
 import {
   dilaAttributes,
@@ -34,6 +53,8 @@ import {
   normalizeDca,
   normalizeJoafe,
 } from "./normalize-dila";
+import { labelsAttributes } from "./normalize-labels";
+import { regulatoryAttributes } from "./normalize-regulatory";
 import { normalizeSirene, sireneAddress } from "./normalize-sirene";
 import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
@@ -91,10 +112,27 @@ function usableResult(r: { isFixture: boolean }): boolean {
  */
 export async function assembleCase(
   siren: string,
-): Promise<{ bundle: CaseBundle; sources: SourceRecordInput[] }> {
+): Promise<{
+  bundle: CaseBundle;
+  sources: SourceRecordInput[];
+  /** Durée (ms) par source, + `_total` : pour repérer la source qui ralentit. */
+  timings: Record<string, number>;
+}> {
   const sources: SourceRecordInput[] = [];
+  const startedAt = Date.now();
+  const timings: Record<string, number> = {};
+  // Mesure la durée d'un appel (le plus long si la source est appelée plusieurs
+  // fois, ex. Companies House par société mère). Ne modifie jamais le résultat.
+  const timed = async <T,>(label: string, call: () => Promise<T>): Promise<T> => {
+    const t0 = Date.now();
+    try {
+      return await call();
+    } finally {
+      timings[label] = Math.max(timings[label] ?? 0, Date.now() - t0);
+    }
+  };
 
-  const ul = await sirene.getUniteLegale(siren);
+  const ul = await timed("sirene", () => sirene.getUniteLegale(siren));
   sources.push(toSource("sirene", ul));
   // Sirene fonde l'identité du dossier : sans elle (clé absente → fixture, ou
   // réponse en erreur), un dossier « réel » porterait l'identité d'un échantillon
@@ -116,12 +154,16 @@ export async function assembleCase(
   }
   const nic = normalizeSirene(ul.raw, {}).nic;
 
-  const etab = await sirene.getEtablissementSiege(siren, nic);
+  const etab = await timed("sirene_siege", () =>
+    sirene.getEtablissementSiege(siren, nic),
+  );
   sources.push(toSource("sirene", etab));
 
   // BAN — normalisation/géocodage de l'adresse du siège : clé d'adresse canonique
   // → clustering de domiciliation fiable (ADRESSE_PARTAGEE/CONCENTRATION).
-  const banRes = await ban.geocode(sireneAddress(etab.raw)?.label ?? "");
+  const banRes = await timed("ban", () =>
+    ban.geocode(sireneAddress(etab.raw)?.label ?? ""),
+  );
   sources.push(toSource("ban", banRes));
   const banAddr = usableResult(banRes) ? banAddressFrom(banRes.raw) : null;
 
@@ -146,6 +188,127 @@ export async function assembleCase(
   const baloOn = live && isBaloEnabled();
   const boampOn = live && isBoampEnabled();
   const dcaOn = live && isDcaEnabled() && isAssociation;
+  // Annuaire de l'administration : seulement une personne morale de droit public.
+  const annuaireOn =
+    live && isAnnuaireAdministrationEnabled() && /^7/.test(sireneNorm.legalCategory ?? "");
+  // Consultation de jeu ouvert exploitable : réussie (2xx), non fixture, non
+  // dégradée (DILA, labels).
+  const openDataUsable = (
+    r: ConnectorResult<unknown> | null,
+  ): r is ConnectorResult<unknown> =>
+    r !== null &&
+    !r.isFixture &&
+    r.httpStatus >= 200 &&
+    r.httpStatus < 300 &&
+    !isDegradedEndpoint(r.endpoint);
+
+  const none = Promise.resolve(null);
+  const gleifP = timed("gleif", () => gleif.bySiren(siren));
+  const rechercheP = rechercheOn
+    ? timed("recherche_entreprises", () => rechercheEntreprises.bySiren(siren))
+    : none;
+  const dcaP = dcaOn ? timed("dca", () => dca.bySiren(siren)) : none;
+
+  // SECONDS SAUTS : enchaînés sur leurs seules entrées, ils démarrent dès que
+  // celles-ci sont prêtes — sans attendre la source la plus lente (GDELT, ≈ 10 s).
+  //
+  // Annonces JOAFE : rapprochées par numéro RNA (et non par SIREN). Le RNA vient
+  // d'abord des dépôts de comptes (DCA), à défaut de Recherche d'entreprises ; sans
+  // RNA valide : aucune consultation. Périmètre : associations. Les fondations et
+  // fonds de dotation (9300) n'ont pas de RNA — leurs annonces sont indexées par
+  // RNF, qu'aucune source ne relie au SIREN : seuls leurs dépôts de comptes (DCA,
+  // par SIREN) sont consultés.
+  //
+  // Détail des LABELS publics (RGE, Agence BIO, Alim'confiance, Qualiopi) :
+  // interrogé SEULEMENT quand Recherche d'entreprises signale le label — jamais
+  // pour une société qui ne le porte pas. Sans réponse exploitable de Recherche
+  // d'entreprises, aucun label n'est connu : aucun appel.
+  const rnaOf = (raw: unknown): string | null => {
+    const v = (raw as { rna?: unknown } | null)?.rna;
+    return typeof v === "string" ? v : null;
+  };
+  const labelsHop = Promise.all([rechercheP, dcaP]).then(([rechercheRes, dcaRes]) => {
+    const rna = [
+      dcaRes && !dcaRes.isFixture ? rnaOf(dcaRes.raw) : null,
+      rechercheRes && !rechercheRes.isFixture ? rnaOf(rechercheRes.raw) : null,
+    ].find(isRna);
+    const flaggedLabels = new Set<string>(
+      openDataUsable(rechercheRes) &&
+        Array.isArray((rechercheRes.raw as { labels?: unknown })?.labels)
+        ? ((rechercheRes.raw as { labels: unknown[] }).labels.filter(
+            (l) => typeof l === "string",
+          ) as string[])
+        : [],
+    );
+    return Promise.all([
+      live && isJoafeEnabled() && isAssociation && rna
+        ? timed("joafe", () => joafe.byRna(rna))
+        : none,
+      live && isRgeEnabled() && flaggedLabels.has(LABEL_RGE)
+        ? timed("rge", () => rge.bySiren(siren))
+        : none,
+      live && isAgenceBioEnabled() && flaggedLabels.has(LABEL_BIO)
+        ? timed("agence_bio", () => agenceBio.bySiren(siren))
+        : none,
+      live && isAlimConfianceEnabled() && flaggedLabels.has(LABEL_ALIM_CONFIANCE)
+        ? timed("alim_confiance", () => alimConfiance.bySiren(siren))
+        : none,
+      // Organisme de formation déclaré OU certifié Qualiopi : un organisme non
+      // certifié n'a que le premier indicateur mais figure dans la liste DGEFP.
+      live &&
+      isQualiopiEnabled() &&
+      (flaggedLabels.has(LABEL_QUALIOPI) || flaggedLabels.has(LABEL_ORGANISME_FORMATION))
+        ? timed("qualiopi", () => qualiopi.bySiren(siren))
+        : none,
+    ]);
+  });
+
+  // Installations classées (Géorisques) — l'API ne se rapproche que par SIRET :
+  // on interroge le siège et, SI le SIREN a peu d'établissements ouverts (≤ 10,
+  // connu par Recherche d'entreprises), ces établissements (une liste Sirene). Au-delà,
+  // siège seul — la couverture partielle est dite dans l'attribut, jamais masquée.
+  const icpeHop = rechercheP.then(async (rechercheRes) => {
+    if (!(live && isGeorisquesEnabled())) return null;
+    const sirets: string[] = nic ? [`${siren}${nic}`] : [];
+    const open = openDataUsable(rechercheRes)
+      ? ((rechercheRes.raw as { company?: { openEstablishments?: unknown } | null }).company
+          ?.openEstablishments ?? null)
+      : null;
+    const openTotal = typeof open === "number" ? open : null;
+    if (openTotal !== null && openTotal >= 2 && openTotal <= MAX_ICPE_SIRETS) {
+      try {
+        const listed = await timed("sirene_etablissements", () =>
+          sirene.listOpenEtablissements(siren, MAX_ICPE_SIRETS),
+        );
+        if (!listed.isFixture && listed.httpStatus >= 200 && listed.httpStatus < 300) {
+          const rows = (listed.raw as { etablissements?: { siret?: unknown }[] }).etablissements;
+          for (const e of Array.isArray(rows) ? rows : []) {
+            if (typeof e?.siret === "string" && /^\d{14}$/.test(e.siret)) sirets.push(e.siret);
+          }
+        }
+      } catch {
+        // Liste indisponible : siège seul (couverture partielle, dite).
+      }
+    }
+    if (sirets.length === 0) return null;
+    return timed("georisques", () => georisques.bySirets(sirets, { openTotal }));
+  });
+
+  // Companies House — SECOND SAUT : dirigeants et personnes à contrôle significatif
+  // des sociétés mères BRITANNIQUES repérées par GLEIF (registre RA000585/586/587).
+  // Appelé seulement en mode live ET connecteur activé : sinon aucune consultation,
+  // donc aucune ligne source_records (la source n'a pas été interrogée).
+  const chHop = gleifP.then(async (gleifRes) => {
+    const parents =
+      !isDemoMode() && isCompaniesHouseEnabled() && usableResult(gleifRes)
+        ? companiesHouseParents(gleifRes.raw)
+        : [];
+    const results = await Promise.all(
+      parents.map((p) => timed("companies_house", () => companiesHouse.byNumber(p.number))),
+    );
+    return { parents, results };
+  });
+
   const [
     bodaccRes,
     inpiRes,
@@ -159,25 +322,39 @@ export async function assembleCase(
     baloRes,
     boampRes,
     dcaRes,
-  ] =
-    await Promise.all([
-      bodacc.bySiren(siren),
-      inpi.getRne(siren),
+    [joafeRes, rgeRes, bioRes, alimRes, qualiopiRes],
+    { parents: chParents, results: chResults },
+    annuaireRes,
+    icpeRes,
+  ] = await Promise.all([
+    timed("bodacc", () => bodacc.bySiren(siren)),
+    timed("inpi", () => inpi.getRne(siren)),
+    timed("tresor_gels", () =>
       tresorGels.match({ siren, name: sireneNorm.denomination ?? undefined }),
-      // OpenSanctions — agrégat UE de listes sanctions/PEP. Le registre national
-      // (DG Trésor gels) reste en parallèle (déduplication via natural key).
+    ),
+    // OpenSanctions — agrégat UE de listes sanctions/PEP. Le registre national
+    // (DG Trésor gels) reste en parallèle (déduplication via natural key).
+    timed("opensanctions", () =>
       openSanctions.match({
         company: { schema: "Company", name: subjectLabel, identifier: siren },
       }),
-      gleif.bySiren(siren),
-      vies.validateFr(siren),
-      pappers.bySiren(siren),
-      gdelt.byName(subjectLabel),
-      rechercheOn ? rechercheEntreprises.bySiren(siren) : Promise.resolve(null),
-      baloOn ? balo.bySiren(siren) : Promise.resolve(null),
-      boampOn ? boamp.bySiren(siren) : Promise.resolve(null),
-      dcaOn ? dca.bySiren(siren) : Promise.resolve(null),
-    ]);
+    ),
+    gleifP,
+    timed("vies", () => vies.validateFr(siren)),
+    timed("pappers", () => pappers.bySiren(siren)),
+    timed("gdelt", () => gdelt.byName(subjectLabel)),
+    rechercheP,
+    baloOn ? timed("balo", () => balo.bySiren(siren)) : none,
+    boampOn ? timed("boamp", () => boamp.bySiren(siren)) : none,
+    dcaP,
+    labelsHop,
+    chHop,
+    annuaireOn
+      ? timed("annuaire_administration", () => annuaireAdministration.bySiren(siren))
+      : none,
+    icpeHop,
+  ]);
+  // Ordre des source_records déterministe, indépendant de l'ordre d'arrivée.
   sources.push(
     toSource("bodacc", bodaccRes),
     toSource("inpi", inpiRes),
@@ -192,32 +369,13 @@ export async function assembleCase(
   if (baloRes) sources.push(toSource("balo", baloRes));
   if (boampRes) sources.push(toSource("boamp", boampRes));
   if (dcaRes) sources.push(toSource("dca", dcaRes));
-
-  // Annonces JOAFE : rapprochées par numéro RNA (et non par SIREN). Le RNA vient
-  // d'abord des dépôts de comptes (DCA), à défaut de Recherche d'entreprises.
-  // Séquentiel (dépend du RNA) ; sans RNA valide : aucune consultation.
-  // Périmètre : associations. Les fondations et fonds de dotation (9300) n'ont
-  // pas de RNA — leurs annonces sont indexées par RNF, qu'aucune source ne relie
-  // au SIREN : seuls leurs dépôts de comptes (DCA, par SIREN) sont consultés.
-  const rnaOf = (raw: unknown): string | null => {
-    const v = (raw as { rna?: unknown } | null)?.rna;
-    return typeof v === "string" ? v : null;
-  };
-  const rna = [
-    dcaRes && !dcaRes.isFixture ? rnaOf(dcaRes.raw) : null,
-    rechercheRes && !rechercheRes.isFixture ? rnaOf(rechercheRes.raw) : null,
-  ].find(isRna);
-  const joafeRes =
-    live && isJoafeEnabled() && isAssociation && rna ? await joafe.byRna(rna) : null;
   if (joafeRes) sources.push(toSource("joafe", joafeRes));
-
-  // Consultation DILA exploitable : réussie (2xx), non fixture, non dégradée.
-  const dilaUsable = (r: ConnectorResult<unknown> | null): r is ConnectorResult<unknown> =>
-    r !== null &&
-    !r.isFixture &&
-    r.httpStatus >= 200 &&
-    r.httpStatus < 300 &&
-    !isDegradedEndpoint(r.endpoint);
+  if (rgeRes) sources.push(toSource("rge", rgeRes));
+  if (bioRes) sources.push(toSource("agence_bio", bioRes));
+  if (alimRes) sources.push(toSource("alim_confiance", alimRes));
+  if (qualiopiRes) sources.push(toSource("qualiopi", qualiopiRes));
+  if (icpeRes) sources.push(toSource("georisques", icpeRes));
+  if (annuaireRes) sources.push(toSource("annuaire_administration", annuaireRes));
 
   // Repli fixture (BODACC en panne) ou mode live : jamais d'annonces d'échantillon
   // sur un dossier réel.
@@ -226,10 +384,10 @@ export async function assembleCase(
     : [];
   const events = [
     ...bodaccEvents,
-    ...(dilaUsable(baloRes) ? normalizeBalo(baloRes.raw, companyId) : []),
-    ...(dilaUsable(boampRes) ? normalizeBoamp(boampRes.raw, companyId) : []),
-    ...(dilaUsable(dcaRes) ? normalizeDca(dcaRes.raw, companyId) : []),
-    ...(dilaUsable(joafeRes) ? normalizeJoafe(joafeRes.raw, companyId) : []),
+    ...(openDataUsable(baloRes) ? normalizeBalo(baloRes.raw, companyId) : []),
+    ...(openDataUsable(boampRes) ? normalizeBoamp(boampRes.raw, companyId) : []),
+    ...(openDataUsable(dcaRes) ? normalizeDca(dcaRes.raw, companyId) : []),
+    ...(openDataUsable(joafeRes) ? normalizeJoafe(joafeRes.raw, companyId) : []),
   ];
 
   // Sans identifiants INPI en mode live, `inpiRes` est la fixture (dirigeants
@@ -286,17 +444,7 @@ export async function assembleCase(
     ? normalizeGleif(gleifRes.raw, companyId)
     : { entities: [], edges: [], subjectLei: null };
 
-  // Companies House — SECOND SAUT : dirigeants et personnes à contrôle significatif
-  // des sociétés mères BRITANNIQUES repérées par GLEIF (registre RA000585/586/587).
-  // Appelé seulement en mode live ET connecteur activé : sinon aucune consultation,
-  // donc aucune ligne source_records (la source n'a pas été interrogée).
-  const chParents =
-    !isDemoMode() && isCompaniesHouseEnabled() && usableResult(gleifRes)
-      ? companiesHouseParents(gleifRes.raw)
-      : [];
-  const chResults = await Promise.all(
-    chParents.map((p) => companiesHouse.byNumber(p.number)),
-  );
+  // Companies House : résultats déjà obtenus (second saut enchaîné sur GLEIF).
   for (const r of chResults) sources.push(toSource("companies_house", r));
   const chNorm: { entities: CaseEntity[]; edges: CaseEdge[] } = { entities: [], edges: [] };
   chParents.forEach((parent, i) => {
@@ -414,10 +562,22 @@ export async function assembleCase(
     subject.attributes = {
       ...subject.attributes,
       ...dilaAttributes({
-        balo: dilaUsable(baloRes) ? baloRes.raw : null,
-        boamp: dilaUsable(boampRes) ? boampRes.raw : null,
-        dca: dilaUsable(dcaRes) ? dcaRes.raw : null,
-        joafe: dilaUsable(joafeRes) ? joafeRes.raw : null,
+        balo: openDataUsable(baloRes) ? baloRes.raw : null,
+        boamp: openDataUsable(boampRes) ? boampRes.raw : null,
+        dca: openDataUsable(dcaRes) ? dcaRes.raw : null,
+        joafe: openDataUsable(joafeRes) ? joafeRes.raw : null,
+      }),
+      // Détail des labels publics (RGE, bio, Alim'confiance, Qualiopi).
+      ...labelsAttributes({
+        rge: openDataUsable(rgeRes) ? rgeRes.raw : null,
+        bio: openDataUsable(bioRes) ? bioRes.raw : null,
+        alim: openDataUsable(alimRes) ? alimRes.raw : null,
+        qualiopi: openDataUsable(qualiopiRes) ? qualiopiRes.raw : null,
+      }),
+      // Installations classées (siège et établissements interrogés) et annuaire.
+      ...regulatoryAttributes({
+        icpe: openDataUsable(icpeRes) ? icpeRes.raw : null,
+        annuaire: openDataUsable(annuaireRes) ? annuaireRes.raw : null,
       }),
     };
   }
@@ -463,5 +623,6 @@ export async function assembleCase(
   bundle.riskSignals = signals;
   bundle.case.scores = scores;
 
-  return { bundle, sources };
+  timings._total = Date.now() - startedAt;
+  return { bundle, sources, timings };
 }

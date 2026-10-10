@@ -53,6 +53,8 @@ export type RechercheEntreprisesRaw = {
     createdOn: string | null;
     /** Dernière mise à jour du RNE : borne la fraîcheur des dirigeants. */
     rneUpdatedOn: string | null;
+    /** Établissements ouverts (borne la couverture des sources par SIRET). */
+    openEstablishments?: number | null;
   } | null;
   dirigeants: ReDirigeant[];
   /** Triés par année décroissante. */
@@ -72,13 +74,29 @@ function shouldMock(): boolean {
   return isDemoMode() || !isRechercheEntreprisesEnabled();
 }
 
+/**
+ * Libellés des indicateurs qui déclenchent les connecteurs de détail du lot B
+ * (RGE, Agence BIO, Alim'confiance, Qualiopi) : ils ne sont interrogés que si
+ * Recherche d'entreprises signale le label.
+ */
+export const LABEL_BIO = "Agriculture biologique";
+export const LABEL_RGE = "RGE";
+export const LABEL_QUALIOPI = "Qualiopi";
+/**
+ * Organisme de formation DÉCLARÉ (indicateur distinct de Qualiopi) : un organisme
+ * non certifié porte ce seul indicateur, mais figure bien dans la liste publique
+ * DGEFP avec son numéro de déclaration d'activité.
+ */
+export const LABEL_ORGANISME_FORMATION = "Organisme de formation";
+export const LABEL_ALIM_CONFIANCE = "Alim'confiance";
+
 /** Indicateurs `complements.est_*` retenus → libellé français. */
 const LABELS: [string, string][] = [
-  ["est_bio", "Agriculture biologique"],
-  ["est_rge", "RGE"],
-  ["est_qualiopi", "Qualiopi"],
-  ["est_organisme_formation", "Organisme de formation"],
-  ["est_alim_confiance", "Alim'confiance"],
+  ["est_bio", LABEL_BIO],
+  ["est_rge", LABEL_RGE],
+  ["est_qualiopi", LABEL_QUALIOPI],
+  ["est_organisme_formation", LABEL_ORGANISME_FORMATION],
+  ["est_alim_confiance", LABEL_ALIM_CONFIANCE],
   ["est_ess", "ESS"],
   ["est_association", "Association"],
   ["est_societe_mission", "Société à mission"],
@@ -141,6 +159,10 @@ export function simplifyResult(r: Json): RechercheEntreprisesRaw {
       legalCategory: str(r.nature_juridique),
       createdOn: str(r.date_creation),
       rneUpdatedOn: str(r.date_mise_a_jour_rne),
+      openEstablishments:
+        typeof r.nombre_etablissements_ouverts === "number"
+          ? r.nombre_etablissements_ouverts
+          : null,
     },
     dirigeants,
     finances,
