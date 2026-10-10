@@ -149,6 +149,74 @@ describe("gleif.bySiren (live)", () => {
     expect(isDegradedEndpoint(res.endpoint)).toBe(true);
   });
 
+  it("graphie brute vide (200) ET graphie à espaces en 429 : dégradé, jamais « pas de LEI »", async () => {
+    route({ spaced: () => ({ data: { error: "rate limit" }, status: 429 }) });
+    const res = await gleif.bySiren(SIREN);
+    expect((res.raw as { subject: unknown }).subject).toBeNull();
+    expect(res.httpStatus).toBe(429);
+    expect(isDegradedEndpoint(res.endpoint)).toBe(true);
+    expect(res.endpoint).toContain("(erreur 429)");
+  });
+
+  it("graphie brute en 5xx ET graphie à espaces vide : dégradé avec le statut de l'échec", async () => {
+    route({ plain: () => ({ data: {}, status: 503 }) });
+    const res = await gleif.bySiren(SIREN);
+    expect(res.httpStatus).toBe(503);
+    expect(isDegradedEndpoint(res.endpoint)).toBe(true);
+  });
+
+  it("deux graphies en 429 : dégradé 429", async () => {
+    route({
+      plain: () => ({ data: {}, status: 429 }),
+      spaced: () => ({ data: {}, status: 429 }),
+    });
+    const res = await gleif.bySiren(SIREN);
+    expect(res.httpStatus).toBe(429);
+    expect(isDegradedEndpoint(res.endpoint)).toBe(true);
+  });
+
+  it("une graphie en 5xx n'empêche pas l'autre de trouver le LEI (consultation saine)", async () => {
+    route({
+      plain: () => ({ data: {}, status: 500 }),
+      spaced: () => ({
+        data: { data: [rec("LEI-HSBC", "HSBC CONTINENTAL EUROPE", SPACED, "RA000192")] },
+        status: 200,
+      }),
+    });
+    const res = await gleif.bySiren(SIREN);
+    expect((res.raw as { subject: { lei: string } | null }).subject?.lei).toBe("LEI-HSBC");
+    expect(res.httpStatus).toBe(200);
+    expect(isDegradedEndpoint(res.endpoint)).toBe(false);
+  });
+
+  it("l'endpoint enregistré est celui de la requête qui a produit le LEI", async () => {
+    // Graphie à espaces gagnante : l'URL doit contenir « 775 670 284 », pas la brute.
+    route({
+      spaced: () => ({
+        data: { data: [rec("LEI-HSBC", "HSBC CONTINENTAL EUROPE", SPACED, "RA000192")] },
+        status: 200,
+      }),
+    });
+    const spaced = await gleif.bySiren(SIREN);
+    expect(decodeURIComponent(spaced.endpoint)).toContain(`registeredAs]=${SPACED}`);
+    expect(spaced.endpoint).not.toMatch(/registeredAs\]=775670284$/);
+
+    // Graphie brute gagnante : l'URL brute.
+    route({
+      plain: () => ({ data: { data: [rec("LEI-PLAIN", "DANONE", "552032534", "RA000189")] }, status: 200 }),
+    });
+    const plain = await gleif.bySiren(SIREN);
+    expect(plain.endpoint).toMatch(/registeredAs\]=775670284$/);
+  });
+
+  it("absence avérée (les deux graphies 200 vides) : endpoint de la 1ʳᵉ graphie, non dégradé", async () => {
+    route({});
+    const res = await gleif.bySiren(SIREN);
+    expect(res.endpoint).toMatch(/registeredAs\]=775670284$/);
+    expect(res.httpStatus).toBe(200);
+    expect(isDegradedEndpoint(res.endpoint)).toBe(false);
+  });
+
   it("toutes les requêtes en échec : exception explicite, ne lève jamais", async () => {
     route({ plain: reject(), spaced: reject() });
     const res = await gleif.bySiren(SIREN);

@@ -101,6 +101,53 @@ async function fetchParent(
   }
 }
 
+type SearchResponse = { data?: { data?: LeiRecord[] } | null; status: number };
+type VariantOutcome = {
+  url: string;
+  /** null = la requête a levé (réseau, délai dépassé). */
+  response: SearchResponse | null;
+};
+
+function isOk(r: SearchResponse | null): r is SearchResponse {
+  return r !== null && r.status >= 200 && r.status < 300;
+}
+
+/**
+ * Choisit le résultat parmi les graphies interrogées.
+ *  - une graphie 2xx qui TROUVE un LEI l'emporte (l'échec de l'autre importe peu) ;
+ *  - sinon, si toutes ont répondu 2xx sans LEI : absence avérée ;
+ *  - sinon (une graphie en échec — HTTP 429/5xx ou exception — sans LEI trouvé) :
+ *    on ne peut PAS conclure à l'absence → résultat dégradé, avec le statut de
+ *    l'échec pour qu'il compte dans la santé de la source ;
+ *  - toutes en exception → `null` (l'appelant lève).
+ */
+function selectVariant(outcomes: VariantOutcome[]): {
+  chosen: VariantOutcome;
+  failure: string | null;
+  status: number;
+} | null {
+  const hit = outcomes.find((o) => isOk(o.response) && o.response.data?.data?.[0]);
+  if (hit && hit.response) {
+    return { chosen: hit, failure: null, status: hit.response.status };
+  }
+  const failed = outcomes.filter((o) => !isOk(o.response));
+  if (failed.length === 0) {
+    const first = outcomes[0];
+    return { chosen: first, failure: null, status: first.response?.status ?? 200 };
+  }
+  const httpFailure = failed.find((o) => o.response !== null);
+  if (httpFailure?.response) {
+    return {
+      chosen: httpFailure,
+      failure: `(erreur ${httpFailure.response.status})`,
+      status: httpFailure.response.status,
+    };
+  }
+  const answered = outcomes.find((o) => isOk(o.response));
+  if (!answered?.response) return null;
+  return { chosen: answered, failure: "(exception)", status: answered.response.status };
+}
+
 /**
  * GLEIF stocke un SIREN français sous DEUX formes selon l'entité : « 552032534 »
  * (registre RA000189) ou « 552 081 317 » avec espaces (ex. RA000192). Les deux
@@ -129,19 +176,23 @@ export const gleif = {
     const searchUrl = urlFor(variants[0]);
     try {
       // Les deux graphies en parallèle ; une graphie en échec ne masque pas l'autre.
+      const urls = variants.map(urlFor);
       const settled = await Promise.allSettled(
-        variants.map((v) =>
-          fetchJson<{ data?: LeiRecord[] }>(urlFor(v), { limiter }),
-        ),
+        urls.map((u) => fetchJson<{ data?: LeiRecord[] }>(u, { limiter })),
       );
-      const fulfilled = settled.flatMap((s) => (s.status === "fulfilled" ? [s.value] : []));
-      if (fulfilled.length === 0) {
+      const selection = selectVariant(
+        settled.map((s, i) => ({
+          url: urls[i],
+          response: s.status === "fulfilled" ? s.value : null,
+        })),
+      );
+      if (!selection) {
         // Toutes les requêtes ont échoué : vraie panne (pas « LEI absent »).
         throw (settled[0] as PromiseRejectedResult).reason;
       }
-      const hit = fulfilled.find((r) => r.data?.data?.[0]);
-      const { data, status } = hit ?? fulfilled[0];
-      const rec = data?.data?.[0];
+      const { chosen, failure: searchFailure, status } = selection;
+      // Le corps d'une réponse en erreur n'est jamais lu comme une donnée.
+      const rec = isOk(chosen.response) ? chosen.response?.data?.data?.[0] : undefined;
       const lite = liteFrom(rec);
       const subject = lite
         ? { ...lite, registeredAs: rec?.attributes?.entity?.registeredAs ?? siren }
@@ -160,13 +211,14 @@ export const gleif = {
         directParent: direct.lite,
         ultimateParent: ultimate.lite,
       };
-      // Une recherche partielle (une graphie en échec) ou une mère non récupérée
-      // rend la consultation DÉGRADÉE : jamais un « aucune mère » présumé.
-      const partial = fulfilled.length < variants.length && !hit ? "(exception)" : null;
-      const failure = direct.failure ?? ultimate.failure ?? partial;
+      // Une recherche non concluante (une graphie en échec sans LEI trouvé) ou une
+      // mère non récupérée rend la consultation DÉGRADÉE : jamais un « aucune mère »
+      // ni un « pas de LEI » présumé.
+      const failure = searchFailure ?? direct.failure ?? ultimate.failure;
+      // URL de la requête qui a PRODUIT le résultat (reproductible par l'inspecteur).
       return {
         raw,
-        endpoint: failure ? `${searchUrl} ${failure}` : searchUrl,
+        endpoint: failure ? `${chosen.url} ${failure}` : chosen.url,
         httpStatus: status,
         isFixture: false,
       };
