@@ -2,6 +2,7 @@ import { appendFile } from "node:fs/promises";
 import { connectImportDatabase } from "./lib/postgres-store";
 import { importCamino } from "./camino";
 import { importHatvp, type HatvpStats } from "./hatvp";
+import { importDecp, type DecpStats } from "./decp";
 import type { ImportReport } from "./lib/runner";
 import { importIcpe, type IcpeStats } from "./icpe";
 import { importGels, type GelsStats } from "./tresor-gels";
@@ -24,7 +25,7 @@ async function main() {
     if (source === "check") await summary("Infrastructure accessible.");
     await runSources(keys, async (key) => {
       const started = Date.now();
-      let report: ImportReport & { stats?: IcpeStats | GelsStats | SanctionsStats | HatvpStats };
+      let report: ImportReport & { stats?: IcpeStats | GelsStats | SanctionsStats | HatvpStats | DecpStats };
       let detail = "";
       const list = listOfSource(key);
       if (key === "camino") report = await importCamino(db);
@@ -36,6 +37,14 @@ async function main() {
         const r = await importHatvp(db);
         report = r;
         detail = ` Organisations : ${r.stats.organisations} ; SIREN valides reçus : ${r.stats.sirenRecords} ; non rapprochables : ${r.stats.unusableIdentifier} ; doublons fusionnés : ${r.stats.duplicates} ; catégories inconnues : ${r.stats.unknownCategory} ; SHA-256 : ${r.sha256}.`;
+      } else if (key === "decp") {
+        const r = await importDecp(db);
+        report = r;
+        const total = (field: keyof DecpStats["files"][number]) => r.stats.files.reduce((n, f) => n + Number(f[field]), 0);
+        detail = ` Fenêtre : ${r.stats.window.start} au ${r.stats.window.end} ; marchés lus : ${total("read")} ; dans la fenêtre : ${total("inWindow")} ; hors fenêtre : ${total("outsideWindow")} ; dates invalides : ${total("invalidNotificationDate")} ; attributions : ${total("attributions")} ; titulaires non SIRET : ${total("nonSiret")} ; SIREN invalides : ${total("invalidSiren")} ; identités inutilisables : ${total("invalidIdentity")} ; acheteurs non rapprochables : ${total("invalidBuyer")} ; modifications non exploitées : ${total("modifications")} ; republications fusionnées : ${r.stats.duplicates} ; SHA-256 : ${r.sha256}.`;
+        detail += ` Attributions distinctes conservées : ${r.stats.retained} ; synthèses SIREN/rôle : ${r.recordCount} ; pic RSS du processus : ${(process.resourceUsage().maxRSS / 1024).toFixed(1)} Mio.`;
+        await summary("| DECP fichier | Marchés lus | Dans la fenêtre | Octets | Durée (s) | SHA-256 |\n|---|---:|---:|---:|---:|---|\n" +
+          r.stats.files.map(f => `| ${f.month} | ${f.read} | ${f.inWindow} | ${f.bytes} | ${f.seconds.toFixed(1)} | ${f.sha256} |`).join("\n"));
       } else if (list) {
         const r = await importSanctionsList(db, list);
         report = r;

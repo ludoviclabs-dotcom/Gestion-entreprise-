@@ -25,5 +25,6 @@ export type SourceKind =
   | "camino"
   | "hatvp"
   | "sanctions_intl"
+  | "decp"
   | "manual"
   | "fixture";

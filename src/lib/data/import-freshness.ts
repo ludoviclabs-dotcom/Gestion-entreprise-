@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db/client";
 export const IMPORT_LABELS = { camino: "Titres miniers (Camino)", icpe: "Installations classées nationales (ICPE)",
   tresor_gels: "Registre national des gels (DG Trésor)",
   hatvp: "Répertoire HATVP",
+  decp: "Marchés publics (DECP)",
   sanctions_us: "Sanctions — États-Unis (liste consolidée CSL)",
   sanctions_uk: "Sanctions — Royaume-Uni",
   sanctions_un: "Sanctions — ONU (Conseil de sécurité)",

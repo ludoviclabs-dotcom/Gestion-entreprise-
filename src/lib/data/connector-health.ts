@@ -50,6 +50,7 @@ export const CONNECTOR_SOURCE: Record<string, SourceKind | null> = {
   annuaire_administration: "annuaire_administration",
   camino: "camino",
   hatvp: "hatvp",
+  decp: "decp",
   companies_house: "companies_house",
   database: null,
 };
