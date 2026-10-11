@@ -253,6 +253,10 @@ Un connecteur par source, `bySiren(siren)`, qui lit la table via Drizzle et renv
   manquement : le dire.
 
 ### 5.3 HATVP — répertoire des représentants d'intérêts — priorité 3
+> ⚠️ **Corrigé et complété par `docs/lot-d-codex-d3-d4.md` (§3), qui prévaut** : le
+> fichier compte 4 098 organisations ; aucune dénomination n'est conservée (76 sont des noms
+> de personnes).
+
 - **Fichiers** : JSON global `https://www.hatvp.fr/agora/opendata/agora_repertoire_opendata.json`
   (**138,7 Mo**, mis à jour **quotidiennement** ; top-level `{"publications":[…]}`) et CSV
   `https://www.hatvp.fr/agora/opendata/csv/Vues_Separees/1_informations_generales.csv`
@@ -267,14 +271,19 @@ Un connecteur par source, `bySiren(siren)`, qui lit la table via Drizzle et renv
   motifDesinscription; …`.
 - **⚠️ DONNÉES PERSONNELLES** : le JSON contient `dirigeants[]`, `collaborateurs[]` (civilité,
   nom, prénom, fonction), téléphones, courriels. **Interdit de les importer.** Ne retenir que
-  le niveau organisation : SIREN (quand `typeIdentifiantNational = SIREN`), dénomination,
-  catégorie, dates, indicateur « a publié des activités ».
+  le niveau organisation : SIREN (quand `typeIdentifiantNational = SIREN`), catégorie, dates,
+  indicateur « a publié des activités » — **ni dénomination ni nom d'usage** (voir l'addendum).
 - **Rendu** : attribut « Répertoire HATVP » : inscrit depuis AAAA, catégorie, dernière
   publication d'activités, désinscrit/cessation le cas échéant. **Formulation neutre** :
   l'inscription au répertoire est une **obligation légale de transparence**, pas un indice
   de risque. Ne jamais lier une entreprise à un élu ou à un décideur (hors périmètre).
 
 ### 5.4 DECP — marchés publics (données essentielles) — priorité 4 (le plus lourd)
+> ⚠️ **Corrigé et complété par `docs/lot-d-codex-d3-d4.md` (§4), qui prévaut** : un fichier
+> mensuel n'est pas un mois de notification (fenêtre sur `dateNotification`), les titulaires
+> sont dans `titulaires[].titulaire.id`, la clé à trois composants fusionne des contrats
+> distincts, et le SIRET n'est pas validé par Luhn (exception La Poste).
+
 - **Jeu** : data.gouv.fr, slug
   `donnees-essentielles-de-la-commande-publique-fichiers-consolides` (Ministères économiques
   et financiers, licence ouverte). API : `https://www.data.gouv.fr/api/1/datasets/<slug>/`
@@ -289,7 +298,8 @@ Un connecteur par source, `bySiren(siren)`, qui lit la table via Drizzle et renv
   L'API tabulaire data.gouv sur ces fichiers renvoie 404 : **import obligatoire**.
 - **Stratégie** : importer **les fichiers mensuels** (liste via l'API `…/datasets/<slug>/`,
   champ `resources[].title` de la forme `decp-AAAA-MM.json`) plutôt que le global ; JSON en
-  flux (`stream-json` ou équivalent) ; fenêtre glissante (ex. 24-36 mois).
+  flux (`stream-json` ou équivalent) ; fenêtre glissante **définie sur `dateNotification`**
+  (12 mois, décision produit), et non sur le nom du fichier.
 - **Schéma réel observé** (début de `decp-2026-10.json`, vérifié) :
   ```json
   {"marches": {"marche": [ {
@@ -310,8 +320,9 @@ Un connecteur par source, `bySiren(siren)`, qui lit la table via Drizzle et renv
   **l'acheteur n'a pas de nom** (seulement son SIRET) → les libellés se résolvent par
   jointure (le SIRET acheteur peut être inconnu : ne pas inventer de nom, afficher le SIRET ou
   « acheteur public (SIRET …) »). L'`id` d'un marché n'est **pas unique** : un acheteur
-  peut réutiliser le même `id` pour des contrats différents. **Clé naturelle =
-  (`acheteur.id`, `id`, `codeCPV`)**, soit l'`uid` publié par le projet de consolidation
+  peut réutiliser le même `id` pour des contrats différents. **Identité d'une
+  attribution = (`acheteur.id`, `id`, `codeCPV` normalisé, hachage de l'`objet`, `titulaires[].titulaire.id`)**
+  (voir l'addendum). Le triplet (`acheteur.id`, `id`, `codeCPV`) correspond à l'`uid` publié par le projet de consolidation
   des DECP depuis août 2026 (`acheteur_id` + `id` + `_` + `codeCPV`, notes de version
   v2.13.0 / v2.14.0 de `ColinMaudry/decp-processing`) — la paire (`acheteur.id`, `id`)
   fusionnait à tort des contrats distincts. Normaliser `codeCPV` comme eux (v2.9.1 : moins
@@ -322,9 +333,11 @@ Un connecteur par source, `bySiren(siren)`, qui lit la table via Drizzle et renv
   `typeIdentifiant` autre que `SIRET` (`TVA`, `HORS-UE`…), marchés sans titulaire (accords-cadres).
 - **Qualité (important)** : doublons entre fichiers (même clé naturelle, voir ci-dessus),
   modifications du même marché, montants aberrants (999 999 999, 0), SIRET invalides ou de personnes physiques,
-  `typeIdentifiant` ≠ `SIRET`. Dédoublonner, valider (Luhn SIRET), plafonner les montants
+  `typeIdentifiant` ≠ `SIRET`. Dédoublonner, valider le SIREN (Luhn ; **pas** le SIRET complet : exception La Poste et NIC
+  malformés), plafonner les montants
   irréalistes **sans les supprimer** (marquer « non fiable »).
-- **Rapprochement** : `titulaires[].id` → SIREN = `substr(id,1,9)`. Aussi côté **acheteur**
+- **Rapprochement** : `titulaires[].titulaire.id` (avec `typeIdentifiant = SIRET`) → SIREN =
+  `substr(id,1,9)`. Aussi côté **acheteur**
   (une collectivité/EP peut être le sujet du dossier).
 - **Rendu** : attributs (nombre de marchés attribués sur la période, montant cumulé déclaré,
   principaux acheteurs, dernière notification) + événements datés `marche_public_attribue`
