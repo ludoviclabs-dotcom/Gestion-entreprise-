@@ -44,7 +44,11 @@ function observedDetail(h: ObservedHealth): string {
     case "degraded":
       return `${h.ok}/${h.consulted} consultations réussies ${window} · dernier incident : ${h.lastIssue ?? "inconnu"}.`;
     case "failing":
-      return `Les dernières consultations ont échoué (${h.lastIssue ?? "inconnu"}) · ${h.ok}/${h.consulted} réussies ${window}. Les résultats « aucune correspondance » de cette source ne sont pas fiables.`;
+      return `${
+        h.failingReason === "rate"
+          ? "Cette source échoue presque systématiquement"
+          : "Les dernières consultations ont échoué"
+      } (${h.lastIssue ?? "inconnu"}) · ${h.ok}/${h.consulted} réussies ${window}. Les résultats « aucune correspondance » de cette source ne sont pas fiables.`;
     default:
       return `Aucune consultation réelle ces ${HEALTH_WINDOW_DAYS} derniers jours.`;
   }
