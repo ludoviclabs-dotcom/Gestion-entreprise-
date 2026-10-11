@@ -131,8 +131,15 @@
     {
       "idx": 18,
       "version": "7",
-      "when": 1791735555766,
-      "tag": "0018_sanctions_entries",
+      "when": 1791733135029,
+      "tag": "0018_hatvp_organisations",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791736964597,
+      "tag": "0019_sanctions_entries",
       "breakpoints": true
     }
   ]

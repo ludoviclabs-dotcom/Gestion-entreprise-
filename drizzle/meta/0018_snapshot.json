@@ -1,5 +1,5 @@
 {
-  "id": "6d323dfa-205d-4adb-a74e-fc3a42253eda",
+  "id": "494ce5d4-2d57-49a5-9982-e3e557ce311a",
   "prevId": "d20170a5-c44a-4c2b-9534-4dcbef99b558",
   "version": "7",
   "dialect": "postgresql",
@@ -1717,8 +1717,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.sanctions_entries": {
-      "name": "sanctions_entries",
+    "public.hatvp_organisations": {
+      "name": "hatvp_organisations",
       "schema": "",
       "columns": {
         "import_id": {
@@ -1727,76 +1727,106 @@
           "primaryKey": false,
           "notNull": true
         },
-        "list_key": {
-          "name": "list_key",
+        "siren": {
+          "name": "siren",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "entry_key": {
-          "name": "entry_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sublist": {
-          "name": "sublist",
+        "category_code": {
+          "name": "category_code",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "name": {
-          "name": "name",
+        "category_label": {
+          "name": "category_label",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "aliases": {
-          "name": "aliases",
-          "type": "jsonb",
+        "category_group": {
+          "name": "category_group",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
+          "notNull": false
         },
-        "keys": {
-          "name": "keys",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "programs": {
-          "name": "programs",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "countries": {
-          "name": "countries",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "listed_on": {
-          "name": "listed_on",
+        "first_published_on": {
+          "name": "first_published_on",
           "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "kind": {
-          "name": "kind",
+        "last_activity_published_on": {
+          "name": "last_activity_published_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activities_published": {
+          "name": "activities_published",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_exercise_end": {
+          "name": "last_exercise_end",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activity_count_last": {
+          "name": "activity_count_last",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "no_activity_declared": {
+          "name": "no_activity_declared",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ceased_on": {
+          "name": "ceased_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deregistration_reason": {
+          "name": "deregistration_reason",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "hatvp_organisations_siren_idx": {
+          "name": "hatvp_organisations_siren_idx",
+          "columns": [
+            {
+              "expression": "siren",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "import_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
-        "sanctions_entries_import_id_open_data_imports_id_fk": {
-          "name": "sanctions_entries_import_id_open_data_imports_id_fk",
-          "tableFrom": "sanctions_entries",
+        "hatvp_organisations_import_id_open_data_imports_id_fk": {
+          "name": "hatvp_organisations_import_id_open_data_imports_id_fk",
+          "tableFrom": "hatvp_organisations",
           "tableTo": "open_data_imports",
           "columnsFrom": [
             "import_id"
@@ -1809,11 +1839,11 @@
         }
       },
       "compositePrimaryKeys": {
-        "sanctions_entries_import_id_entry_key_pk": {
-          "name": "sanctions_entries_import_id_entry_key_pk",
+        "hatvp_organisations_import_id_siren_pk": {
+          "name": "hatvp_organisations_import_id_siren_pk",
           "columns": [
             "import_id",
-            "entry_key"
+            "siren"
           ]
         }
       },
@@ -1904,7 +1934,7 @@
         "georisques",
         "annuaire_administration",
         "camino",
-        "sanctions_intl",
+        "hatvp",
         "manual",
         "fixture"
       ]

@@ -81,7 +81,7 @@ beforeAll(async () => {
   // Les migrations réelles, dans l'ordre (le type d'enum existe avant 0018).
   await db.exec(`create type "public"."source_kind" as enum ('sirene', 'manual');`);
   await db.exec(migration("0014_open_data_imports.sql").replace(/--> statement-breakpoint/g, ""));
-  await db.exec(migration("0018_sanctions_entries.sql").replace(/--> statement-breakpoint/g, ""));
+  await db.exec(migration("0019_sanctions_entries.sql").replace(/--> statement-breakpoint/g, ""));
 });
 afterAll(async () => { await db.close(); });
 

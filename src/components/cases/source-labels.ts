@@ -25,6 +25,7 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   georisques: "Géorisques (installations classées)",
   annuaire_administration: "Annuaire de l'administration",
   camino: "Titres miniers (Camino)",
+  hatvp: "Répertoire HATVP",
   sanctions_intl: "Listes de sanctions internationales",
   manual: "Manuel",
   fixture: "Fixture",

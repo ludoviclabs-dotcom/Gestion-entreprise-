@@ -11,7 +11,7 @@ export const listOfSource = (source: string): SanctionListKey | undefined =>
   SANCTION_LIST_KEYS.find((k) => SANCTION_IMPORT_SOURCES[k] === source);
 
 /** Jeux importables un par un. */
-export const SINGLE_SOURCES: readonly string[] = ["camino", "icpe", "tresor_gels", ...SANCTION_SOURCES];
+export const SINGLE_SOURCES: readonly string[] = ["camino", "icpe", "tresor_gels", "hatvp", ...SANCTION_SOURCES];
 
 /**
  * Groupes de sources : « all » (rendez-vous mensuel) importe tout ; « sanctions »

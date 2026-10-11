@@ -286,6 +286,116 @@ Publication du 9 octobre 2026 : 6 609 entrées reçues, 4 647 personnes physique
 SHA-256 `e3ea96db76e3d8a55f873615d2287a7a6ad2d3aa274fc0b478e9b8a6428eb6d4`. La lecture SQL est
 vérifiée par doubles de test ; la latence réelle depuis Vercel est à mesurer après activation.
 
+## D3 — HATVP, organisations seulement
+
+Version `hatvp-v1`, source `hatvp`, attribut stable **« Répertoire HATVP »**.
+L'export JSON officiel est lu en flux avec `stream-json` (dépendance de développement,
+utilisée uniquement par l'import Actions). Les chaînes privées ne sont pas assemblées :
+filtrage des tokens avant reconstitution des seuls champs autorisés. Les catégories
+sont reconstruites depuis un catalogue institutionnel vérifié (27 codes) ; un code
+inconnu reste non renseigné, compté dans le résumé. Aucun libellé libre amont, aucune
+dénomination, aucun nom d'usage, site web, contact, adresse, client, affiliation,
+dirigeant, collaborateur ou motivation de désinscription n'est conservé.
+Les tests utilisent exclusivement des marqueurs synthétiques, aucun nom de personne.
+
+Seuls les SIREN strictement à 9 chiffres, Luhn valides et hors zéros sont rapprochés.
+Les entrepreneurs individuels sont conservés avec leurs informations professionnelles.
+Les RNA et identifiants internes HATVP ne sont pas rapprochés. Les doublons sont résolus
+sur la date/heure de dernière publication d'activité, à défaut de création ; à égalité,
+la première occurrence est conservée. L'heure et la date de création servent seulement
+à ce choix, sans persistance. Le dernier exercice est celui dont la date de fin est la
+plus grande. Ses booléens et son volume restent nullables (inconnu ≠ faux ≠ zéro).
+Seules les valeurs fermées CESSATION / ABANDON sont conservées pour la désinscription.
+
+Limites : 256 Mio décompressés, 100 000 organisations, profondeur 64, clés/scalaires
+sélectionnés de 256 caractères maximum, 20 000 champs sélectionnés par organisation,
+25 minutes de téléchargement ; au moins 1 000 organisations et 1 000 SIREN distincts.
+Seule la projection minimale est conservée en mémoire pour résoudre les doublons.
+Le fichier doit être intégralement valide avant les écritures par lots de 500.
+Publication, idempotence SHA/version, verrou, purge et rollback utilisent le socle D0.
+Table `hatvp_organisations`, PK `(import_id, siren)`, FK avec suppression en cascade,
+index `(siren, import_id)`. Le dernier import ok et l'organisation sont lus dans une
+seule requête paramétrée, sans appel externe pendant la création d'un dossier.
+
+Un jeu jamais validé renvoie « source non importée ». Un premier import échoué ou une
+panne DB est une consultation en échec. Une absence est affirmée uniquement dans un
+jeu validé, avec sa date d'import. Après un échec de rafraîchissement, le dernier succès
+reste servi et Réglages montre l'échec et la fraîcheur. Un exercice futur contenant zéro
+activité peut être encore ouvert : le rendu dit « exercice se terminant le… » et précise
+qu'il ne s'agit pas d'un bilan définitif. Aucun événement, lien, règle, signal ou effet
+sur les trois scores ; modèle `kyb-risk-2026.2` inchangé, régression d'assemblage dédiée.
+
+### Activation D3 — dans cet ordre
+
+1. Dans **Neon → SQL Editor**, coller `0018_hatvp_organisations.sql` (D0 0014 est déjà
+   appliqué). Le fichier `lot-d-activation.sql` est étendu sans retirer D0–D2/perf 4.
+   Ne pas exécuter db:migrate.
+2. Exécuter le contrôle ci-dessous ; **hatvp doit figurer avant manual**. S'il manque,
+   arrêter l'activation et réappliquer l'ALTER TYPE avant toute fusion/activation.
+
+   ```sql
+   select string_agg(e.enumlabel, ', ' order by e.enumsortorder)
+   from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'source_kind';
+   ```
+
+3. Fusionner la PR D3 vers `main`.
+4. **GitHub → Actions → Import open data → Run workflow → main → hatvp**.
+   Le secret `DATABASE_URL_UNPOOLED` est déjà en place. Relancer : à fichier identique,
+   le résumé indique « inchangé » ; si l'export quotidien a changé, un nouvel import
+   est normal. Attendre un import réussi avant le flag.
+5. **Vercel → kyb-graph → Settings → Environment Variables → Production** :
+   `HATVP_ENABLED=true`, en mode live déjà configuré.
+6. Redéployer. La variable GitHub existante `OPEN_DATA_IMPORTS_ENABLED=true` inclut HATVP
+   dans `all` chaque mois ; le rendez-vous quotidien reste limité à `tresor_gels`.
+   Le job mensuel est désormais plafonné à 90 minutes pour les quatre sources.
+7. Écrire **« D3 activé »** à Claude. Il vérifie les cinq témoins sur les dossiers nécessaires,
+   l'attribut, les sources, les scores et `metadata.timings.hatvp` (<100 ms visés).
+   Les anciens dossiers ne sont pas enrichis automatiquement. Repli opérationnel :
+   `HATVP_ENABLED=false` puis redéploiement. D4 reste fermé avant fusion ET activation D3.
+
+### Vérifié sur les vraies sources — 11 octobre 2026
+
+Téléchargement, analyse, projection et normalisation complets de
+[l'export officiel](https://www.hatvp.fr/agora/opendata/agora_repertoire_opendata.json),
+sans secret local ni écriture Neon :
+
+| Mesure | Résultat |
+|---|---:|
+| Organisations reçues | 4 098 |
+| Lignes avec SIREN valide | 3 774 |
+| SIREN distincts retenus | 3 773 |
+| Doublons fusionnés | 1 |
+| RNA / identifiants HATVP non rapprochés | 121 / 203 |
+| Catégories inconnues | 0 |
+| Octets décompressés | 138 692 637 |
+| Durée complète, sans écritures Neon | 22,03 s |
+| Pic RSS du processus Node | 154,95 Mio |
+| SHA-256 | `aab891f3302a1e595a1681e670a613b0af0a5c4b0ea3d172f49ec43f7facba69` |
+
+| Témoin | SIREN | Présence |
+|---|---|---|
+| EDF | 552081317 | Inscrite |
+| LIDL | 343262622 | Inscrite |
+| LA POSTE | 356000000 | Inscrite |
+| DANONE | 552032534 | Inscrite |
+| HSBC Continental Europe | 775670284 | Absente dans le jeu importé |
+
+Vérification SQL complémentaire sur **PostgreSQL local PGlite**, avec les 3 773 lignes
+réelles minimisées : migration exécutée deux fois, contrôle pg_enum, cinq témoins,
+absence/import manquant/échec initial, rollback et cascade. 100 lectures de la requête
+exacte : p95 2,35 ms, maximum 4,35 ms ; chargement 170 ms ; table et index 1 171 456 octets.
+Ces mesures locales ne mesurent **pas** le réseau Vercel/Neon ni le job GitHub réel.
+Les outils et scripts jetables sont supprimés avant livraison.
+
+Limites connues : aucune couverture des RNA/HATVP, aucun contrôle de l'obligation
+d'inscription ou de déclaration, aucune interprétation des défauts/dispenses,
+pas de relations avec des personnes/décideurs ; fraîcheur mensuelle malgré un export
+quotidien. Les seuils ne prouvent pas l'exhaustivité amont. Les nouvelles catégories
+nécessitent une mise à jour du catalogue et de la version de projection. Les exercices
+futurs et leurs zéros ne prouvent pas une absence définitive d'activité. La transaction
+Neon réelle, la répétition dans Actions et la cible <100 ms depuis Vercel restent à
+confirmer par Claude après activation ; aucun accès de production n'a été simulé.
+
 ## Sanctions internationales (hors UE)
 
 **Pourquoi.** OpenSanctions (HTTP 402) ne couvre plus les listes américaines, britanniques,
@@ -346,7 +456,7 @@ Sources du dossier. Les listes de contrôle des exportations (BIS, ITAR) portent
 
 ### Activation
 
-1. Neon → SQL Editor : coller `drizzle/0018_sanctions_entries.sql` (ou
+1. Neon → SQL Editor : coller `drizzle/0019_sanctions_entries.sql` (ou
    `docs/lot-d-activation.sql`, idempotent). Puis vérifier l'enum :
    `select string_agg(e.enumlabel, ', ' order by e.enumsortorder) from pg_enum e
    join pg_type t on t.oid = e.enumtypid where t.typname = 'source_kind';` — la liste doit

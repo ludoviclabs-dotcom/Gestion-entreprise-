@@ -50,6 +50,7 @@ export const sourceKind = pgEnum("source_kind", [
   "georisques",
   "annuaire_administration",
   "camino",
+  "hatvp",
   "sanctions_intl",
   "manual",
   "fixture",

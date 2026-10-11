@@ -22,6 +22,8 @@ import {
   rechercheEntreprises,
 } from "@/lib/connectors/recherche-entreprises";
 import { camino } from "@/lib/connectors/camino";
+import { hatvp } from "@/lib/connectors/hatvp";
+import { hatvpAttributes } from "./normalize-hatvp";
 import { caminoAttributes, normalizeCamino } from "./normalize-camino";
 import { balo } from "@/lib/connectors/balo";
 import { boamp } from "@/lib/connectors/boamp";
@@ -40,6 +42,7 @@ import {
   isAnnuaireAdministrationEnabled,
   isGeorisquesEnabled,
   isCaminoEnabled,
+  isHatvpEnabled,
   isIcpeImportEnabled,
   isBaloEnabled,
   isBoampEnabled,
@@ -376,6 +379,7 @@ export async function assembleCase(
     icpeRes,
     caminoRes,
     sanctionsRes,
+    hatvpRes,
   ] = await Promise.all([
     timed("bodacc", () => bodacc.bySiren(siren)),
     timed("inpi", () => inpi.getRne(siren)),
@@ -405,6 +409,7 @@ export async function assembleCase(
     icpeHop,
     live && isCaminoEnabled() ? timed("camino", () => camino.bySiren(siren)) : none,
     sanctionsHop,
+    live && isHatvpEnabled() ? timed("hatvp", () => hatvp.bySiren(siren)) : none,
   ]);
   // Ordre des source_records déterministe, indépendant de l'ordre d'arrivée.
   sources.push(
@@ -429,6 +434,7 @@ export async function assembleCase(
   if (alimRes) sources.push(toSource("alim_confiance", alimRes));
   if (qualiopiRes) sources.push(toSource("qualiopi", qualiopiRes));
   if (caminoRes) sources.push(toSource("camino", caminoRes));
+  if (hatvpRes) sources.push(toSource("hatvp", hatvpRes));
   if (icpeImportAttempt) sources.push(toSource("georisques", icpeImportAttempt));
   if (icpeRes) sources.push(toSource("georisques", icpeRes));
   if (annuaireRes) sources.push(toSource("annuaire_administration", annuaireRes));
@@ -648,6 +654,7 @@ export async function assembleCase(
       // Installations classées (siège et établissements interrogés) et annuaire.
       ...caminoAttributes(openDataUsable(caminoRes) ? caminoRes.raw : null),
       ...sanctionsNorm.attributes,
+      ...hatvpAttributes(openDataUsable(hatvpRes) ? hatvpRes.raw : null),
       ...regulatoryAttributes({
         icpe: openDataUsable(icpeRes) ? icpeRes.raw : null,
         annuaire: openDataUsable(annuaireRes) ? annuaireRes.raw : null,

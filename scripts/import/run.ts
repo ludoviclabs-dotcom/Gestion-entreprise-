@@ -1,6 +1,7 @@
 import { appendFile } from "node:fs/promises";
 import { connectImportDatabase } from "./lib/postgres-store";
 import { importCamino } from "./camino";
+import { importHatvp, type HatvpStats } from "./hatvp";
 import type { ImportReport } from "./lib/runner";
 import { importIcpe, type IcpeStats } from "./icpe";
 import { importGels, type GelsStats } from "./tresor-gels";
@@ -23,7 +24,7 @@ async function main() {
     if (source === "check") await summary("Infrastructure accessible.");
     await runSources(keys, async (key) => {
       const started = Date.now();
-      let report: ImportReport & { stats?: IcpeStats | GelsStats | SanctionsStats };
+      let report: ImportReport & { stats?: IcpeStats | GelsStats | SanctionsStats | HatvpStats };
       let detail = "";
       const list = listOfSource(key);
       if (key === "camino") report = await importCamino(db);
@@ -31,6 +32,10 @@ async function main() {
         const r = await importIcpe(db);
         report = r;
         detail = ` Reçues : ${r.stats.received} ; Non ICPE exclus : ${r.stats.nonIcpe} ; identifiants inutilisables : ${r.stats.unusableIdentifier}.`;
+      } else if (key === "hatvp") {
+        const r = await importHatvp(db);
+        report = r;
+        detail = ` Organisations : ${r.stats.organisations} ; SIREN valides reçus : ${r.stats.sirenRecords} ; non rapprochables : ${r.stats.unusableIdentifier} ; doublons fusionnés : ${r.stats.duplicates} ; catégories inconnues : ${r.stats.unknownCategory} ; SHA-256 : ${r.sha256}.`;
       } else if (list) {
         const r = await importSanctionsList(db, list);
         report = r;

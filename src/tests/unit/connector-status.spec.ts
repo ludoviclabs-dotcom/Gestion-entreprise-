@@ -15,6 +15,7 @@ describe("getConnectorStatuses", () => {
     expect(statuses.map((s) => s.key).sort()).toEqual(
       [
         "camino",
+        "hatvp",
         "georisques",
         "annuaire_administration",
         "agence_bio",

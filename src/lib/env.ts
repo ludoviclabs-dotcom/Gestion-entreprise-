@@ -89,6 +89,7 @@ const serverSchema = z.object({
   // ONU, Suisse, Canada), lues depuis l'import quotidien en base. SANS clé, opt-in.
   SANCTIONS_INTL_ENABLED: z.enum(["true", "false"]).default("false"),
   CAMINO_ENABLED: z.enum(["true", "false"]).default("false"),
+  HATVP_ENABLED: z.enum(["true", "false"]).default("false"),
   GEORISQUES_ENABLED: z.enum(["true", "false"]).default("false"),
   ANNUAIRE_ADMINISTRATION_ENABLED: z.enum(["true", "false"]).default("false"),
   GEORISQUES_BASE_URL: z.string().default("https://www.georisques.gouv.fr"),
@@ -140,6 +141,7 @@ export const isTresorGelsImportEnabled = (): boolean =>
 export const isSanctionsIntlEnabled = (): boolean =>
   env.SANCTIONS_INTL_ENABLED === "true";
 export const isCaminoEnabled = (): boolean => env.CAMINO_ENABLED === "true";
+export const isHatvpEnabled = (): boolean => env.HATVP_ENABLED === "true";
 export const isGeorisquesEnabled = (): boolean => env.GEORISQUES_ENABLED === "true";
 export const isAnnuaireAdministrationEnabled = (): boolean =>
   env.ANNUAIRE_ADMINISTRATION_ENABLED === "true";

@@ -23,6 +23,7 @@ import {
   isQualiopiEnabled,
   isGeorisquesEnabled,
   isCaminoEnabled,
+  isHatvpEnabled,
   isIcpeImportEnabled,
   isTresorGelsImportEnabled,
   isSanctionsIntlEnabled,
@@ -276,6 +277,14 @@ export function getConnectorStatuses(): ConnectorStatus[] {
       detail: !demo && isCaminoEnabled()
         ? "Lecture du dernier import complet ; fraîcheur indiquée ci-dessous."
         : "Camino inactif (mode démo ou CAMINO_ENABLED non activé).",
+    },
+    {
+      key: "hatvp",
+      label: "Répertoire HATVP",
+      live: !demo && isHatvpEnabled(),
+      detail: !demo && isHatvpEnabled()
+        ? "Organisations par SIREN, sans identité personnelle ; fraîcheur indiquée ci-dessous."
+        : "HATVP inactif (mode démo ou HATVP_ENABLED non activé).",
     },
     {
       key: "georisques",

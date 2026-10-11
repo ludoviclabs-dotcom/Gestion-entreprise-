@@ -1,4 +1,4 @@
--- Lot D0-D2 + perf 4 (registre des gels) + sanctions internationales : SQL idempotent à copier dans Neon SQL Editor.
+-- Lot D0-D2 + perf 4 (registre des gels) + sanctions internationales + HATVP : SQL idempotent à copier dans Neon SQL Editor.
 -- Aucun secret ni commande de migration locale.
 
 -- 0014_open_data_imports.sql
@@ -78,8 +78,32 @@ CREATE TABLE IF NOT EXISTS "tresor_gels_entries" (
 	CONSTRAINT "tresor_gels_entries_import_id_open_data_imports_id_fk" FOREIGN KEY ("import_id") REFERENCES "public"."open_data_imports"("id") ON DELETE cascade ON UPDATE no action
 );
 
--- 0018_sanctions_entries.sql (valeur d'enum d'abord : instruction séparée)
+-- D3 : 0018_hatvp_organisations.sql. SQL → contrôle de l'enum → fusion → import → flag → redéploiement.
+ALTER TYPE "public"."source_kind" ADD VALUE IF NOT EXISTS 'hatvp' BEFORE 'manual';
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS "hatvp_organisations" (
+  "import_id" uuid NOT NULL,
+  "siren" text NOT NULL,
+  "category_code" text,
+  "category_label" text,
+  "category_group" text,
+  "first_published_on" date,
+  "last_activity_published_on" date,
+  "activities_published" boolean,
+  "last_exercise_end" date,
+  "activity_count_last" integer,
+  "no_activity_declared" boolean,
+  "ceased_on" date,
+  "deregistration_reason" text,
+  CONSTRAINT "hatvp_organisations_import_id_siren_pk" PRIMARY KEY("import_id","siren"),
+  CONSTRAINT "hatvp_organisations_import_id_open_data_imports_id_fk" FOREIGN KEY ("import_id") REFERENCES "public"."open_data_imports"("id") ON DELETE cascade ON UPDATE no action
+);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "hatvp_organisations_siren_idx" ON "hatvp_organisations" USING btree ("siren","import_id");
+
+-- Sanctions internationales : 0019_sanctions_entries.sql (valeur d'enum d'abord, instruction séparée).
 ALTER TYPE "public"."source_kind" ADD VALUE IF NOT EXISTS 'sanctions_intl' BEFORE 'manual';
+--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "sanctions_entries" (
 	"import_id" uuid NOT NULL,
 	"list_key" text NOT NULL,
@@ -95,3 +119,7 @@ CREATE TABLE IF NOT EXISTS "sanctions_entries" (
 	CONSTRAINT "sanctions_entries_import_id_entry_key_pk" PRIMARY KEY("import_id","entry_key"),
 	CONSTRAINT "sanctions_entries_import_id_open_data_imports_id_fk" FOREIGN KEY ("import_id") REFERENCES "public"."open_data_imports"("id") ON DELETE cascade ON UPDATE no action
 );
+
+-- Exécuter APRÈS le SQL ; la liste doit contenir hatvp et sanctions_intl avant manual.
+select string_agg(e.enumlabel, ', ' order by e.enumsortorder)
+from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'source_kind';

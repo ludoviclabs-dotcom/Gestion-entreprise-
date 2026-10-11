@@ -23,6 +23,7 @@ export type SourceKind =
   | "georisques"
   | "annuaire_administration"
   | "camino"
+  | "hatvp"
   | "sanctions_intl"
   | "manual"
   | "fixture";
