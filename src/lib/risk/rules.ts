@@ -11,6 +11,7 @@ import { structuralDegree } from "@/lib/graph/build-graph";
 import { compareDeclaredUbo, parsePct } from "@/lib/graph/ubo";
 import { normalizeName, stripLegalForms } from "@/lib/match/normalize";
 import { denominationSimilarity } from "@/lib/match/similarity";
+import { computeSanctionProximity, SANCTION_MAX_HOPS } from "./sanction-proximity";
 import type { Rule } from "./types";
 
 // ── Utilitaires partagés ─────────────────────────────────────────────────
@@ -368,42 +369,10 @@ export const PROXIMITE_SANCTION: Rule = {
   label: "Proximité d'une entité signalée",
   category: "vigilance",
   evaluate(ctx) {
-    const MAX_HOPS = 2;
-    const sanctions = ctx.bundle.entities.filter((e) => e.type === "sanction");
-    if (sanctions.length === 0) return [];
-
-    // Adjacence non dirigée + libellé de l'arête (pour décrire le chemin).
-    const adj = new Map<string, { node: string; via: string }[]>();
-    const link = (a: string, b: string, label: string) => {
-      const list = adj.get(a) ?? [];
-      list.push({ node: b, via: label });
-      adj.set(a, list);
-    };
-    for (const e of ctx.bundle.edges) {
-      const label = e.label ?? e.type;
-      link(e.source, e.target, label);
-      link(e.target, e.source, label);
-    }
-
-    // BFS multi-source depuis tous les nœuds sanction.
-    const dist = new Map<string, number>();
-    const pred = new Map<string, { from: string; via: string }>();
-    const queue: string[] = [];
-    for (const s of sanctions) {
-      dist.set(s.id, 0);
-      queue.push(s.id);
-    }
-    for (let head = 0; head < queue.length; head += 1) {
-      const node = queue[head];
-      const d = dist.get(node) ?? 0;
-      if (d >= MAX_HOPS) continue;
-      for (const { node: next, via } of adj.get(node) ?? []) {
-        if (dist.has(next)) continue;
-        dist.set(next, d + 1);
-        pred.set(next, { from: node, via });
-        queue.push(next);
-      }
-    }
+    const MAX_HOPS = SANCTION_MAX_HOPS;
+    if (!ctx.bundle.entities.some((e) => e.type === "sanction")) return [];
+    // Parcours en largeur (non dirigé, multi-source) depuis tous les nœuds sanction.
+    const { dist, pred } = computeSanctionProximity(ctx.bundle);
 
     const labelOf = (id: string) =>
       ctx.bundle.entities.find((e) => e.id === id)?.label ?? id;

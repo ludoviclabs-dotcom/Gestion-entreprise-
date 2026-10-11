@@ -8,6 +8,7 @@ import type {
 } from "@/lib/graph/graph-types";
 import type { SourceKind } from "@/lib/graph/source";
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
+import { computeSanctionProximity, type SanctionProximity } from "@/lib/risk/sanction-proximity";
 import type {
   CaseOrigin,
   CaseStatus,
@@ -168,21 +169,29 @@ export function inferEdgeSource(
   );
 }
 
+/**
+ * @param proximity proximité aux nœuds sanction déjà calculée pour ce dossier
+ *   (évite un parcours par signal) ; calculée à la demande sinon.
+ */
 export function inferSignalSource(
   signal: CaseRiskSignal,
   bundle: CaseBundle,
+  proximity?: SanctionProximity,
 ): SourceKind | null {
   if (signal.ruleId.includes("UBO")) return "inpi";
   if (signal.ruleId.includes("PROCEDURE") || signal.ruleId.includes("RADIATION")) {
     return "bodacc";
   }
   if (signal.ruleId.includes("SANCTION")) {
-    // Provenance : si les seules entités signalées viennent des listes
-    // internationales, le signal s'y rattache ; sinon repli historique.
-    const sanctionSources = new Set(
-      bundle.entities.filter((e) => e.type === "sanction").map((e) => inferEntitySource(e)),
-    );
-    if (sanctionSources.size === 1 && sanctionSources.has("sanctions_intl")) {
+    // Provenance PAR SIGNAL : le nœud sanction à l'origine du plus court chemin
+    // qui atteint le sujet du signal (le même que celui décrit par la règle). Un
+    // dossier mêlant OpenSanctions et listes internationales n'attribue donc pas
+    // tous ses signaux à une seule source. Repli historique : « opensanctions ».
+    const origin = signal.subjectId
+      ? (proximity ?? computeSanctionProximity(bundle)).root.get(signal.subjectId)
+      : undefined;
+    const originEntity = origin ? bundle.entities.find((e) => e.id === origin) : undefined;
+    if (originEntity && inferEntitySource(originEntity) === "sanctions_intl") {
       return "sanctions_intl";
     }
     return "opensanctions";
@@ -200,6 +209,9 @@ export function buildBundleEvidence(
   const available = new Set(sources.map((s) => s.source));
   const cleanSource = (source: SourceKind | null) =>
     source && available.has(source) ? source : null;
+  // Parcours des nœuds sanction : une seule fois par dossier, à la première demande.
+  let proximity: SanctionProximity | undefined;
+  const proximityOf = () => (proximity ??= computeSanctionProximity(bundle));
 
   return [
     ...bundle.entities.map((entity) => ({
@@ -229,7 +241,13 @@ export function buildBundleEvidence(
     ...bundle.riskSignals.map((signal) => ({
       subjectType: "risk_signal" as const,
       subjectId: signal.id,
-      source: cleanSource(inferSignalSource(signal, bundle)),
+      source: cleanSource(
+        inferSignalSource(
+          signal,
+          bundle,
+          signal.ruleId.includes("SANCTION") ? proximityOf() : undefined,
+        ),
+      ),
       level: "inferred" as const,
       excerpt: signal.explanation,
       pointer: { ruleId: signal.ruleId },

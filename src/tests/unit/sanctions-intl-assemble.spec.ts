@@ -55,7 +55,7 @@ vi.mock("@/lib/connectors/sanctions-intl", async () => {
 
 import { assembleCase } from "@/lib/ingestion/assemble-case";
 import { SANCTIONS_INTL_ATTRIBUTE } from "@/lib/ingestion/normalize-sanctions-intl";
-import { getSourceCoverage } from "@/lib/data/case-quality";
+import { buildBundleEvidence, getSourceCoverage, inferSignalSource } from "@/lib/data/case-quality";
 import { computeMitigatingFactors } from "@/lib/risk/mitigating";
 
 const lists = (state: "ok" | "stale" | "missing" = "ok") =>
@@ -175,5 +175,50 @@ describe("couverture des contrôles de sanctions et facteurs atténuants", () =>
       bodacc: true, sanctions: true, sanctionSources: ["tresor_gels", "opensanctions", "sanctions_intl"],
     }).find((f) => f.id === "AUCUNE_ENTITE_SIGNALEE");
     expect(withOs?.label).toBe("Aucune entité signalée");
+  });
+});
+
+describe("provenance de chaque signal de proximité (dossier mêlant deux sources)", () => {
+  const company = (id: string, label: string) => ({ id, type: "company", label, evidenceLevel: "declared" }) as never;
+  const sanction = (id: string, source: string) =>
+    ({ id, type: "sanction", label: id, evidenceLevel: "declared", source }) as never;
+  const edge = (source: string, target: string) =>
+    ({ id: `e:${source}:${target}`, type: "EST_VISE_PAR", source, target, evidenceLevel: "declared" }) as never;
+  const signal = (subjectId: string) =>
+    ({ id: `s-${subjectId}`, ruleId: "PROXIMITE_SANCTION", subjectId, severity: "high", category: "vigilance", explanation: "x" }) as never;
+
+  // A est visée par une liste internationale, B par OpenSanctions, C est reliée aux deux
+  // (à 1 saut de la liste internationale, à 2 d'OpenSanctions).
+  const bundle = {
+    case: { id: "x", title: "X", rootSiren: "552032534" },
+    entities: [
+      company("co:a", "A"), company("co:b", "B"), company("co:c", "C"),
+      sanction("sa:os:1", "OpenSanctions"),
+      sanction("sa:intl:us:1", "Listes de sanctions internationales — États-Unis"),
+    ],
+    edges: [
+      edge("co:a", "sa:intl:us:1"), edge("co:b", "sa:os:1"),
+      edge("co:c", "sa:intl:us:1"), edge("co:c", "co:b"),
+    ],
+    events: [],
+    riskSignals: [signal("co:a"), signal("co:b"), signal("co:c")],
+  } as never;
+
+  it("rattache chaque signal au nœud sanction de son propre chemin", () => {
+    const b = bundle as { riskSignals: never[] };
+    const by = (id: string) => inferSignalSource(b.riskSignals.find((r: { subjectId: string }) => r.subjectId === id) as never, bundle);
+    expect(by("co:a")).toBe("sanctions_intl");
+    expect(by("co:b")).toBe("opensanctions");
+    expect(by("co:c")).toBe("sanctions_intl");
+  });
+
+  it("le journal de preuves reste cohérent signal par signal", () => {
+    const sources = ["opensanctions", "sanctions_intl"].map((source) => ({ source }) as never);
+    const evidence = buildBundleEvidence(bundle, sources).filter((e) => e.subjectType === "risk_signal");
+    expect(evidence.map((e) => [e.subjectId, e.source])).toEqual([
+      ["s-co:a", "sanctions_intl"],
+      ["s-co:b", "opensanctions"],
+      ["s-co:c", "sanctions_intl"],
+    ]);
   });
 });
