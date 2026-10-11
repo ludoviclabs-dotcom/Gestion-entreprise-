@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
-import { env, isDemoMode, isTresorGelsEnabled } from "@/lib/env";
+import { env, isDemoMode, isTresorGelsEnabled, isTresorGelsImportEnabled } from "@/lib/env";
 import { fetchJson } from "./http";
 import gelsFixture from "@/lib/fixtures/tresor-gels.sample.json";
 import {
@@ -7,6 +7,7 @@ import {
   matchGelsEntries,
   type GelsExtraction,
 } from "./tresor-gels-match";
+import { readImportedGels } from "./tresor-gels-import";
 import type { ConnectorResult } from "./types";
 
 /**
@@ -17,6 +18,11 @@ import type { ConnectorResult } from "./types";
  *  - la publication complète pèse plus de 10 Mo : on la télécharge côté serveur,
  *    on la garde en cache mémoire 6 h, et on ne persiste QUE les correspondances
  *    (jamais le fichier : il saturerait source_records à chaque dossier).
+ *
+ * Lecture : avec TRESOR_GELS_IMPORT_ENABLED, le registre est lu depuis l'import
+ * quotidien en base (≈ 0,1 s) ; import absent, périmé (> 48 h) ou en erreur →
+ * téléchargement direct ci-dessous (≈ 7 à 9 s sur instance froide). Même
+ * rapprochement dans les deux cas.
  *
  * Modes (inchangés) : démo / flag absent → fixture ; live → rapprochement réel.
  * Live en échec → résultat vide `status: "indisponible"` + Sentry. Ne lève jamais :
@@ -42,6 +48,8 @@ export type TresorGelsRaw = {
   entriesCount: number;
   matches: ReturnType<typeof matchGelsEntries>;
   query: { siren?: string; name?: string };
+  /** Présent seulement si le registre vient de l'import en base (traçabilité). */
+  import?: { importedAt: string; checkedAt: string };
 };
 
 // Téléchargement en cours : les appels concurrents (démarrage à froid, rafale de
@@ -114,6 +122,23 @@ export const tresorGels = {
       httpStatus,
       isFixture: false,
     });
+
+    // Import quotidien en base : jamais de téléchargement si une copie fraîche existe.
+    if (isTresorGelsImportEnabled()) {
+      const imported = await readImportedGels();
+      if (imported.state === "fresh") {
+        const { data } = imported;
+        const raw: TresorGelsRaw = {
+          status: "ok",
+          publicationDate: data.publicationDate,
+          entriesCount: data.registerTotal,
+          matches: matchGelsEntries(data.entries, { name: params.name }),
+          query,
+          import: { importedAt: data.importedAt, checkedAt: data.checkedAt },
+        };
+        return { raw, endpoint: "db:tresor_gels_entries", httpStatus: 200, isFixture: false };
+      }
+    }
 
     try {
       const loaded = await loadPublication(endpoint);
