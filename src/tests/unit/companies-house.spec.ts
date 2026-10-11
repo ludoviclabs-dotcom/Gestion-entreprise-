@@ -135,11 +135,16 @@ describe("companiesHouse.byNumber (live)", () => {
     expect(raw.officers[1].corporate).toBe(true);
     expect(raw.officersActive).toBe(2);
     expect(raw.pscs).toHaveLength(3);
-    // Minimisation : ni adresse, ni date de naissance, ni nationalité conservées.
+    // Minimisation : ni adresse, ni mois ou date de naissance, ni nationalité conservées.
+    // Seule l'ANNÉE de naissance est gardée (`birthYear`) : elle départage les homonymes
+    // lors du contrôle des listes de sanctions et n'est jamais affichée.
     const dump = JSON.stringify(res.raw);
-    for (const leaked of ["AB1 2CD", "Rue Fictive", "1970", "French"]) {
+    for (const leaked of ["AB1 2CD", "Rue Fictive", "French", "date_of_birth", "\"month\""]) {
       expect(dump).not.toContain(leaked);
     }
+    expect(raw.pscs).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "DUPUIS, Marie", birthYear: 1970 })]),
+    );
     // Auth Basic : clé en login, mot de passe vide ; jamais dans l'endpoint.
     const headers = (fetchMock.mock.calls[0][1] as { headers: Record<string, string> }).headers;
     expect(headers.Authorization).toBe("Basic " + Buffer.from("CH-SECRET:").toString("base64"));

@@ -7,6 +7,7 @@ import { inpi } from "@/lib/connectors/inpi";
 import { tresorGels } from "@/lib/connectors/tresor-gels";
 import { openSanctions } from "@/lib/connectors/opensanctions";
 import { sanctionsIntl } from "@/lib/connectors/sanctions-intl";
+import { sanctionsPersons } from "@/lib/connectors/sanctions-persons";
 import { gleif } from "@/lib/connectors/gleif";
 import { vies } from "@/lib/connectors/vies";
 import { ban, banAddressFrom } from "@/lib/connectors/ban";
@@ -52,6 +53,7 @@ import {
   isGdeltEnabled,
   isInpiUboExposed,
   isSanctionsIntlEnabled,
+  isSanctionsPersonsEnabled,
   isJoafeEnabled,
   isQualiopiEnabled,
   isRechercheEntreprisesEnabled,
@@ -72,6 +74,11 @@ import { normalizeInpi } from "./normalize-inpi";
 import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
 import { normalizeSanctionsIntl } from "./normalize-sanctions-intl";
+import {
+  normalizeSanctionsPersons,
+  type SanctionsPersonsNormalized,
+} from "./normalize-sanctions-persons";
+import { buildPersonQueries, collectBirthYears } from "./person-birth-years";
 import { companiesHouseParents, gleifParents, normalizeGleif } from "./normalize-gleif";
 import { normalizeCompaniesHouse } from "./normalize-companies-house";
 import {
@@ -571,6 +578,46 @@ export async function assembleCase(
       ? rechercheDirigeants(rechercheRes.raw, companyId)
       : { entities: [], edges: [] };
 
+  // Contrôle des PERSONNES (dirigeants, bénéficiaires publiés) contre les listes de
+  // sanctions internationales : nom ET année de naissance (voir
+  // normalize-sanctions-persons.ts). Fait AVANT la résolution : les nœuds sanction et
+  // leurs liens sont remappés comme les autres. Un résultat fixture n'est jamais
+  // injecté ; une panne ne casse jamais le dossier (attribut « indisponible »).
+  let personsNorm: SanctionsPersonsNormalized = {
+    entities: [], edges: [], personAttributes: {}, attributes: {},
+  };
+  if (live && isSanctionsPersonsEnabled() && sanctionsRes && usableResult(sanctionsRes)) {
+    const peopleEntities = [
+      ...inpiNorm.entities,
+      ...pappersPeople.entities,
+      ...recherchePeople.entities,
+      ...chNorm.entities,
+    ];
+    const birthYears = collectBirthYears({
+      recherche: rechercheUsable && rechercheRes ? rechercheRes.raw : undefined,
+      pappers: pappersUsable ? pappersRes.raw : undefined,
+      companiesHouse: chResults.filter((r) => !r.isFixture).map((r) => r.raw),
+    });
+    const queries = buildPersonQueries(peopleEntities, birthYears);
+    if (queries.length > 0) {
+      const personsRes = await timed("sanctions_persons", () => sanctionsPersons.match(queries));
+      if (usableResult(personsRes)) {
+        personsNorm = normalizeSanctionsPersons(personsRes.raw, {
+          personIds: new Set(queries.map((q) => q.key)),
+        });
+        // Preuve : la consultation des personnes est conservée dans la même ligne de
+        // source que celle des sociétés (une seule couverture « sanctions_intl »).
+        const row = sources.find((s) => s.source === "sanctions_intl");
+        if (row) {
+          row.raw = {
+            ...((row.raw && typeof row.raw === "object" ? row.raw : {}) as Record<string, unknown>),
+            personnes: personsRes.raw,
+          };
+        }
+      }
+    }
+  }
+
   // Résolution d'entité : dédoublonnage INTER-SOURCES (une même société/personne
   // vue par Sirene, INPI et GLEIF est fusionnée ; arêtes re-pointées vers l'id
   // canonique, preuve la plus forte conservée). AVANT enrichissement/GDELT :
@@ -584,6 +631,7 @@ export async function assembleCase(
       ...gleifNorm.entities,
       ...gelsNorm.entities,
       ...sanctionsNorm.entities,
+      ...personsNorm.entities,
       ...osNorm.entities,
       ...pappersPeople.entities,
       ...recherchePeople.entities,
@@ -595,6 +643,7 @@ export async function assembleCase(
       ...gleifNorm.edges,
       ...gelsNorm.edges,
       ...sanctionsNorm.edges,
+      ...personsNorm.edges,
       ...osNorm.edges,
       ...pappersPeople.edges,
       ...recherchePeople.edges,
@@ -654,12 +703,19 @@ export async function assembleCase(
       // Installations classées (siège et établissements interrogés) et annuaire.
       ...caminoAttributes(openDataUsable(caminoRes) ? caminoRes.raw : null),
       ...sanctionsNorm.attributes,
+      ...personsNorm.attributes,
       ...hatvpAttributes(openDataUsable(hatvpRes) ? hatvpRes.raw : null),
       ...regulatoryAttributes({
         icpe: openDataUsable(icpeRes) ? icpeRes.raw : null,
         annuaire: openDataUsable(annuaireRes) ? annuaireRes.raw : null,
       }),
     };
+  }
+
+  // Homonymes possibles : attributs posés sur les nœuds personne CANONIQUES.
+  for (const [personId, attributes] of Object.entries(personsNorm.personAttributes)) {
+    const person = resolvedEntities.find((e) => e.id === remapId(personId));
+    if (person) person.attributes = { ...person.attributes, ...attributes };
   }
 
   // GDELT — couverture médiatique (presse), appariée au graphe CANONIQUE.

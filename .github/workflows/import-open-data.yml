@@ -43,5 +43,7 @@ jobs:
         env:
           DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
           IMPORT_SOURCE: ${{ inputs.source || (github.event.schedule == '47 4 * * *' && 'daily') || 'all' }}
+          # Personnes physiques des listes de sanctions (migration 0020 appliquée d'abord).
+          SANCTIONS_PERSONS_IMPORT_ENABLED: ${{ vars.SANCTIONS_PERSONS_IMPORT_ENABLED }}
           NEXT_TELEMETRY_DISABLED: '1'
         run: npx --no-install tsx scripts/import/run.ts "$IMPORT_SOURCE"

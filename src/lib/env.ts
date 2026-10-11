@@ -88,6 +88,10 @@ const serverSchema = z.object({
   // Listes de sanctions et de contrôle internationales (États-Unis, Royaume-Uni,
   // ONU, Suisse, Canada), lues depuis l'import quotidien en base. SANS clé, opt-in.
   SANCTIONS_INTL_ENABLED: z.enum(["true", "false"]).default("false"),
+  // Contrôle des PERSONNES (dirigeants, bénéficiaires) contre les mêmes listes :
+  // exige la migration 0020 et l'import « avec personnes » (SANCTIONS_PERSONS_IMPORT_ENABLED
+  // côté GitHub Actions). Sans SANCTIONS_INTL_ENABLED, sans effet.
+  SANCTIONS_PERSONS_ENABLED: z.enum(["true", "false"]).default("false"),
   CAMINO_ENABLED: z.enum(["true", "false"]).default("false"),
   HATVP_ENABLED: z.enum(["true", "false"]).default("false"),
   GEORISQUES_ENABLED: z.enum(["true", "false"]).default("false"),
@@ -140,6 +144,8 @@ export const isTresorGelsImportEnabled = (): boolean =>
   env.TRESOR_GELS_IMPORT_ENABLED === "true";
 export const isSanctionsIntlEnabled = (): boolean =>
   env.SANCTIONS_INTL_ENABLED === "true";
+export const isSanctionsPersonsEnabled = (): boolean =>
+  env.SANCTIONS_PERSONS_ENABLED === "true";
 export const isCaminoEnabled = (): boolean => env.CAMINO_ENABLED === "true";
 export const isHatvpEnabled = (): boolean => env.HATVP_ENABLED === "true";
 export const isGeorisquesEnabled = (): boolean => env.GEORISQUES_ENABLED === "true";

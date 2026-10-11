@@ -1,4 +1,4 @@
-import { stripLegalForms } from "@/lib/match/normalize";
+import { normalizeName, stripLegalForms } from "@/lib/match/normalize";
 
 /**
  * Listes de sanctions et de contrôle INTERNATIONALES (hors UE), importées chaque
@@ -34,6 +34,16 @@ export const SANCTION_LIST_LABELS: Record<SanctionListKey, string> = {
  * trouvait alors aucune candidate.
  */
 export const SANCTIONS_PROJECTION_VERSION = "sanctions-v2";
+/**
+ * v3 : la projection contient aussi les PERSONNES PHYSIQUES (nom, alias, années de
+ * naissance, pays) pour le contrôle des dirigeants. Écrite seulement quand
+ * `SANCTIONS_PERSONS_IMPORT_ENABLED=true` ; sans cela, v2 (organisations seulement).
+ */
+export const SANCTIONS_PERSONS_PROJECTION_VERSION = "sanctions-v3";
+
+/** Version écrite par l'import selon que les personnes physiques sont importées. */
+export const sanctionsProjectionVersion = (personsEnabled: boolean): string =>
+  personsEnabled ? SANCTIONS_PERSONS_PROJECTION_VERSION : SANCTIONS_PROJECTION_VERSION;
 
 /**
  * Nature d'une entrée : `entity` = organisation typée comme telle par la liste ;
@@ -41,7 +51,7 @@ export const SANCTIONS_PROJECTION_VERSION = "sanctions-v2";
  * exportations), conservée pour ne pas manquer une société. Les personnes
  * physiques, navires et aéronefs ne sont jamais conservés.
  */
-export type SanctionEntryKind = "entity" | "unknown";
+export type SanctionEntryKind = "entity" | "unknown" | "person";
 
 /** Type d'une liste : sanctions financières ou contrôle des exportations. */
 export type SanctionListNature = "sanctions" | "export_control";
@@ -58,6 +68,8 @@ export type SanctionRow = {
   countries: string[];
   listed_on: string | null;
   kind: SanctionEntryKind;
+  /** Années de naissance (personnes seulement ; jamais la date complète). */
+  birth_years: number[];
 };
 
 /** Longueur des préfixes de clé : tolère pluriel et variantes d'orthographe. */
@@ -91,4 +103,26 @@ export function sanctionKeys(names: readonly string[]): string[] {
  */
 export function requiredKeyOverlap(queryKeys: readonly string[]): number {
   return queryKeys.length >= 2 ? 2 : 1;
+}
+
+/** Mots d'un nom de personne : sans accents ni ponctuation, deux caractères au moins. */
+export const personTokens = (name: string): string[] =>
+  normalizeName(name).split(" ").filter((t) => t.length >= 2);
+
+const MAX_PERSON_KEYS = 40;
+
+/**
+ * Clés de pré-filtrage d'un nom de personne. Contrairement aux sociétés, aucune
+ * forme juridique n'est retirée et les mots de deux caractères sont gardés (noms
+ * chinois ou vietnamiens : « Li », « Wu », « Ng »).
+ */
+export function personKeys(names: readonly string[]): string[] {
+  const keys = new Set<string>();
+  for (const name of names) {
+    for (const token of personTokens(name)) {
+      keys.add(token.slice(0, KEY_PREFIX));
+      if (keys.size >= MAX_PERSON_KEYS) return [...keys];
+    }
+  }
+  return [...keys];
 }

@@ -137,6 +137,8 @@ export const sanctionsIntl = {
                         else s0.keys end as key_array
             from sanctions_entries s0
             where s0.import_id = l.id
+              -- Les personnes physiques (v3) ont leur propre contrôle (sanctions-persons).
+              and s0.kind <> 'person'
           ) s
           where s.key_array ?| array(select k from q)
             and (select count(*) from jsonb_array_elements_text(s.key_array) kk(v)
@@ -180,7 +182,7 @@ export const sanctionsIntl = {
       for (const [list, rs] of candidates) {
         for (const r of rs) {
           const name = typeof r.name === "string" ? r.name : "";
-          if (!name) continue;
+          if (!name || r.kind === "person") continue;
           entries.push({
             nom: name,
             // Nature « personne physique » écartée par le rapprochement ; les

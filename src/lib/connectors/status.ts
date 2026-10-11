@@ -27,6 +27,7 @@ import {
   isIcpeImportEnabled,
   isTresorGelsImportEnabled,
   isSanctionsIntlEnabled,
+  isSanctionsPersonsEnabled,
   isAnnuaireAdministrationEnabled,
 } from "@/lib/env";
 
@@ -89,7 +90,9 @@ export function getConnectorStatuses(): ConnectorStatus[] {
       live: !demo && isSanctionsIntlEnabled(),
       detail:
         !demo && isSanctionsIntlEnabled()
-          ? "États-Unis (CSL), Royaume-Uni, ONU, Suisse, Canada : import quotidien en base, fraîcheur ci-dessous."
+          ? isSanctionsPersonsEnabled()
+            ? "États-Unis (CSL), Royaume-Uni, ONU, Suisse, Canada : import quotidien en base ; sociétés ET dirigeants (nom + année de naissance), fraîcheur ci-dessous."
+            : "États-Unis (CSL), Royaume-Uni, ONU, Suisse, Canada : import quotidien en base (sociétés), fraîcheur ci-dessous."
           : isSanctionsIntlEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "SANCTIONS_INTL_ENABLED non activé → inactif.",

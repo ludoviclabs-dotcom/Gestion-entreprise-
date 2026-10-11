@@ -141,6 +141,13 @@
       "when": 1791736964597,
       "tag": "0019_sanctions_entries",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791758067815,
+      "tag": "0020_sanctions_persons",
+      "breakpoints": true
     }
   ]
 }

@@ -125,7 +125,9 @@ export default async function SourcesTab(props: {
               const label =
                 key === "sirene_siege"
                   ? "INSEE Sirene (siège)"
-                  : (SOURCE_LABELS[key as keyof typeof SOURCE_LABELS] ?? key);
+                  : key === "sanctions_persons"
+                    ? "Sanctions internationales (personnes)"
+                    : (SOURCE_LABELS[key as keyof typeof SOURCE_LABELS] ?? key);
               return `${label} ${formatDuration(ms)}`;
             })
             .join(" · ")}

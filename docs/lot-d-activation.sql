@@ -120,6 +120,10 @@ CREATE TABLE IF NOT EXISTS "sanctions_entries" (
 	CONSTRAINT "sanctions_entries_import_id_open_data_imports_id_fk" FOREIGN KEY ("import_id") REFERENCES "public"."open_data_imports"("id") ON DELETE cascade ON UPDATE no action
 );
 
+-- Contrôle des PERSONNES (dirigeants) : 0020_sanctions_persons.sql — idempotent, sans nouvelle valeur d'enum.
+ALTER TABLE "sanctions_entries" ADD COLUMN IF NOT EXISTS "birth_years" jsonb DEFAULT '[]'::jsonb NOT NULL;
+CREATE INDEX IF NOT EXISTS "sanctions_entries_keys_gin" ON "sanctions_entries" USING gin ("keys");
+
 -- Exécuter APRÈS le SQL ; la liste doit contenir hatvp et sanctions_intl avant manual.
 select string_agg(e.enumlabel, ', ' order by e.enumsortorder)
 from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'source_kind';

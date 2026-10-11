@@ -32,6 +32,8 @@ export type ChOfficer = {
   corporate: boolean;
   appointedOn: string | null;
   resignedOn: string | null;
+  /** Année de naissance publiée (jamais le mois) : départage les homonymes seulement. */
+  birthYear?: number | null;
 };
 
 export type ChPsc = {
@@ -42,6 +44,8 @@ export type ChPsc = {
   notifiedOn: string | null;
   ceasedOn: string | null;
   registrationNumber: string | null;
+  /** Année de naissance publiée (jamais le mois) : départage les homonymes seulement. */
+  birthYear?: number | null;
 };
 
 export type ChCompany = {
@@ -129,6 +133,13 @@ async function get(
   }
 }
 
+/** Année de naissance plausible (1880–2015) d'un objet `date_of_birth { month, year }`. */
+function yearOf(v: unknown): number | null {
+  const year = v && typeof v === "object" ? (v as { year?: unknown }).year : null;
+  const n = typeof year === "number" ? year : NaN;
+  return Number.isInteger(n) && n >= 1880 && n <= 2015 ? n : null;
+}
+
 export const companiesHouse = {
   async byNumber(companyNumber: string): Promise<ConnectorResult<unknown>> {
     if (shouldMock()) {
@@ -213,6 +224,7 @@ export const companiesHouse = {
             corporate: role.startsWith("corporate-") || role.startsWith("judicial-factor"),
             appointedOn: str(o.appointed_on),
             resignedOn: null,
+            birthYear: yearOf(o.date_of_birth),
           };
         }),
         officersTotal: Number(officersRes.json?.total_results ?? rawOfficers.length),
@@ -233,6 +245,7 @@ export const companiesHouse = {
             notifiedOn: str(p.notified_on),
             ceasedOn: str(p.ceased_on),
             registrationNumber: str(ident.registration_number),
+            birthYear: yearOf(p.date_of_birth),
           };
         }),
         pscTotal: Number(pscRes.json?.total_results ?? 0),

@@ -40,7 +40,7 @@ async function main() {
         const r = await importSanctionsList(db, list);
         report = r;
         if (r.stats) {
-          detail = ` Entrées reçues : ${r.stats.received} ; personnes non conservées : ${r.stats.individuals} ; navires/aéronefs : ${r.stats.vessels} ; radiées : ${r.stats.delisted} ; sans nom latin : ${r.stats.nonLatin}.`;
+          detail = ` Entrées reçues : ${r.stats.received} ; personnes conservées : ${r.stats.persons} ; personnes non conservées : ${r.stats.individuals} ; navires/aéronefs : ${r.stats.vessels} ; radiées : ${r.stats.delisted} ; sans nom latin : ${r.stats.nonLatin}.`;
         }
       } else {
         const r = await importGels(db);

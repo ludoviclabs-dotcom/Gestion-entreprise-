@@ -3,9 +3,10 @@ import { parse as parseCsv } from "csv-parse/sync";
 import { XMLParser } from "fast-xml-parser";
 import type { Sql } from "postgres";
 import {
-  SANCTIONS_PROJECTION_VERSION,
   SANCTION_IMPORT_SOURCES,
+  personKeys,
   sanctionKeys,
+  sanctionsProjectionVersion,
   type SanctionEntryKind,
   type SanctionListKey,
   type SanctionRow,
@@ -44,15 +45,22 @@ export const SANCTION_REDIRECT_HOSTS: Record<SanctionListKey, readonly string[]>
   ca: [],
 };
 
+/** Personnes physiques importées seulement quand le drapeau est posé (migration appliquée). */
+export const personsImportEnabled = (): boolean =>
+  process.env.SANCTIONS_PERSONS_IMPORT_ENABLED === "true";
+
 export type SanctionsStats = {
   received: number;
   kept: number;
+  /** Personnes physiques conservées (drapeau posé). */
+  persons: number;
+  /** Personnes physiques non conservées (drapeau éteint). */
   individuals: number;
   vessels: number;
   delisted: number;
   nonLatin: number;
 };
-const newStats = (): SanctionsStats => ({ received: 0, kept: 0, individuals: 0, vessels: 0, delisted: 0, nonLatin: 0 });
+const newStats = (): SanctionsStats => ({ received: 0, kept: 0, persons: 0, individuals: 0, vessels: 0, delisted: 0, nonLatin: 0 });
 export type Parsed = { rows: SanctionRow[]; stats: SanctionsStats };
 
 // ── Utilitaires ────────────────────────────────────────────────────────────
@@ -80,6 +88,17 @@ const unique = (values: string[], max: number): string[] => {
   }
   return out;
 };
+/** Années plausibles (1880–2015) trouvées dans des libellés de dates de naissance. */
+export function birthYearsIn(texts: readonly string[]): number[] {
+  const years = new Set<number>();
+  for (const text of texts) {
+    for (const m of text.matchAll(/(?<!\d)(18[89]\d|19\d{2}|200\d|201[0-5])(?!\d)/g)) {
+      years.add(Number(m[1]));
+      if (years.size >= 8) return [...years].sort();
+    }
+  }
+  return [...years].sort();
+}
 /** Date tolérante : toute valeur illisible devient `null` (information, pas clé). */
 function isoDate(value: string, order: "ymd" | "dmy"): string | null {
   const v = value.trim();
@@ -105,11 +124,12 @@ class RowBuilder {
     countries?: string[];
     listedOn?: string | null;
     kind: SanctionEntryKind;
+    birthYears?: number[];
   }): void {
     const name = r.name.replace(/\s+/g, " ").trim();
     if (!name || name.length > MAX_NAME || !r.key) return;
     const aliases = unique(r.aliases ?? [], MAX_ALIASES).filter((a) => a.toLowerCase() !== name.toLowerCase());
-    const keys = sanctionKeys([name, ...aliases]);
+    const keys = r.kind === "person" ? personKeys([name, ...aliases]) : sanctionKeys([name, ...aliases]);
     // Une entrée sans aucun mot latin ne peut être rapprochée d'aucune dénomination.
     if (keys.length === 0) {
       this.stats.nonLatin++;
@@ -129,8 +149,10 @@ class RowBuilder {
       countries: unique(r.countries ?? [], MAX_LABELS),
       listed_on: r.listedOn ?? null,
       kind: r.kind,
+      birth_years: r.kind === "person" ? (r.birthYears ?? []) : [],
     });
     this.stats.kept++;
+    if (r.kind === "person") this.stats.persons++;
   }
 }
 
@@ -173,7 +195,21 @@ export function parseCsl(text: string): Parsed {
   for (const r of records) {
     stats.received++;
     const type = asString(r.type);
-    if (type === "Individual") { stats.individuals++; continue; }
+    if (type === "Individual") {
+      if (!personsImportEnabled()) { stats.individuals++; continue; }
+      b.add({
+        key: asString(r._id) || `${asString(r.source)}|${asString(r.name)}`,
+        sublist: cslSublist(asString(r.source)),
+        name: asString(r.name),
+        aliases: asString(r.alt_names).split(";"),
+        programs: asString(r.programs).split(";").map((p) => p.trim()),
+        countries: [...asString(r.nationalities).split(";"), ...asString(r.citizenships).split(";")],
+        listedOn: isoDate(asString(r.start_date), "ymd"),
+        kind: "person",
+        birthYears: birthYearsIn([asString(r.dates_of_birth)]),
+      });
+      continue;
+    }
     if (type === "Vessel" || type === "Aircraft") { stats.vessels++; continue; }
     // Type vide (listes de contrôle des exportations) : conservé, jamais présumé personne.
     const kind: SanctionEntryKind = type === "Entity" ? "entity" : "unknown";
@@ -202,7 +238,28 @@ export function parseUk(text: string): Parsed {
   for (const d of designations) {
     stats.received++;
     const nature = asString(d.IndividualEntityShip);
-    if (nature === "Individual") { stats.individuals++; continue; }
+    if (nature === "Individual") {
+      if (!personsImportEnabled()) { stats.individuals++; continue; }
+      const names = nodes(child(d.Names, "Name")).map((n) => ({
+        type: asString(n.NameType).toLowerCase(),
+        text: [n.Name1, n.Name2, n.Name3, n.Name4, n.Name5, n.Name6].map((p) => asString(p)).filter(Boolean).join(" "),
+      })).filter((n) => n.text);
+      const main = names.find((n) => n.type === "primary name") ?? names[0];
+      if (!main) continue;
+      const details = nodes(child(d.IndividualDetails, "Individual"));
+      b.add({
+        key: asString(d.UniqueID) || asString(d.OFSIGroupID),
+        sublist: null,
+        name: main.text,
+        aliases: names.filter((n) => n !== main).map((n) => n.text),
+        programs: [asString(d.RegimeName)],
+        countries: details.flatMap((i) => asArray<unknown>(child(i.Nationalities, "Nationality") as unknown).map((v) => asString(v))),
+        listedOn: isoDate(asString(d.DateDesignated), "dmy"),
+        kind: "person",
+        birthYears: birthYearsIn(details.flatMap((i) => asArray<unknown>(child(i.DOBs, "DOB") as unknown).map((v) => asString(v)))),
+      });
+      continue;
+    }
     if (nature === "Ship") { stats.vessels++; continue; }
     if (nature !== "Entity") continue;
     const names = nodes(child(d.Names, "Name")).map((n) => ({
@@ -231,8 +288,28 @@ export function parseUn(text: string): Parsed {
   if (!isNode(list) || !("ENTITIES" in list)) throw new Error("SANCTIONS_UN_SCHEMA");
   const entities = nodes(child(list.ENTITIES, "ENTITY"));
   const stats = newStats();
-  stats.individuals = nodes(child(list.INDIVIDUALS, "INDIVIDUAL")).length;
+  const individuals = nodes(child(list.INDIVIDUALS, "INDIVIDUAL"));
+  stats.individuals = personsImportEnabled() ? 0 : individuals.length;
   const b = new RowBuilder("un", stats);
+  if (personsImportEnabled()) {
+    for (const p of individuals) {
+      stats.received++;
+      const given = [p.FIRST_NAME, p.SECOND_NAME, p.THIRD_NAME, p.FOURTH_NAME].map((x) => asString(x)).filter(Boolean).join(" ");
+      const dates = nodes(p.INDIVIDUAL_DATE_OF_BIRTH).flatMap((d) =>
+        [d.YEAR, d.FROM_YEAR, d.TO_YEAR, d.DATE].map((x) => asString(x)),
+      );
+      b.add({
+        key: asString(p.REFERENCE_NUMBER) || asString(p.DATAID),
+        name: given,
+        aliases: nodes(p.INDIVIDUAL_ALIAS).map((a) => asString(a.ALIAS_NAME)),
+        programs: [`ONU — ${asString(p.UN_LIST_TYPE)}`],
+        countries: asArray<unknown>(child(p.NATIONALITY, "VALUE") as unknown).map((v) => asString(v)),
+        listedOn: isoDate(asString(p.LISTED_ON), "ymd"),
+        kind: "person",
+        birthYears: birthYearsIn(dates),
+      });
+    }
+  }
   for (const e of entities) {
     stats.received++;
     b.add({
@@ -276,7 +353,8 @@ export function parseCh(text: string): Parsed {
   const b = new RowBuilder("ch", stats);
   for (const t of targets) {
     stats.received++;
-    if (!t.entity) {
+    const wantPerson = Boolean(t.individual) && personsImportEnabled();
+    if (!t.entity && !wantPerson) {
       if (t.individual) stats.individuals++;
       else stats.vessels++;
       continue;
@@ -288,7 +366,8 @@ export function parseCh(text: string): Parsed {
       stats.delisted++;
       continue;
     }
-    const entity = nodes(t.entity)[0] ?? {};
+    const entity = nodes(t.entity)[0] ?? nodes(t.individual)[0] ?? {};
+    const isPerson = !t.entity;
     const names: { type: string; main: boolean; texts: string[] }[] = [];
     for (const identity of nodes(entity.identity)) {
       for (const n of nodes(identity.name)) {
@@ -319,7 +398,10 @@ export function parseCh(text: string): Parsed {
       programs: [programOf.get(setId) ?? ""].filter(Boolean).map((p) => `Suisse — ${p}`),
       countries: [],
       listedOn: listed ? isoDate(listed, "ymd") : null,
-      kind: "entity",
+      kind: isPerson ? "person" : "entity",
+      birthYears: isPerson
+        ? birthYearsIn(nodes(entity.identity).flatMap((i) => nodes(i["day-month-year"]).map((d) => asString(d["@_year"]))))
+        : undefined,
     });
   }
   return { rows: b.rows, stats };
@@ -336,8 +418,21 @@ export function parseCa(text: string): Parsed {
     stats.received++;
     const name = asString(r["EntityOrShip-EntiteOuNavire"]);
     if (!name) {
-      // Fiche de personne (nom de famille + prénom) : jamais conservée.
-      stats.individuals++;
+      // Fiche de personne (nom de famille + prénom) : conservée seulement si le
+      // drapeau d'import des personnes est posé.
+      const person = [r["GivenName-Prenom"], r["LastName-NomDeFamille"]].map((x) => asString(x)).filter(Boolean).join(" ");
+      if (!personsImportEnabled() || !person) { stats.individuals++; continue; }
+      const country = asString(r["Country-Pays"]).split("/")[0].trim();
+      b.add({
+        key: `${asString(r["Schedule-Annexe"])}|${asString(r["Item-NumeroDarticle"])}|${country}`,
+        name: person,
+        aliases: asString(r["Aliases-Alias"]).split(/[/;]/),
+        programs: [country ? `Canada — ${country}` : "Canada"],
+        countries: [country],
+        listedOn: isoDate(asString(r["DateOfListing-DateDinscription"]), "ymd"),
+        kind: "person",
+        birthYears: birthYearsIn([asString(r["DateOfBirthOrShipBuildDate-DateDeNaissanceOuDateDeConstructionDuNavire"])]),
+      });
       continue;
     }
     // Navire : numéro OMI ou type de navire renseigné.
@@ -407,7 +502,7 @@ export function sanctionsInput(
 
 export const sanctionsWriter = (list: SanctionListKey): DatasetWriter<SanctionRow> => ({
   async write(tx, importId, rows) {
-    await tx`insert into sanctions_entries ${tx(rows.map((r) => ({
+    const base = rows.map((r) => ({
       import_id: importId,
       list_key: r.list_key,
       entry_key: r.entry_key,
@@ -420,10 +515,21 @@ export const sanctionsWriter = (list: SanctionListKey): DatasetWriter<SanctionRo
       countries: r.countries,
       listed_on: r.listed_on,
       kind: r.kind,
-    })))}
-      on conflict (import_id, entry_key) do update set sublist = excluded.sublist, name = excluded.name,
-        aliases = excluded.aliases, keys = excluded.keys, programs = excluded.programs,
-        countries = excluded.countries, listed_on = excluded.listed_on, kind = excluded.kind`;
+    }));
+    if (personsImportEnabled()) {
+      // Colonne `birth_years` (migration 0020) : écrite seulement quand les
+      // personnes sont importées, pour ne pas dépendre de la migration sinon.
+      await tx`insert into sanctions_entries ${tx(base.map((r, i) => ({ ...r, birth_years: rows[i].birth_years })))}
+        on conflict (import_id, entry_key) do update set sublist = excluded.sublist, name = excluded.name,
+          aliases = excluded.aliases, keys = excluded.keys, programs = excluded.programs,
+          countries = excluded.countries, listed_on = excluded.listed_on, kind = excluded.kind,
+          birth_years = excluded.birth_years`;
+    } else {
+      await tx`insert into sanctions_entries ${tx(base)}
+        on conflict (import_id, entry_key) do update set sublist = excluded.sublist, name = excluded.name,
+          aliases = excluded.aliases, keys = excluded.keys, programs = excluded.programs,
+          countries = excluded.countries, listed_on = excluded.listed_on, kind = excluded.kind`;
+    }
   },
   async count(tx, id) {
     const rows = await tx`select count(*)::int as count from sanctions_entries where import_id = ${id}`;
@@ -439,7 +545,7 @@ export async function importSanctionsList(db: Sql, list: SanctionListKey) {
   let input: ReturnType<typeof sanctionsInput> | null = null;
   const url = SANCTION_URLS[list];
   const report = await runImport(
-    { source: SANCTION_IMPORT_SOURCES[list], version: SANCTIONS_PROJECTION_VERSION, sourceUrl: url },
+    { source: SANCTION_IMPORT_SOURCES[list], version: sanctionsProjectionVersion(personsImportEnabled()), sourceUrl: url },
     async () => {
       input = sanctionsInput(
         list,
