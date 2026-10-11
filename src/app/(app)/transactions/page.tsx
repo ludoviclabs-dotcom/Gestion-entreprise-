@@ -1,22 +1,25 @@
-import TransactionAnalyzer from "@/components/transactions/TransactionAnalyzer.client";
+import { Suspense } from "react";
+import TransactionsWorkspace from "@/components/transactions/TransactionsWorkspace.client";
+import LoadingState from "@/components/empty/LoadingState";
+import { getCasesRepository } from "@/lib/data/cases-repository";
+import { curateCaseSummaries } from "@/lib/data/case-curation";
 
-export const metadata = { title: "Analyse transactionnelle" };
+export const metadata = { title: "Transactions — KYB Graph" };
 
-export default function TransactionsPage() {
+/**
+ * Espace de triage des transactions. Le relevé est importé et analysé dans le
+ * navigateur (aucune donnée transactionnelle n'atteint le serveur) ; le serveur
+ * ne fournit que la liste des dossiers (id, titre, SIREN) pour rapprocher une
+ * contrepartie de son dossier par SIREN.
+ */
+export default async function TransactionsPage() {
+  const cases = curateCaseSummaries(await getCasesRepository().listCases()).visible.map(
+    ({ id, title, rootSiren }) => ({ id, title, rootSiren }),
+  );
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
-      <h1 className="font-[family-name:var(--font-display)] text-lg font-semibold">
-        Analyse transactionnelle
-      </h1>
-      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-        Importez un relevé (CSV) pour détecter des signaux statistiques : loi de
-        Benford, doublons, montants aberrants, réutilisation d&apos;IBAN. Couche
-        flux (P2P / VIGIL-AML). Aucune donnée n&apos;est envoyée à un serveur —
-        l&apos;analyse est entièrement locale.
-      </p>
-      <div className="mt-6">
-        <TransactionAnalyzer />
-      </div>
-    </div>
+    // useSearchParams (filtres dans l'URL) : frontière Suspense explicite.
+    <Suspense fallback={<LoadingState variant="block" label="Chargement de l'espace transactions…" />}>
+      <TransactionsWorkspace cases={cases} />
+    </Suspense>
   );
 }

@@ -21,16 +21,30 @@ function quantile(sortedAsc: number[], q: number): number {
   return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (pos - lo);
 }
 
-export function findAmountOutliers(
-  amounts: number[],
-  threshold = 3.5,
-): AmountOutlier[] {
+/** Seuil par défaut du score modifié (Iglewicz–Hoaglin). */
+export const OUTLIER_THRESHOLD = 3.5;
+
+/**
+ * Médiane et écart absolu médian (MAD) d'une population de montants — les deux
+ * grandeurs qui expliquent un score d'aberrance. `null` si moins de 4 valeurs
+ * finies (population trop petite pour conclure).
+ */
+export function robustDispersion(amounts: number[]): { median: number; mad: number } | null {
   const finite = amounts.filter((a) => Number.isFinite(a));
-  if (finite.length < 4) return [];
+  if (finite.length < 4) return null;
   const sorted = [...finite].sort((a, b) => a - b);
   const median = quantile(sorted, 0.5);
   const absDev = finite.map((x) => Math.abs(x - median)).sort((a, b) => a - b);
-  const mad = quantile(absDev, 0.5);
+  return { median, mad: quantile(absDev, 0.5) };
+}
+
+export function findAmountOutliers(
+  amounts: number[],
+  threshold = OUTLIER_THRESHOLD,
+): AmountOutlier[] {
+  const dispersion = robustDispersion(amounts);
+  if (!dispersion) return [];
+  const { median, mad } = dispersion;
   if (mad === 0) return []; // population trop homogène → pas d'aberrant exploitable.
 
   const out: AmountOutlier[] = [];

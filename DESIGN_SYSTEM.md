@@ -280,6 +280,7 @@ les nouvelles primitives composent les existantes.
 | **StatusBadge** | `ui/status-badge.tsx` | Statut = libellé + point ou icône + teinte (`soft` · `outline` · `solid`). Construit sur `Badge` (qui porte les variantes de teinte). |
 | **IconButton** | `ui/icon-button.tsx` | Étend `Button`. `label` **obligatoire** (nom accessible), infobulle au survol et au focus, `pressed` → `aria-pressed`. |
 | **Tabs** | `ui/tabs.tsx` | Navigation entre panneaux d'un même contenu. `variant="line"` (soulignement d'accent) pour la navigation, `default` (groupe en puits) pour les outils denses. |
+| **NativeSelect** | `ui/native-select.tsx` | Liste déroulante **native** habillée comme `Input` (`border-control`, puits, anneau de focus), `size` `sm` · `md`. Le sélecteur reste celui du système (clavier, lecteur d'écran, plein écran sur mobile). Pour un menu d'actions : `DropdownMenu`. |
 | **SegmentedControl** | `ui/segmented-control.tsx` | Choix exclusif (mode, période, densité) — sémantique radio (Radix ToggleGroup), `label` obligatoire, une valeur toujours active. |
 | **DataTable (coque)** | `ui/data-table.tsx` | Conteneur à bordure froide + barre d'outils + zone défilante (`stickyHeader`, `maxHeight`, `density`) + pied. `state` `ready` · `loading` · `empty` · `error` au même emplacement. Le tableau reste composé avec `Table*`. |
 | **EmptyState** | `empty/EmptyState.tsx` | Icône, titre, description, `cta` ou `action`. `variant` `card` · `inline`. |
@@ -298,6 +299,13 @@ Pastilles métier (adaptateurs minces, mêmes props qu'avant) : `CaseStatusBadge
 Tableau de bord (`components/dashboard/*`, logique pure `lib/dashboard/portfolio.ts`) :
 `NextActionBanner`, `ReviewQueuePanel`, `RiskSignalsPanel`, `RecentActivityPanel`,
 `QuickAccessPanel` — composés uniquement de ces primitives (dans le territoire testé).
+
+Transactions (`components/transactions/*`, logique pure `lib/transactions/{ingest,triage}.ts`) :
+`TransactionsWorkspace` (en-tête, filtres conservés dans l'URL, onglets),
+`TransactionFilters`, `TransactionsTable` / `TransactionsList` (cartes sous `lg`),
+`TransactionDetail` (dans un `SidePanel` non modal), `PopulationPanel`, `BenfordChart`,
+`ImportDropzone` — même territoire testé. Un filtre que le fichier ne peut pas alimenter
+est désactivé avec son motif ; aucune valeur n'est déduite ni complétée.
 
 ## 8. Motion
 
@@ -366,8 +374,8 @@ Règles :
   figée.
 
 Ce qui est automatisable est vérifié par `design-contract.spec.ts` sur le territoire
-`ui · shell · empty · design-system · dashboard · lib/design` (+ la page
-`(app)/dashboard`).
+`ui · shell · empty · design-system · dashboard · transactions · lib/design`
+(+ les pages `(app)/dashboard` et `(app)/transactions`).
 
 ## 10. Prévisualisation
 

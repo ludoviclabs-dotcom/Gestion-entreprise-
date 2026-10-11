@@ -47,9 +47,14 @@ test("recherche globale : Ctrl+K ouvre la palette, qui mène aux pages", async (
   await page.keyboard.press("Control+k");
   const dialog = page.getByRole("dialog", { name: "Recherche globale" });
   await expect(dialog).toBeVisible();
-  await page.keyboard.type("transactions");
+  // Saisie dans le champ de la palette (et non au clavier global : le focus peut
+  // ne pas y être encore), puis on vérifie l'entrée active avant Entrée.
+  await dialog.getByPlaceholder(/Rechercher une page/).fill("transactions");
+  await expect(dialog.locator("[cmdk-item][data-selected=true]")).toContainText("Transactions");
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/transactions$/);
+  // Route dynamique compilée à froid par le serveur de dev en CI : l'URL ne change
+  // qu'une fois la page rendue.
+  await expect(page).toHaveURL(/\/transactions$/, { timeout: 30_000 });
 });
 
 for (const width of [390, 900]) {
