@@ -80,9 +80,19 @@ const statusOf = (row: ConsultationRow): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/** Même définition de l'échec que `getSourceHealth` : erreur HTTP ou consultation dégradée. */
-export const isFailedConsultation = (row: ConsultationRow): boolean =>
-  statusOf(row) >= 400 || isDegradedEndpoint(row.endpoint);
+/**
+ * Échec = erreur HTTP ou consultation dégradée (comme `getSourceHealth`), SAUF
+ * « introuvable » (HTTP 404) : la source a répondu, l'absence est une réponse
+ * (Companies House pour un numéro inconnu, Pappers pour un SIREN qu'il ne
+ * référence pas). Sans cette exception, des absences légitimes répétées
+ * feraient passer un connecteur sain « en échec » et déclareraient peu fiables
+ * ses « aucune correspondance ».
+ */
+export const isFailedConsultation = (row: ConsultationRow): boolean => {
+  const status = statusOf(row);
+  if (status === 404) return false;
+  return status >= 400 || isDegradedEndpoint(row.endpoint);
+};
 
 /** « HTTP 402 » ou le marqueur de dégradation de l'endpoint (« exception », « erreur 429 »…). */
 export function issueOf(row: ConsultationRow): string {
@@ -94,11 +104,19 @@ export function issueOf(row: ConsultationRow): string {
 
 const isFixture = (row: ConsultationRow) => row.is_fixture === true || row.is_fixture === "true";
 
+/**
+ * Une consultation réelle a un endpoint HTTP(S) ou une lecture d'import (`db:`).
+ * Les autres endpoints enregistrés sont des sentinelles qui n'ont contacté aucune
+ * source (`ban:requete-vide`, `qualiopi:siren-invalide`, `vies:siren-non-derivable:…`) :
+ * les compter ferait paraître « opérationnelle » une source jamais interrogée.
+ */
+const isRealCall = (row: ConsultationRow) => /^(?:https?:\/\/|db:)/i.test(row.endpoint);
+
 /** Pure : regroupe les consultations réelles par source et en déduit l'état observé. */
 export function observeConnectors(rows: ConsultationRow[]): Map<string, ObservedHealth> {
   const bySource = new Map<string, ConsultationRow[]>();
   for (const row of rows) {
-    if (isFixture(row)) continue;
+    if (isFixture(row) || !isRealCall(row)) continue;
     const list = bySource.get(row.source) ?? [];
     list.push(row);
     bySource.set(row.source, list);
@@ -110,8 +128,11 @@ export function observeConnectors(rows: ConsultationRow[]): Map<string, Observed
       .sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""))
       .slice(0, HEALTH_SAMPLE);
     const failures = list.filter(({ r }) => isFailedConsultation(r));
+    // « En échec » exige une SÉRIE complète : un connecteur tout juste configuré
+    // dont une ou deux consultations ont échoué reste « dégradé ».
     const recent = list.slice(0, FAILING_STREAK);
-    const failing = recent.length > 0 && recent.every(({ r }) => isFailedConsultation(r));
+    const failing =
+      recent.length === FAILING_STREAK && recent.every(({ r }) => isFailedConsultation(r));
     out.set(source, {
       state: failing ? "failing" : failures.length > 0 ? "degraded" : "operational",
       consulted: list.length,

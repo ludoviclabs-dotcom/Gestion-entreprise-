@@ -42,6 +42,7 @@ const row = (over: Partial<ConsultationRow> & { minutesAgo?: number } = {}): Con
 describe("isFailedConsultation / issueOf", () => {
   it("erreur HTTP ou consultation dégradée = échec ; un 200 propre n'en est pas un", () => {
     expect(isFailedConsultation(row())).toBe(false);
+    expect(isFailedConsultation(row({ http_status: "500" }))).toBe(true);
     expect(isFailedConsultation(row({ http_status: "402" }))).toBe(true);
     expect(isFailedConsultation(row({ endpoint: "https://x.test (schéma non reconnu)" }))).toBe(true);
     expect(isFailedConsultation(row({ endpoint: "db:sanctions_entries (listes partielles)" }))).toBe(true);
@@ -87,13 +88,60 @@ describe("observeConnectors", () => {
     expect(out.has("opensanctions")).toBe(false);
   });
 
-  it("une seule consultation en échec suffit à « en échec » ; sources indépendantes", () => {
+  it("sources indépendantes", () => {
     const out = observeConnectors([
-      row({ source: "pappers", http_status: "401" }),
+      row({ source: "pappers", http_status: "401", minutesAgo: 1 }),
+      row({ source: "pappers", http_status: "401", minutesAgo: 2 }),
+      row({ source: "pappers", http_status: "401", minutesAgo: 3 }),
       row({ source: "gleif", endpoint: "https://api.gleif.org/x" }),
     ]);
     expect(out.get("pappers")?.state).toBe("failing");
     expect(out.get("gleif")?.state).toBe("operational");
+  });
+
+  it("moins de trois consultations, toutes en échec : « dégradé », jamais « en échec »", () => {
+    const one = observeConnectors([row({ source: "pappers", http_status: "401" })]);
+    expect(one.get("pappers")).toMatchObject({ state: "degraded", consulted: 1, ok: 0, lastIssue: "HTTP 401" });
+    const two = observeConnectors([
+      row({ source: "pappers", http_status: "401", minutesAgo: 1 }),
+      row({ source: "pappers", http_status: "401", minutesAgo: 2 }),
+    ]);
+    expect(two.get("pappers")?.state).toBe("degraded");
+  });
+
+  it("« introuvable » (404) est une absence, pas une panne : Companies House reste opérationnel", () => {
+    const ch = "https://api.company-information.service.gov.uk/company/";
+    const out = observeConnectors([
+      row({ source: "companies_house", http_status: "404", endpoint: ch + "00000001", minutesAgo: 1 }),
+      row({ source: "companies_house", http_status: "404", endpoint: ch + "00000002", minutesAgo: 2 }),
+      row({ source: "companies_house", http_status: "404", endpoint: ch + "00000003", minutesAgo: 3 }),
+    ]);
+    expect(out.get("companies_house")).toMatchObject({ state: "operational", ok: 3, lastIssue: null });
+    // Même chose pour Pappers (SIREN non référencé : « (erreur 404) »).
+    const pappers = observeConnectors([
+      row({ source: "pappers", http_status: "404", endpoint: "https://api.pappers.fr/v2/entreprise (erreur 404)" }),
+    ]);
+    expect(pappers.get("pappers")?.state).toBe("operational");
+  });
+
+  it("les sentinelles sans appel (requête vide, SIREN invalide) ne comptent pas comme consultation", () => {
+    const out = observeConnectors([
+      row({ source: "ban", endpoint: "ban:requete-vide", http_status: "0" }),
+      row({ source: "qualiopi", endpoint: "qualiopi:siren-invalide", http_status: "0" }),
+      row({ source: "vies", endpoint: "vies:siren-non-derivable:123", http_status: "0" }),
+    ]);
+    expect(out.size).toBe(0);
+    // Une vraie consultation de la même source reste comptée.
+    const mixed = observeConnectors([
+      row({ source: "ban", endpoint: "ban:requete-vide", http_status: "0", minutesAgo: 1 }),
+      row({ source: "ban", endpoint: "https://api-adresse.data.gouv.fr/search/?q=x&limit=1", minutesAgo: 2 }),
+    ]);
+    expect(mixed.get("ban")).toMatchObject({ state: "operational", consulted: 1 });
+  });
+
+  it("les lectures d'import (db:…) sont de vraies consultations", () => {
+    const out = observeConnectors([row({ source: "sanctions_intl", endpoint: "db:sanctions_entries" })]);
+    expect(out.get("sanctions_intl")?.state).toBe("operational");
   });
 
   it("n'examine que les consultations les plus récentes (échantillon borné)", () => {
@@ -120,7 +168,7 @@ describe("getConnectorHealth — SQL réel sur PostgreSQL", () => {
     db = new PGlite();
     state.db = db as never;
     await db.exec(`
-      create type source_kind as enum ('opensanctions', 'pappers', 'sirene', 'fixture');
+      create type source_kind as enum ('opensanctions', 'pappers', 'sirene', 'ban', 'fixture');
       create table source_records (
         id uuid primary key default gen_random_uuid(),
         case_id uuid not null,
@@ -159,10 +207,13 @@ describe("getConnectorHealth — SQL réel sur PostgreSQL", () => {
     await insert("sirene", "200", "5 minutes");
     await insert("sirene", "200", "5 minutes", "true");     // fixture
     await insert("pappers", "200", "10 minutes", "false", "https://x.test (exception)");
+    await insert("ban", "0", "10 minutes", "false", "ban:requete-vide"); // sentinelle : aucun appel
     const out = await getConnectorHealth();
     expect(out?.get("opensanctions")).toMatchObject({ state: "failing", consulted: 3, ok: 0, lastIssue: "HTTP 402" });
     expect(out?.get("sirene")).toMatchObject({ state: "operational", consulted: 1 });
-    expect(out?.get("pappers")).toMatchObject({ state: "failing", lastIssue: "exception" });
+    // Une seule consultation en échec : « dégradé » (la série de trois n'est pas atteinte).
+    expect(out?.get("pappers")).toMatchObject({ state: "degraded", consulted: 1, lastIssue: "exception" });
+    expect(out?.has("ban")).toBe(false);
   });
 
   it("base indisponible ou non configurée : null, jamais un « opérationnel » inventé", async () => {
