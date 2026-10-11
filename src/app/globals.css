@@ -4,7 +4,7 @@
  * Contrat de design : toutes les valeurs (couleurs, surfaces, bordures, élévations,
  * motion, échelles) vivent dans design-tokens.css. Ce fichier ne fait que les
  * exposer à Tailwind (`@theme`), poser la couche de base et héberger les styles
- * historiques non migrés (graphe, secteurs, démo). Voir DESIGN_SYSTEM.md.
+ * historiques non migrés (secteurs, démo). Voir DESIGN_SYSTEM.md.
  */
 @import "../styles/design-tokens.css";
 
@@ -310,8 +310,32 @@
   background-size: 32px 32px;
 }
 
+/* ── Graphe dossier (refonte « Registre / Nuit ») ──
+   La scène SVG (GraphSceneSvg) pose ses couleurs en style inline, toujours en
+   tokens. Ici seulement : le focus clavier d'un nœud — l'anneau de survol passe à
+   l'accent, sans cadre rectangulaire — et l'apparition de l'anneau de sélection. */
+.graph-svg .node:focus,
+.graph-svg .node:focus-visible {
+  outline: none;
+}
+.graph-svg .node:focus-visible circle:nth-child(3) {
+  stroke: var(--primary) !important;
+  stroke-width: 2px;
+  opacity: 1 !important;
+}
+@keyframes kyb-ring {
+  from {
+    transform: scale(0.55);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
-   STYLES HISTORIQUES — non migrés vers les tokens (lots Graphe, Secteurs, Démo).
+   STYLES HISTORIQUES — non migrés vers les tokens (lots Secteurs, Démo).
    Ne pas en créer de nouveaux : utiliser les tokens et les primitives.
    ════════════════════════════════════════════════════════════════════════════ */
 
@@ -321,96 +345,6 @@
     linear-gradient(to right, rgba(21, 194, 184, 0.06) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(21, 194, 184, 0.06) 1px, transparent 1px);
   background-size: 32px 32px;
-}
-
-/*
- * ── Stage du graphe (refonte « orbes & flux ») ──
- * Fond indigo profond + aurores teal/indigo/violet animées + grille en fondu
- * + vignette. Indépendant du thème clair/sombre : le graphe est toujours sombre
- * (identité « carte réseau » lustrée). Le rendu des orbes/liens/particules est
- * fait en SVG par GraphSceneSvg.
- */
-.graph-stage {
-  background: #0b1020;
-}
-.graph-aurora {
-  position: absolute;
-  inset: -10%;
-  pointer-events: none;
-}
-.graph-aurora::before,
-.graph-aurora::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(40% 50% at 24% 30%, rgba(21, 194, 184, 0.16), transparent 60%),
-    radial-gradient(45% 55% at 78% 28%, rgba(86, 128, 233, 0.16), transparent 62%),
-    radial-gradient(50% 60% at 60% 88%, rgba(124, 92, 255, 0.12), transparent 62%),
-    radial-gradient(40% 50% at 12% 82%, rgba(21, 194, 184, 0.1), transparent 60%);
-  animation: graphDrift 26s ease-in-out infinite alternate;
-}
-.graph-aurora::after {
-  animation-duration: 34s;
-  animation-direction: alternate-reverse;
-  opacity: 0.8;
-  filter: blur(8px);
-}
-@keyframes graphDrift {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(2.5%, -2%) scale(1.06);
-  }
-  100% {
-    transform: translate(-2%, 2.5%) scale(1.03);
-  }
-}
-.graph-grid {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.5;
-  background-image:
-    linear-gradient(to right, rgba(125, 156, 196, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(125, 156, 196, 0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
-  -webkit-mask-image: radial-gradient(120% 100% at 50% 45%, #000 45%, transparent 90%);
-  mask-image: radial-gradient(120% 100% at 50% 45%, #000 45%, transparent 90%);
-}
-.graph-vignette {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: radial-gradient(
-    120% 90% at 50% 45%,
-    transparent 55%,
-    rgba(5, 9, 18, 0.55) 100%
-  );
-}
-/* Libellés des nœuds : contour sombre pour lisibilité sur fond chargé. */
-.graph-svg .lbl {
-  font-family: Inter, system-ui, sans-serif;
-  paint-order: stroke fill;
-  stroke: #08101c;
-  stroke-width: 3.4px;
-  stroke-linejoin: round;
-  letter-spacing: -0.005em;
-  user-select: none;
-}
-/* Focus clavier d'un nœud : le halo de survol s'allume, sans cadre rectangulaire. */
-.graph-svg .node:focus {
-  outline: none;
-}
-.graph-svg .node:focus-visible circle:nth-child(2) {
-  opacity: 1;
-}
-@media (prefers-reduced-motion: reduce) {
-  .graph-aurora::before,
-  .graph-aurora::after {
-    animation: none;
-  }
 }
 
 /*

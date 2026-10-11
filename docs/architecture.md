@@ -73,7 +73,7 @@ src/
 │  ├─ ui/                            shadcn primitives
 │  ├─ shell/                         AppSidebar, TopBar, CommandPalette, ThemeToggle, PageMotion
 │  ├─ cases/                         CasesTable, ScorePills, NewCaseDialog, RisksList, AiSynthesis, ExportMenu, KpiCard, WorkspaceTabs
-│  ├─ graph/                         GraphScene (Sigma), GraphCanvas, GraphTable, GraphToolbar, NodePanel, EdgePanel, Legend, GraphTooltip, EvidenceBadge
+│  ├─ graph/                         GraphSceneSvg (SVG « Registre / Nuit »), GraphCanvas, GraphSearch, GraphToolbar, GraphFiche, GraphTable, TimeCursor, Legend, PathBanner, EvidenceBadge
 │  ├─ reports/                       CaseReport (React-PDF)
 │  └─ empty/                         EmptyState générique
 └─ lib/

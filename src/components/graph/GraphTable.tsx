@@ -1,224 +1,139 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  ScrollArea,
-} from "@/components/ui/scroll-area";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import EvidenceBadge from "./EvidenceBadge";
-import {
-  EDGE_LABELS,
-  NODE_COLORS,
-  NODE_LABELS,
-} from "@/lib/graph/graph-types";
-import type { CaseBundle } from "@/lib/graph/graph-types";
+import type { KeyboardEvent } from "react";
 import { useGraphStore } from "@/lib/store/graph-store";
+import { EDGE_LABELS, EVIDENCE_LABELS, NODE_LABELS } from "@/lib/graph/graph-types";
+import type { GraphView, Visibility } from "@/lib/graph/graph-view";
+import { searchMatches, sinceOf, structuralLinks } from "@/lib/graph/graph-view";
+import { formatDateFr } from "@/lib/format-date";
+import { proofSwatchStyle } from "./proof-style";
+
+const TH = "border-b border-foreground pb-2.5 pr-4 text-left font-mono text-micro font-normal uppercase tracking-[0.1em] text-subtle";
+const TD = "border-b border-border py-3 pr-4";
+const MONO = "font-mono text-xs text-muted-foreground";
+const ROW = "cursor-pointer transition-ui hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none";
+
+function activate(run: () => void) {
+  return (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      run();
+    }
+  };
+}
 
 /**
- * Vue table équivalente du graphe — alternative accessible aux lecteurs
- * d'écran et au clavier. Liste exhaustive des entités et liens du dossier,
- * synchronisée avec le store de sélection. WCAG 2.1 / 2.2 conforme :
- * - sémantique <table> native,
- * - rôles ARIA implicites,
- * - navigation au clavier (tabindex sur les lignes),
- * - texte alternatif aux signaux visuels (couleur + style).
+ * Vue table du graphe — équivalent textuel accessible (touche T). Mêmes filtres
+ * que la scène (couches, curseur temporel, recherche) ; une ligne ouvre la fiche
+ * correspondante sur le graphe.
  */
-export default function GraphTable({
-  bundle,
-}: {
-  bundle: CaseBundle;
-}) {
+export default function GraphTable({ view, visibility }: { view: GraphView; visibility: Visibility }) {
+  const query = useGraphStore((s) => s.query);
+  const showEvents = useGraphStore((s) => s.layers.evenements);
   const selectNode = useGraphStore((s) => s.selectNode);
   const selectEdge = useGraphStore((s) => s.selectEdge);
-  const selectedNode = useGraphStore((s) => s.selectedNode);
-  const selectedEdge = useGraphStore((s) => s.selectedEdge);
+  const setViewMode = useGraphStore((s) => s.setViewMode);
 
-  const labelOf = (id: string) =>
-    bundle.entities.find((e) => e.id === id)?.label ??
-    bundle.events.find((e) => e.id === id)?.title ??
-    id;
+  const q = query.trim();
+  const matches = searchMatches(view, q);
+  const keep = (id: string) => !q || matches.has(id);
+
+  const rows = view.nodes
+    .filter((n) => visibility.nodes.has(n.id) && (n.kind !== "event" || showEvents) && keep(n.id))
+    .sort(
+      (a, b) =>
+        Number(b.main) - Number(a.main) || a.kind.localeCompare(b.kind) || a.label.localeCompare(b.label, "fr"),
+    );
+  const links = view.edges
+    .filter((e) => e.type !== "A_PUBLIE" && visibility.edges.has(e.id) && (keep(e.source) || keep(e.target)))
+    .sort((a, b) => a.type.localeCompare(b.type) || view.byId[a.source].label.localeCompare(view.byId[b.source].label, "fr"));
+
+  const openNode = (id: string) => {
+    selectNode(id);
+    setViewMode("graph");
+  };
+  const openEdge = (id: string) => {
+    selectEdge(id);
+    setViewMode("graph");
+  };
 
   return (
-    <div className="absolute inset-0 z-10 flex flex-col bg-background/95 backdrop-blur">
-      <div className="border-b border-border px-4 py-3">
-        <h2 className="font-[family-name:var(--font-display)] text-sm font-semibold">
-          Vue accessible — équivalent table du graphe
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          Liste textuelle complète des entités et liens. Synchronisée avec le
-          panneau de sélection. Pour revenir au graphe visuel, utilisez le
-          bouton « Vue graphe » de la barre d&apos;outils ou la touche{" "}
-          <kbd className="rounded border border-border px-1">T</kbd>.
-        </p>
-      </div>
+    <div
+      role="region"
+      aria-label="Vue table du graphe"
+      className="motion-reveal absolute inset-0 z-[var(--z-raised)] overflow-auto bg-background px-4 pb-6 pt-32 sm:px-8 lg:pt-[92px]"
+    >
+      <table className="w-full border-collapse text-sm">
+        <caption className="pb-3 text-left font-mono text-micro uppercase tracking-[0.1em] text-subtle">
+          Entités ({rows.length})
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col" className={TH}>Entité</th>
+            <th scope="col" className={TH}>Type</th>
+            <th scope="col" className={TH}>Preuve</th>
+            <th scope="col" className={`${TH} text-right`}>Liens</th>
+            <th scope="col" className={TH}>Depuis</th>
+            <th scope="col" className={`${TH} pr-0`}>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((n) => {
+            const since = n.kind === "event" ? n.date : sinceOf(view, n.id);
+            return (
+              <tr key={n.id} tabIndex={0} className={ROW} onClick={() => openNode(n.id)} onKeyDown={activate(() => openNode(n.id))}>
+                <td className={`${TD} font-medium`}>{n.label}</td>
+                <td className={`${TD} ${MONO}`}>{NODE_LABELS[n.kind]}</td>
+                <td className={`${TD} ${MONO}`}>
+                  <span className="inline-flex items-center gap-2">
+                    <span style={proofSwatchStyle(n.evidence)} />
+                    <span>{EVIDENCE_LABELS[n.evidence]}</span>
+                  </span>
+                </td>
+                <td className={`${TD} text-right tabular-nums`}>{n.kind === "event" ? 1 : structuralLinks(view, n.id).length}</td>
+                <td className={`${TD} ${MONO}`}>{since ? formatDateFr(since) : "—"}</td>
+                <td className={`${TD} pr-0 text-muted-foreground`}>{n.source ?? "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
 
-      <Tabs defaultValue="entities" className="flex flex-1 flex-col">
-        <TabsList className="mx-4 mt-3 w-fit">
-          <TabsTrigger value="entities">
-            Entités ({bundle.entities.length})
-          </TabsTrigger>
-          <TabsTrigger value="edges">Liens ({bundle.edges.length})</TabsTrigger>
-          <TabsTrigger value="events">
-            Événements ({bundle.events.length})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="entities" className="flex-1 overflow-hidden p-4 pt-2">
-          <ScrollArea className="h-full rounded-xl border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Libellé</TableHead>
-                  <TableHead>Niveau de preuve</TableHead>
-                  <TableHead>Détails</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bundle.entities.map((e) => (
-                  <TableRow
-                    key={e.id}
-                    tabIndex={0}
-                    aria-selected={selectedNode === e.id}
-                    onClick={() => selectNode(e.id)}
-                    onKeyDown={(ev) => {
-                      if (ev.key === "Enter" || ev.key === " ") {
-                        ev.preventDefault();
-                        selectNode(e.id);
-                      }
-                    }}
-                    className={`cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary ${
-                      selectedNode === e.id ? "bg-accent" : ""
-                    }`}
-                  >
-                    <TableCell className="text-xs">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span
-                          aria-hidden="true"
-                          className="h-2 w-2 rounded-full"
-                          style={{ background: NODE_COLORS[e.type] }}
-                        />
-                        {NODE_LABELS[e.type]}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-medium">{e.label}</TableCell>
-                    <TableCell>
-                      <EvidenceBadge level={e.evidenceLevel} />
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {Object.entries(e.attributes ?? {})
-                        .slice(0, 2)
-                        .map(([k, v]) => `${k}: ${v}`)
-                        .join(" · ") || "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="edges" className="flex-1 overflow-hidden p-4 pt-2">
-          <ScrollArea className="h-full rounded-xl border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Cible</TableHead>
-                  <TableHead>Poids</TableHead>
-                  <TableHead>Niveau de preuve</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bundle.edges.map((e) => (
-                  <TableRow
-                    key={e.id}
-                    tabIndex={0}
-                    aria-selected={selectedEdge === e.id}
-                    onClick={() => selectEdge(e.id)}
-                    onKeyDown={(ev) => {
-                      if (ev.key === "Enter" || ev.key === " ") {
-                        ev.preventDefault();
-                        selectEdge(e.id);
-                      }
-                    }}
-                    className={`cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary ${
-                      selectedEdge === e.id ? "bg-accent" : ""
-                    }`}
-                  >
-                    <TableCell className="text-xs">
-                      {EDGE_LABELS[e.type]}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {labelOf(e.source)}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {labelOf(e.target)}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {e.weight ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <EvidenceBadge level={e.evidenceLevel} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </TabsContent>
-
-        <TabsContent value="events" className="flex-1 overflow-hidden p-4 pt-2">
-          <ScrollArea className="h-full rounded-xl border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Titre</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Source</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bundle.events.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      Aucun événement juridique.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {bundle.events.map((ev) => (
-                  <TableRow key={ev.id}>
-                    <TableCell className="text-xs">
-                      {ev.occurredOn ?? "—"}
-                    </TableCell>
-                    <TableCell className="font-medium">{ev.title}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {ev.kind}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {ev.source ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </TabsContent>
-      </Tabs>
+      {links.length ? (
+        <table className="mt-10 w-full border-collapse text-sm">
+          <caption className="pb-3 text-left font-mono text-micro uppercase tracking-[0.1em] text-subtle">
+            Liens ({links.length})
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" className={TH}>De</th>
+              <th scope="col" className={TH}>Nature</th>
+              <th scope="col" className={TH}>Vers</th>
+              <th scope="col" className={TH}>Preuve</th>
+              <th scope="col" className={`${TH} pr-0`}>Valide</th>
+            </tr>
+          </thead>
+          <tbody>
+            {links.map((e) => (
+              <tr key={e.id} tabIndex={0} className={ROW} onClick={() => openEdge(e.id)} onKeyDown={activate(() => openEdge(e.id))}>
+                <td className={`${TD} font-medium`}>{view.byId[e.source].label}</td>
+                <td className={`${TD} ${MONO}`}>{e.label ?? EDGE_LABELS[e.type]}</td>
+                <td className={`${TD} font-medium`}>{view.byId[e.target].label}</td>
+                <td className={`${TD} ${MONO}`}>
+                  <span className="inline-flex items-center gap-2">
+                    <span style={proofSwatchStyle(e.evidence)} />
+                    <span>{EVIDENCE_LABELS[e.evidence]}</span>
+                  </span>
+                </td>
+                <td className={`${TD} pr-0 ${MONO}`}>
+                  {e.from ? `depuis le ${formatDateFr(e.from)}` : "—"}
+                  {e.to ? ` · fin le ${formatDateFr(e.to)}` : ""}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
     </div>
   );
 }
