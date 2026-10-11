@@ -16,6 +16,13 @@ export const HEALTH_WINDOW_DAYS = 7;
 export const HEALTH_SAMPLE = 20;
 /** Les N dernières consultations toutes en échec → « en échec » (et non « dégradé »). */
 const FAILING_STREAK = 3;
+/**
+ * Taux de réussite au plus égal à ce seuil, sur au moins `FAILING_RATE_MIN_SAMPLE`
+ * consultations → « en échec », même si la dernière a réussi : une source qui échoue
+ * 19 fois sur 20 (GDELT, HTTP 429) n'est pas simplement « dégradée ».
+ */
+export const FAILING_RATE = 0.1;
+export const FAILING_RATE_MIN_SAMPLE = 10;
 
 /** Clé de `getConnectorStatuses()` → source enregistrée dans `source_records`. */
 export const CONNECTOR_SOURCE: Record<string, SourceKind | null> = {
@@ -51,6 +58,8 @@ export type ObservedState = "operational" | "degraded" | "failing" | "no_data";
 
 export type ObservedHealth = {
   state: ObservedState;
+  /** Pourquoi « en échec » : série d'échecs en cours, ou taux de réussite quasi nul. */
+  failingReason: "streak" | "rate" | null;
   /** Consultations réelles (hors fixtures) retenues dans la fenêtre. */
   consulted: number;
   /** Dont réussies. */
@@ -131,10 +140,15 @@ export function observeConnectors(rows: ConsultationRow[]): Map<string, Observed
     // « En échec » exige une SÉRIE complète : un connecteur tout juste configuré
     // dont une ou deux consultations ont échoué reste « dégradé ».
     const recent = list.slice(0, FAILING_STREAK);
-    const failing =
+    const streak =
       recent.length === FAILING_STREAK && recent.every(({ r }) => isFailedConsultation(r));
+    const ok = list.length - failures.length;
+    const rate =
+      !streak && list.length >= FAILING_RATE_MIN_SAMPLE && ok / list.length <= FAILING_RATE;
+    const failing = streak || rate;
     out.set(source, {
       state: failing ? "failing" : failures.length > 0 ? "degraded" : "operational",
+      failingReason: streak ? "streak" : rate ? "rate" : null,
       consulted: list.length,
       ok: list.length - failures.length,
       lastAt: list[0]?.at ?? null,
@@ -145,7 +159,7 @@ export function observeConnectors(rows: ConsultationRow[]): Map<string, Observed
 }
 
 export const NO_DATA: ObservedHealth = {
-  state: "no_data", consulted: 0, ok: 0, lastAt: null, lastIssue: null,
+  state: "no_data", failingReason: null, consulted: 0, ok: 0, lastAt: null, lastIssue: null,
 };
 
 /**

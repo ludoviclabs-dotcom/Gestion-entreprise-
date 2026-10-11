@@ -99,6 +99,41 @@ describe("observeConnectors", () => {
     expect(out.get("gleif")?.state).toBe("operational");
   });
 
+  it("quasi tous les appels échouent (≤ 10 % sur ≥ 10) : « en échec » même si le dernier a réussi", () => {
+    const gdelt = (n: number, ok: boolean) =>
+      Array.from({ length: n }, (_, i) =>
+        row({ source: "gdelt", http_status: ok ? "200" : "429", minutesAgo: (ok ? 0 : 5) + i }),
+      );
+    // 1 réussite (la plus récente) + 19 échecs — le cas réel de GDELT depuis Vercel.
+    const out = observeConnectors([...gdelt(1, true), ...gdelt(19, false)]);
+    expect(out.get("gdelt")).toMatchObject({
+      state: "failing", failingReason: "rate", consulted: 20, ok: 1, lastIssue: "HTTP 429",
+    });
+  });
+
+  it("le seuil de taux exige un échantillon suffisant et reste strict", () => {
+    const mk = (okCount: number, total: number) =>
+      Array.from({ length: total }, (_, i) =>
+        row({ source: "gdelt", http_status: i < okCount ? "200" : "429", minutesAgo: i }),
+      );
+    // 1 sur 9 : échantillon trop court → « dégradé ».
+    expect(observeConnectors(mk(1, 9)).get("gdelt")).toMatchObject({ state: "degraded", failingReason: null });
+    // 1 sur 10 : exactement 10 % → « en échec ».
+    expect(observeConnectors(mk(1, 10)).get("gdelt")).toMatchObject({ state: "failing", failingReason: "rate" });
+    // 2 sur 10 : 20 % → « dégradé ».
+    expect(observeConnectors(mk(2, 10)).get("gdelt")).toMatchObject({ state: "degraded" });
+  });
+
+  it("série en cours : la raison est « streak »", () => {
+    const out = observeConnectors([
+      row({ source: "pappers", http_status: "401", minutesAgo: 1 }),
+      row({ source: "pappers", http_status: "401", minutesAgo: 2 }),
+      row({ source: "pappers", http_status: "401", minutesAgo: 3 }),
+      row({ source: "pappers", minutesAgo: 4 }),
+    ]);
+    expect(out.get("pappers")).toMatchObject({ state: "failing", failingReason: "streak" });
+  });
+
   it("moins de trois consultations, toutes en échec : « dégradé », jamais « en échec »", () => {
     const one = observeConnectors([row({ source: "pappers", http_status: "401" })]);
     expect(one.get("pappers")).toMatchObject({ state: "degraded", consulted: 1, ok: 0, lastIssue: "HTTP 401" });
