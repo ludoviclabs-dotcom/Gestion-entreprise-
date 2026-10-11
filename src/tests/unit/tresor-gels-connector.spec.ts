@@ -14,6 +14,7 @@ vi.mock("@/lib/env", () => ({
   env: { TRESOR_GELS_BASE_URL: "https://gels.test/api/v1" },
   isDemoMode: () => false,
   isTresorGelsEnabled: () => true,
+  isTresorGelsImportEnabled: () => false,
 }));
 vi.mock("@sentry/nextjs", () => ({
   captureException: mocks.captureException,

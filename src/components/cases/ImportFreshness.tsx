@@ -18,7 +18,9 @@ export default function ImportFreshness({ imports }: { imports: Freshness[] }) {
               {item.state === "ok" && item.importedAt
                 ? <>Importé le {date(item.importedAt)} · {item.recordCount.toLocaleString("fr-FR")} lignes.
                     {item.checkedAt ? <> Dernière vérification le {date(item.checkedAt)}.</> : null}</>
-                : item.state === "missing" ? "Source non importée : aucune absence ne peut être conclue."
+                : item.state === "missing" ? (item.source === "tresor_gels"
+                    ? "Source non importée : le registre est consulté directement à chaque dossier (plus lent)."
+                    : "Source non importée : aucune absence ne peut être conclue.")
                 : item.state === "unconfigured" ? "Base de données non configurée."
                 : "État des imports indisponible : vérifier la connexion et le schéma de la base."}
             </p>

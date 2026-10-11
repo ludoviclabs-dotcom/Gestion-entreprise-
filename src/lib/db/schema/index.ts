@@ -9,3 +9,4 @@ export * from "./audit";
 export * from "./open-data";
 export * from "./camino";
 export * from "./icpe";
+export * from "./tresor-gels";
