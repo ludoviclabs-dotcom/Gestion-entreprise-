@@ -101,7 +101,9 @@ export default async function CaseWorkspaceLayout(props: {
         </div>
       </div>
 
-      {pressNotice ? <PressNotice state={pressNotice} /> : null}
+      {pressNotice ? (
+        <PressNotice state={pressNotice} requestedAt={press?.requestedAt} />
+      ) : null}
 
       <div className="mt-3 px-4">
         <ReviewActionBar

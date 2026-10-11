@@ -31,9 +31,14 @@ export function pressOf(metadata: unknown): PressStatus | undefined {
   };
 }
 
-/** Collecte « en attente » depuis trop longtemps : interrompue, pas en cours. */
+/**
+ * Collecte « en attente » depuis trop longtemps : interrompue, pas en cours.
+ * Sans horodatage de la demande on ne peut pas prouver qu'elle est en cours :
+ * elle est présentée comme interrompue plutôt que « en cours » indéfiniment.
+ */
 export function isPressStale(status: PressStatus, now: number = Date.now()): boolean {
-  if (status.state !== "pending" || !status.requestedAt) return false;
+  if (status.state !== "pending") return false;
+  if (!status.requestedAt) return true;
   const at = Date.parse(status.requestedAt);
-  return Number.isFinite(at) && now - at > PRESS_STALE_MS;
+  return !Number.isFinite(at) || now - at > PRESS_STALE_MS;
 }
