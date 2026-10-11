@@ -1,6 +1,7 @@
 import { appendFile } from "node:fs/promises";
 import { connectImportDatabase } from "./lib/postgres-store";
 import { importCamino } from "./camino";
+import { importHatvp, type HatvpStats } from "./hatvp";
 import type { ImportReport } from "./lib/runner";
 import { importIcpe, type IcpeStats } from "./icpe";
 import { importGels, type GelsStats } from "./tresor-gels";
@@ -11,7 +12,7 @@ async function summary(text: string) {
   if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, text + "\n");
 }
 /** Jeux importés par « all » (et par le rendez-vous mensuel), dans cet ordre. */
-const ALL_SOURCES = ["camino", "icpe", "tresor_gels"] as const;
+const ALL_SOURCES = ["camino", "icpe", "tresor_gels", "hatvp"] as const;
 type Key = (typeof ALL_SOURCES)[number];
 const isKey = (value: string): value is Key => (ALL_SOURCES as readonly string[]).includes(value);
 
@@ -25,13 +26,17 @@ async function main() {
     const keys: readonly string[] = source === "all" ? ALL_SOURCES : source === "check" ? [] : [source];
     await runSources(keys, async (key) => {
       const started = Date.now();
-      let report: ImportReport & { stats?: IcpeStats | GelsStats };
+      let report: ImportReport & { stats?: IcpeStats | GelsStats | HatvpStats };
       let detail = "";
       if (key === "camino") report = await importCamino(db);
       else if (key === "icpe") {
         const r = await importIcpe(db);
         report = r;
         detail = ` Reçues : ${r.stats.received} ; Non ICPE exclus : ${r.stats.nonIcpe} ; identifiants inutilisables : ${r.stats.unusableIdentifier}.`;
+      } else if (key === "hatvp") {
+        const r = await importHatvp(db);
+        report = r;
+        detail = ` Organisations : ${r.stats.organisations} ; SIREN valides reçus : ${r.stats.sirenRecords} ; non rapprochables : ${r.stats.unusableIdentifier} ; doublons fusionnés : ${r.stats.duplicates} ; catégories inconnues : ${r.stats.unknownCategory} ; SHA-256 : ${r.sha256}.`;
       } else {
         const r = await importGels(db);
         report = r;
