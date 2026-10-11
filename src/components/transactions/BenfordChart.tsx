@@ -1,52 +1,84 @@
-import type { BenfordResult } from "@/lib/risk/transactional";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { BENFORD_MIN_SAMPLE, type BenfordResult } from "@/lib/risk/transactional";
 
 /**
  * Histogramme de Benford : fréquence observée du premier chiffre (barres) vs
- * attendue (repère). Pur SVG/CSS. Une déviation n'est pas une preuve — signal
- * à corroborer (faisceau, validation humaine).
+ * attendue (repère pointillé). Pur HTML/CSS, valeurs écrites dans l'infobulle
+ * et le tableau accessible. Une déviation n'est pas une preuve — signal à
+ * corroborer (faisceau, validation humaine).
  */
 const H = 120;
 
+const pct = (v: number) => `${Math.round(v * 100)} %`;
+
 export default function BenfordChart({ result }: { result: BenfordResult }) {
   const max = Math.max(...result.observed, ...result.expected, 0.001);
+  const insufficient = result.count < BENFORD_MIN_SAMPLE;
   return (
-    <div>
-      <div className="flex items-end gap-1.5" style={{ height: H }}>
+    <figure>
+      <div aria-hidden className="flex items-end gap-1.5" style={{ height: H + 18 }}>
         {result.observed.map((obs, i) => {
           const digit = i + 1;
           const exp = result.expected[i];
           return (
             <div
               key={digit}
-              className="relative flex flex-1 flex-col items-center justify-end"
-              style={{ height: H }}
-              title={`Chiffre ${digit} : observé ${Math.round(obs * 100)} %, attendu ${Math.round(exp * 100)} %`}
+              className="flex flex-1 flex-col items-center justify-end"
+              title={`Chiffre ${digit} : observé ${pct(obs)}, attendu ${pct(exp)}`}
             >
-              <div
-                className="w-full max-w-[1.5rem] rounded-t bg-violet/70"
-                style={{ height: Math.max(2, (obs / max) * H) }}
-              />
-              {/* repère attendu (Benford) */}
-              <div
-                className="absolute left-0 right-0 mx-auto w-full max-w-[1.75rem] border-t-2 border-dashed border-amber"
-                style={{ bottom: (exp / max) * H }}
-              />
-              <span className="mt-1 text-[10px] text-muted-foreground">{digit}</span>
+              <div className="relative flex w-full justify-center" style={{ height: H }}>
+                <div
+                  className="absolute bottom-0 w-full max-w-6 rounded-t-sm bg-primary/70"
+                  style={{ height: Math.max(2, (obs / max) * H) }}
+                />
+                <div
+                  className="absolute w-full max-w-7 border-t-2 border-dashed border-muted-foreground"
+                  style={{ bottom: (exp / max) * H }}
+                />
+              </div>
+              <span className="mt-1 text-micro text-subtle tabular-nums">{digit}</span>
             </div>
           );
         })}
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">
-        <span className="inline-block size-2 rounded-sm bg-violet/70 align-middle" />{" "}
-        observé · <span className="align-middle text-amber">– –</span> attendu
-        (Benford). χ² = {result.chiSquare.toFixed(1)} (n = {result.count}) —{" "}
-        {result.deviates ? (
-          <span className="text-amber">déviation significative (à corroborer)</span>
-        ) : (
-          "pas de déviation significative"
-        )}
-        .
-      </p>
-    </div>
+      <figcaption className="mt-3 space-y-2 text-xs text-muted-foreground">
+        <p>
+          <span aria-hidden className="mr-1 inline-block size-2 rounded-sm bg-primary/70 align-middle" />
+          observé ·{" "}
+          <span aria-hidden className="mx-1 inline-block w-4 border-t-2 border-dashed border-muted-foreground align-middle" />
+          attendu (Benford) · χ² = {result.chiSquare.toFixed(1).replace(".", ",")} · n = {result.count}
+        </p>
+        <p>
+          {insufficient ? (
+            <StatusBadge tone="neutral">
+              Effectif insuffisant (moins de {BENFORD_MIN_SAMPLE} montants) : pas de conclusion
+            </StatusBadge>
+          ) : result.deviates ? (
+            <StatusBadge tone="vigilance">Déviation significative : à corroborer</StatusBadge>
+          ) : (
+            <StatusBadge tone="neutral">Pas de déviation significative</StatusBadge>
+          )}
+        </p>
+      </figcaption>
+      <table className="sr-only">
+        <caption>Fréquence du premier chiffre des montants, observée et attendue</caption>
+        <thead>
+          <tr>
+            <th scope="col">Chiffre</th>
+            <th scope="col">Observé</th>
+            <th scope="col">Attendu</th>
+          </tr>
+        </thead>
+        <tbody>
+          {result.observed.map((obs, i) => (
+            <tr key={i}>
+              <th scope="row">{i + 1}</th>
+              <td>{pct(obs)}</td>
+              <td>{pct(result.expected[i])}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </figure>
   );
 }

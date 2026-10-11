@@ -23,6 +23,8 @@ const TERRITORY = [
   "src/components/design-system",
   "src/components/dashboard",
   "src/app/(app)/dashboard",
+  "src/components/transactions",
+  "src/app/(app)/transactions",
   "src/lib/design",
 ];
 
@@ -73,6 +75,7 @@ describe("design-contract — territoire du design system", () => {
       "src/components/empty/ErrorState.tsx",
       "src/components/ui/stat-card.tsx",
       "src/components/ui/reveal.tsx",
+      "src/components/ui/native-select.tsx",
       "src/components/shell/nav.ts",
       "src/components/shell/SessionStatus.tsx",
     ]) {
@@ -212,7 +215,7 @@ describe("design-contract — documentation synchronisée", () => {
       "AppShell", "Sidebar", "TopBar", "PageHeader", "Card", "Panel", "MetricChip",
       "StatusBadge", "IconButton", "Tabs", "SegmentedControl", "DataTable",
       "EmptyState", "LoadingState", "ErrorState", "Tooltip", "Dialog", "SidePanel",
-      "StatCard", "Reveal", "SidebarCount", "SessionStatus", "APP_NAV",
+      "StatCard", "Reveal", "SidebarCount", "SessionStatus", "APP_NAV", "NativeSelect",
     ]) {
       expect(doc, name).toContain(name);
     }

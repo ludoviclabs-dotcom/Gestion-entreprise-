@@ -54,6 +54,7 @@ import {
 import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { MetricChip } from "@/components/ui/metric-chip";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Reveal } from "@/components/ui/reveal";
 import { StatCard } from "@/components/ui/stat-card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -371,6 +372,22 @@ export default function ComponentGallery() {
             Clavier : Tab parcourt les entrées, ↑ ↓ Début Fin s&apos;y déplacent. Entrée désactivée : non focalisable, aria-disabled.
           </p>
         </div>
+        <Specimen label="NativeSelect — sm et md, désactivé avec motif">
+          <NativeSelect size="sm" aria-label="Vigilance" defaultValue="">
+            <option value="">Toutes</option>
+            <option value="renforcee">Vigilance renforcée</option>
+            <option value="vigilance">Vigilance</option>
+          </NativeSelect>
+          <NativeSelect aria-label="Statut de triage" defaultValue="a_trier">
+            <option value="a_trier">À trier</option>
+            <option value="en_revue">En revue</option>
+            <option value="traitee">Traitée</option>
+          </NativeSelect>
+          <NativeSelect size="sm" aria-label="Dossier lié" disabled defaultValue="">
+            <option value="">Non disponible</option>
+          </NativeSelect>
+          <span className="text-micro text-subtle">Colonne SIREN absente : rapprochement impossible.</span>
+        </Specimen>
         <Specimen label="SegmentedControl — md et sm">
           <SegmentedControl
             label="Mode d'affichage"
