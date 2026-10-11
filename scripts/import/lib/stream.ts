@@ -54,10 +54,10 @@ export class Fingerprint {
 }
 
 /** URL publique fixée par l'adaptateur ; pas d'URL issue du formulaire Actions. */
-export async function download(url: string, signal: AbortSignal): Promise<Readable> {
+export async function download(url: string, signal: AbortSignal, headers: Record<string, string> = {}): Promise<Readable> {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:" || parsed.username || parsed.password) throw new Error("INVALID_SOURCE_URL");
-  const response = await fetch(url, { signal, redirect: "error" });
+  const response = await fetch(url, { signal, redirect: "error", headers });
   if (!response.ok || !response.body) {
     await response.body?.cancel();
     throw new Error("SOURCE_HTTP_ERROR");

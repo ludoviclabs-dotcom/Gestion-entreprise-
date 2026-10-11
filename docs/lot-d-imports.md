@@ -236,3 +236,52 @@ le stockage occupé et la latence cible <100 ms restent à mesurer après config
 Aucun secret local utilisé, aucun abonnement changé, aucun flag activé.
 
 Pour une première activation, le fichier [lot-d-activation.sql](./lot-d-activation.sql) rassemble exactement les migrations 0014 à 0016 dans leur ordre. Il peut être collé en une fois dans Neon SQL Editor ; les migrations déjà appliquées sont idempotentes.
+
+## Perf 4 — registre des gels (DG Trésor) en base
+
+**Pourquoi.** Le registre (12 Mo) était téléchargé à chaque instance froide : 7 à 9 s sur
+la création d'un dossier (0,1 s sur une instance chaude). Le cache mémoire est propre à
+chaque instance et ne survit pas aux démarrages à froid.
+
+**Principe.** Un import quotidien (04 h 47 UTC) copie le registre dans `tresor_gels_entries` ;
+chaque dossier le relit en une requête SQL (≈ 2 000 lignes) et applique le MÊME rapprochement
+(`matchGelsEntries`) que le téléchargement direct.
+
+- **Minimisation.** Seules les personnes morales et les navires sont conservés (≈ 30 % du
+  registre). Les personnes physiques ne sont jamais importées : le rapprochement les écarte
+  déjà. Sont projetés : nom, nature, alias, date de publication et nombre total d'entrées.
+  Ni identifications, adresses, dates de naissance, ni commentaires du registre.
+- **Équivalence.** Test dédié : le rapprochement sur le registre filtré est strictement égal
+  à celui du registre complet.
+- **Fraîcheur, garde-fou de contrôle de sanctions.** Une copie dont la dernière VÉRIFICATION
+  date de plus de 48 h n'est jamais servie : repli sur le téléchargement direct. Un registre
+  inchangé fait avancer la vérification sans dupliquer les lignes (même mécanisme que D0).
+- **Repli.** Import absent, périmé, illisible, table manquante ou erreur base : téléchargement
+  direct, résultat identique, jamais un « aucune correspondance » issu d'une copie non datée.
+  Contrairement à l'ICPE, le repli est transparent : même donnée, même algorithme.
+- **Traçabilité.** Sur import : endpoint `db:tresor_gels_entries` et dates d'import et de
+  vérification dans la charge utile ; sur repli : l'URL officielle, comme avant.
+- **Réglages.** « Registre national des gels (DG Trésor) » : date du dernier import complet,
+  dernière vérification, échec éventuel.
+
+Version de projection : `tresor-gels-v1`. Source : `tresor_gels`.
+
+### Activation
+
+1. Coller [lot-d-activation.sql](./lot-d-activation.sql) dans Neon SQL Editor (idempotent) ou, au
+   minimum, `0017_tresor_gels_entries.sql`.
+2. Fusionner la PR (aucune consultation n'est modifiée tant que le flag est éteint).
+3. Actions → Import open data → Run workflow → main → **tresor_gels**. Le résumé indique le
+   nombre d'entrées conservées et de personnes physiques non conservées. Relancer : « inchangé ».
+4. Vercel Production : `TRESOR_GELS_IMPORT_ENABLED=true`, puis redéployer.
+5. Variable GitHub `OPEN_DATA_IMPORTS_ENABLED=true` (déjà posée si le rythme mensuel est actif) :
+   active aussi le rafraîchissement **quotidien** du registre. Sans elle, la copie devient
+   périmée au bout de 48 h et le téléchargement direct reprend automatiquement.
+6. Repli opérationnel : `TRESOR_GELS_IMPORT_ENABLED=false` et redéploiement.
+
+### Vérification réelle du 11 octobre 2026
+
+Publication du 9 octobre 2026 : 6 609 entrées reçues, 4 647 personnes physiques non conservées,
+1 962 lignes projetées (3 940 alias), 3,7 s de téléchargement et projection, pic RSS 208 Mio,
+SHA-256 `e3ea96db76e3d8a55f873615d2287a7a6ad2d3aa274fc0b478e9b8a6428eb6d4`. La lecture SQL est
+vérifiée par doubles de test ; la latence réelle depuis Vercel est à mesurer après activation.

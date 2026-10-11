@@ -82,6 +82,9 @@ const serverSchema = z.object({
   // Lot « réglementaire » — Géorisques (ICPE, par SIRET) et Annuaire de
   // l'administration (personnes morales de droit public) : SANS clé, opt-in.
   ICPE_IMPORT_ENABLED: z.enum(["true", "false"]).default("false"),
+  // Registre des gels (DG Trésor) lu depuis l'import quotidien en base plutôt que
+  // téléchargé (12 Mo) à chaque instance froide. Repli : téléchargement direct.
+  TRESOR_GELS_IMPORT_ENABLED: z.enum(["true", "false"]).default("false"),
   CAMINO_ENABLED: z.enum(["true", "false"]).default("false"),
   GEORISQUES_ENABLED: z.enum(["true", "false"]).default("false"),
   ANNUAIRE_ADMINISTRATION_ENABLED: z.enum(["true", "false"]).default("false"),
@@ -129,6 +132,8 @@ export const isAlimConfianceEnabled = (): boolean =>
   env.ALIM_CONFIANCE_ENABLED === "true";
 export const isQualiopiEnabled = (): boolean => env.QUALIOPI_ENABLED === "true";
 export const isIcpeImportEnabled = (): boolean => env.ICPE_IMPORT_ENABLED === "true";
+export const isTresorGelsImportEnabled = (): boolean =>
+  env.TRESOR_GELS_IMPORT_ENABLED === "true";
 export const isCaminoEnabled = (): boolean => env.CAMINO_ENABLED === "true";
 export const isGeorisquesEnabled = (): boolean => env.GEORISQUES_ENABLED === "true";
 export const isAnnuaireAdministrationEnabled = (): boolean =>

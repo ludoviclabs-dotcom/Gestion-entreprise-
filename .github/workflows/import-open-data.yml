@@ -8,9 +8,13 @@ on:
         required: true
         type: choice
         default: check
-        options: [check, camino, icpe, all]
+        options: [check, camino, icpe, tresor_gels, all]
   schedule:
+    # Mensuel : tous les jeux volumineux.
     - cron: '17 3 4 * *'
+    # Quotidien : le registre des gels (DG Trésor) uniquement — un contrôle de
+    # sanctions ne doit pas reposer sur une copie vieille d'un mois.
+    - cron: '47 4 * * *'
 
 permissions:
   contents: read
@@ -23,7 +27,7 @@ jobs:
   import:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.OPEN_DATA_IMPORTS_ENABLED == 'true')
     runs-on: ubuntu-latest
-    # Deux sources séquentielles, chacune bornée à 25 min, plus installation.
+    # Trois sources séquentielles (Camino et ICPE ≤ 25 min chacune, gels ≈ 1 min), plus installation.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +40,6 @@ jobs:
       - name: Vérifier ou importer
         env:
           DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
-          IMPORT_SOURCE: ${{ inputs.source || 'all' }}
+          IMPORT_SOURCE: ${{ inputs.source || (github.event.schedule == '47 4 * * *' && 'tresor_gels') || 'all' }}
           NEXT_TELEMETRY_DISABLED: '1'
         run: npx --no-install tsx scripts/import/run.ts "$IMPORT_SOURCE"

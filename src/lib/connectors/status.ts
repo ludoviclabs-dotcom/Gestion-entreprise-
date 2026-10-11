@@ -24,6 +24,7 @@ import {
   isGeorisquesEnabled,
   isCaminoEnabled,
   isIcpeImportEnabled,
+  isTresorGelsImportEnabled,
   isAnnuaireAdministrationEnabled,
 } from "@/lib/env";
 
@@ -73,7 +74,9 @@ export function getConnectorStatuses(): ConnectorStatus[] {
       live: !demo && isTresorGelsEnabled(),
       detail:
         !demo && isTresorGelsEnabled()
-          ? "Registre national des gels d'avoirs en temps réel."
+          ? isTresorGelsImportEnabled()
+            ? "Registre national des gels d'avoirs : import quotidien en base, téléchargement direct en repli."
+            : "Registre national des gels d'avoirs en temps réel."
           : isTresorGelsEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "TRESOR_GELS_ENABLED non activé → fixture.",
