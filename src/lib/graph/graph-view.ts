@@ -379,6 +379,7 @@ export function layoutGraphView(view: GraphView, w = VIEW_W, h = VIEW_H): Record
   }
 
   // Événements : ellipse extérieure, groupés par émetteur puis par date.
+  // Leurs libellés pointent vers l'intérieur : aucun espace de lecture au-delà du bord.
   if (events.length) {
     const owner = new Map<string, string>();
     for (const e of view.edges) if (e.type === "A_PUBLIE") owner.set(e.target, e.source);
@@ -402,7 +403,7 @@ export function layoutGraphView(view: GraphView, w = VIEW_W, h = VIEW_H): Record
         x: cx + rx * ca,
         y: cy + ry * sa,
         r: radiusOf(n),
-        side: sideOf(ca, sa, 0.45),
+        side: sideOf(-ca, -sa, 0.45),
         delay: 0.9 + R() * 1.4,
       };
     });
