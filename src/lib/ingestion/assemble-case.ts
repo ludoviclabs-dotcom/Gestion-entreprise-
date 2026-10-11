@@ -6,6 +6,7 @@ import { bodacc } from "@/lib/connectors/bodacc";
 import { inpi } from "@/lib/connectors/inpi";
 import { tresorGels } from "@/lib/connectors/tresor-gels";
 import { openSanctions } from "@/lib/connectors/opensanctions";
+import { sanctionsIntl } from "@/lib/connectors/sanctions-intl";
 import { gleif } from "@/lib/connectors/gleif";
 import { vies } from "@/lib/connectors/vies";
 import { ban, banAddressFrom } from "@/lib/connectors/ban";
@@ -50,6 +51,7 @@ import {
   isDemoMode,
   isGdeltEnabled,
   isInpiUboExposed,
+  isSanctionsIntlEnabled,
   isJoafeEnabled,
   isQualiopiEnabled,
   isRechercheEntreprisesEnabled,
@@ -69,7 +71,8 @@ import { normalizeBodacc } from "./normalize-bodacc";
 import { normalizeInpi } from "./normalize-inpi";
 import { normalizeGels } from "./normalize-gels";
 import { normalizeOpenSanctions } from "./normalize-opensanctions";
-import { companiesHouseParents, normalizeGleif } from "./normalize-gleif";
+import { normalizeSanctionsIntl } from "./normalize-sanctions-intl";
+import { companiesHouseParents, gleifParents, normalizeGleif } from "./normalize-gleif";
 import { normalizeCompaniesHouse } from "./normalize-companies-house";
 import {
   rechercheAttributes,
@@ -340,6 +343,23 @@ export async function assembleCase(
     return { parents, results };
   });
 
+  // Listes de sanctions internationales — SECOND SAUT : le sujet ET ses sociétés
+  // mères GLEIF (une mère étrangère sanctionnée est le cas qu'un contrôle du seul
+  // sujet français manquerait). Lecture en base : aucun appel réseau. Appelé
+  // seulement en live ET activé — sinon aucune ligne source_records.
+  const sanctionsParents: { lei: string; name: string }[] = [];
+  const sanctionsHop = (async () => {
+    if (!(live && isSanctionsIntlEnabled())) return null;
+    const gleifRes = await gleifP;
+    if (usableResult(gleifRes)) sanctionsParents.push(...gleifParents(gleifRes.raw));
+    return timed("sanctions_intl", () =>
+      sanctionsIntl.match([
+        { key: "subject", name: subjectLabel },
+        ...sanctionsParents.map((p) => ({ key: `lei:${p.lei}`, name: p.name })),
+      ]),
+    );
+  })();
+
   const [
     bodaccRes,
     inpiRes,
@@ -358,6 +378,7 @@ export async function assembleCase(
     annuaireRes,
     icpeRes,
     caminoRes,
+    sanctionsRes,
     hatvpRes,
   ] = await Promise.all([
     timed("bodacc", () => bodacc.bySiren(siren)),
@@ -387,6 +408,7 @@ export async function assembleCase(
       : none,
     icpeHop,
     live && isCaminoEnabled() ? timed("camino", () => camino.bySiren(siren)) : none,
+    sanctionsHop,
     live && isHatvpEnabled() ? timed("hatvp", () => hatvp.bySiren(siren)) : none,
   ]);
   // Ordre des source_records déterministe, indépendant de l'ordre d'arrivée.
@@ -401,6 +423,7 @@ export async function assembleCase(
   );
   // Presse différée : pas de consultation → pas de ligne (source non interrogée).
   if (gdeltRes) sources.push(toSource("gdelt", gdeltRes));
+  if (sanctionsRes) sources.push(toSource("sanctions_intl", sanctionsRes));
   if (rechercheRes) sources.push(toSource("recherche_entreprises", rechercheRes));
   if (baloRes) sources.push(toSource("balo", baloRes));
   if (boampRes) sources.push(toSource("boamp", boampRes));
@@ -471,6 +494,18 @@ export async function assembleCase(
     ? normalizeGels(gelsRes.raw, { companyId })
     : { entities: [], edges: [] };
 
+  // Listes de sanctions internationales : correspondances FORTES dans le graphe,
+  // faibles en attribut (cf. normalizeSanctionsIntl). Un résultat fixture n'est
+  // jamais injecté dans un dossier réel.
+  const sanctionsNorm =
+    sanctionsRes && usableResult(sanctionsRes)
+      ? normalizeSanctionsIntl(sanctionsRes.raw, {
+          entityIds: {
+            subject: companyId,
+            ...Object.fromEntries(sanctionsParents.map((p) => [`lei:${p.lei}`, `co:lei:${p.lei}`])),
+          },
+        })
+      : { entities: [], edges: [], attributes: {} };
   const osNorm = usableResult(osRes)
     ? normalizeOpenSanctions(osRes.raw, {
         subjectId: companyId,
@@ -548,6 +583,7 @@ export async function assembleCase(
       ...inpiNorm.entities,
       ...gleifNorm.entities,
       ...gelsNorm.entities,
+      ...sanctionsNorm.entities,
       ...osNorm.entities,
       ...pappersPeople.entities,
       ...recherchePeople.entities,
@@ -558,6 +594,7 @@ export async function assembleCase(
       ...inpiNorm.edges,
       ...gleifNorm.edges,
       ...gelsNorm.edges,
+      ...sanctionsNorm.edges,
       ...osNorm.edges,
       ...pappersPeople.edges,
       ...recherchePeople.edges,
@@ -616,6 +653,7 @@ export async function assembleCase(
       }),
       // Installations classées (siège et établissements interrogés) et annuaire.
       ...caminoAttributes(openDataUsable(caminoRes) ? caminoRes.raw : null),
+      ...sanctionsNorm.attributes,
       ...hatvpAttributes(openDataUsable(hatvpRes) ? hatvpRes.raw : null),
       ...regulatoryAttributes({
         icpe: openDataUsable(icpeRes) ? icpeRes.raw : null,

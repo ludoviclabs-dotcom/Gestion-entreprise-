@@ -106,8 +106,20 @@ export function computeMitigatingFactors(
     const gelsOnly =
       coverage?.sanctionSources?.length === 1 &&
       coverage.sanctionSources[0] === "tresor_gels";
+    // Registre français + listes internationales, sans OpenSanctions : les listes
+    // (et leurs lacunes) sont nommées ; les PEP ne sont jamais couvertes.
+    const listsNoPep =
+      coverage?.sanctionSources?.includes("sanctions_intl") === true &&
+      !coverage.sanctionSources.includes("opensanctions");
     factors.push(
-      gelsOnly
+      listsNoPep
+        ? {
+            id: "AUCUNE_ENTITE_SIGNALEE",
+            label: "Aucune correspondance aux listes de sanctions consultées",
+            detail:
+              "Aucune correspondance retenue au registre national des gels (DG Trésor) ni aux listes internationales consultées (États-Unis, Royaume-Uni, ONU, Suisse, Canada). Les personnes politiquement exposées (PEP) n'ont pas pu être consultées.",
+          }
+        : gelsOnly
         ? {
             id: "AUCUNE_ENTITE_SIGNALEE",
             label: "Aucune correspondance au registre des gels",

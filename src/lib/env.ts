@@ -85,6 +85,9 @@ const serverSchema = z.object({
   // Registre des gels (DG Trésor) lu depuis l'import quotidien en base plutôt que
   // téléchargé (12 Mo) à chaque instance froide. Repli : téléchargement direct.
   TRESOR_GELS_IMPORT_ENABLED: z.enum(["true", "false"]).default("false"),
+  // Listes de sanctions et de contrôle internationales (États-Unis, Royaume-Uni,
+  // ONU, Suisse, Canada), lues depuis l'import quotidien en base. SANS clé, opt-in.
+  SANCTIONS_INTL_ENABLED: z.enum(["true", "false"]).default("false"),
   CAMINO_ENABLED: z.enum(["true", "false"]).default("false"),
   HATVP_ENABLED: z.enum(["true", "false"]).default("false"),
   GEORISQUES_ENABLED: z.enum(["true", "false"]).default("false"),
@@ -135,6 +138,8 @@ export const isQualiopiEnabled = (): boolean => env.QUALIOPI_ENABLED === "true";
 export const isIcpeImportEnabled = (): boolean => env.ICPE_IMPORT_ENABLED === "true";
 export const isTresorGelsImportEnabled = (): boolean =>
   env.TRESOR_GELS_IMPORT_ENABLED === "true";
+export const isSanctionsIntlEnabled = (): boolean =>
+  env.SANCTIONS_INTL_ENABLED === "true";
 export const isCaminoEnabled = (): boolean => env.CAMINO_ENABLED === "true";
 export const isHatvpEnabled = (): boolean => env.HATVP_ENABLED === "true";
 export const isGeorisquesEnabled = (): boolean => env.GEORISQUES_ENABLED === "true";

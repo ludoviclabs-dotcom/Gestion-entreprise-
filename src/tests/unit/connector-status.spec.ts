@@ -36,6 +36,7 @@ describe("getConnectorStatuses", () => {
         "opensanctions",
         "pappers",
         "recherche_entreprises",
+        "sanctions_intl",
         "sirene",
         "tresor",
         "vies",

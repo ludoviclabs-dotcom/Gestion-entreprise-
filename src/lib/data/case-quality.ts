@@ -8,6 +8,7 @@ import type {
 } from "@/lib/graph/graph-types";
 import type { SourceKind } from "@/lib/graph/source";
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
+import { computeSanctionProximity, type SanctionProximity } from "@/lib/risk/sanction-proximity";
 import type {
   CaseOrigin,
   CaseStatus,
@@ -47,7 +48,7 @@ export type SourceCoverage = {
    * couvre ni les listes UE/ONU/OFAC complètes ni les PEP : « aucune entité
    * signalée » doit nommer ce qui a été vérifié.
    */
-  sanctionSources: ("tresor_gels" | "opensanctions")[];
+  sanctionSources: ("tresor_gels" | "opensanctions" | "sanctions_intl")[];
 };
 
 function completedLive(s: SourceRow): boolean {
@@ -71,12 +72,12 @@ export function getSourceCoverage(sources: SourceRow[]): SourceCoverage {
     return {
       bodacc: true,
       sanctions: true,
-      sanctionSources: ["tresor_gels", "opensanctions"],
+      sanctionSources: ["tresor_gels", "opensanctions", "sanctions_intl"],
     };
   }
   const done = (kinds: SourceKind[]) =>
     sources.some((s) => kinds.includes(s.source) && completedLive(s));
-  const sanctionSources = (["tresor_gels", "opensanctions"] as const).filter((k) =>
+  const sanctionSources = (["tresor_gels", "opensanctions", "sanctions_intl"] as const).filter((k) =>
     done([k]),
   );
   return {
@@ -104,6 +105,8 @@ export function getScoreStatus(
 
 function sourceFromText(text: string | undefined): SourceKind | null {
   const haystack = (text ?? "").toLowerCase();
+  // Avant « trésor » : les listes américaines citent le Treasury Department.
+  if (haystack.includes("sanctions internationales")) return "sanctions_intl";
   // Avant INPI : « agrégé par Pappers » peut citer le RNE sans en être issu.
   if (haystack.includes("pappers")) return "pappers";
   // Avant INPI : « dirigeants (RNE) » cite le RNE sans en être issu directement.
@@ -166,15 +169,33 @@ export function inferEdgeSource(
   );
 }
 
+/**
+ * @param proximity proximité aux nœuds sanction déjà calculée pour ce dossier
+ *   (évite un parcours par signal) ; calculée à la demande sinon.
+ */
 export function inferSignalSource(
   signal: CaseRiskSignal,
   bundle: CaseBundle,
+  proximity?: SanctionProximity,
 ): SourceKind | null {
   if (signal.ruleId.includes("UBO")) return "inpi";
   if (signal.ruleId.includes("PROCEDURE") || signal.ruleId.includes("RADIATION")) {
     return "bodacc";
   }
-  if (signal.ruleId.includes("SANCTION")) return "opensanctions";
+  if (signal.ruleId.includes("SANCTION")) {
+    // Provenance PAR SIGNAL : le nœud sanction à l'origine du plus court chemin
+    // qui atteint le sujet du signal (le même que celui décrit par la règle). Un
+    // dossier mêlant OpenSanctions et listes internationales n'attribue donc pas
+    // tous ses signaux à une seule source. Repli historique : « opensanctions ».
+    const origin = signal.subjectId
+      ? (proximity ?? computeSanctionProximity(bundle)).root.get(signal.subjectId)
+      : undefined;
+    const originEntity = origin ? bundle.entities.find((e) => e.id === origin) : undefined;
+    if (originEntity && inferEntitySource(originEntity) === "sanctions_intl") {
+      return "sanctions_intl";
+    }
+    return "opensanctions";
+  }
   const subject = signal.subjectId
     ? bundle.entities.find((e) => e.id === signal.subjectId)
     : undefined;
@@ -188,6 +209,9 @@ export function buildBundleEvidence(
   const available = new Set(sources.map((s) => s.source));
   const cleanSource = (source: SourceKind | null) =>
     source && available.has(source) ? source : null;
+  // Parcours des nœuds sanction : une seule fois par dossier, à la première demande.
+  let proximity: SanctionProximity | undefined;
+  const proximityOf = () => (proximity ??= computeSanctionProximity(bundle));
 
   return [
     ...bundle.entities.map((entity) => ({
@@ -217,7 +241,13 @@ export function buildBundleEvidence(
     ...bundle.riskSignals.map((signal) => ({
       subjectType: "risk_signal" as const,
       subjectId: signal.id,
-      source: cleanSource(inferSignalSource(signal, bundle)),
+      source: cleanSource(
+        inferSignalSource(
+          signal,
+          bundle,
+          signal.ruleId.includes("SANCTION") ? proximityOf() : undefined,
+        ),
+      ),
       level: "inferred" as const,
       excerpt: signal.explanation,
       pointer: { ruleId: signal.ruleId },

@@ -8,12 +8,13 @@ on:
         required: true
         type: choice
         default: check
-        options: [check, camino, icpe, tresor_gels, hatvp, all]
+        options: [check, camino, icpe, tresor_gels, hatvp, sanctions, daily, all]
   schedule:
     # Mensuel : tous les jeux volumineux.
     - cron: '17 3 4 * *'
-    # Quotidien : le registre des gels (DG Trésor) uniquement — un contrôle de
-    # sanctions ne doit pas reposer sur une copie vieille d'un mois.
+    # Quotidien : le registre des gels (DG Trésor) et les listes de sanctions
+    # internationales — un contrôle de sanctions ne doit pas reposer sur une copie
+    # vieille d'un mois.
     - cron: '47 4 * * *'
 
 permissions:
@@ -27,7 +28,8 @@ jobs:
   import:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.OPEN_DATA_IMPORTS_ENABLED == 'true')
     runs-on: ubuntu-latest
-    # Camino, ICPE et HATVP ≤ 25 min chacun, gels ≈ 1 min, plus installation.
+    # Camino, ICPE et HATVP ≤ 25 min chacun ; gels et listes de sanctions ≈ 1 min chacun ;
+    # plus installation.
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +42,6 @@ jobs:
       - name: Vérifier ou importer
         env:
           DATABASE_URL_UNPOOLED: ${{ secrets.DATABASE_URL_UNPOOLED }}
-          IMPORT_SOURCE: ${{ inputs.source || (github.event.schedule == '47 4 * * *' && 'tresor_gels') || 'all' }}
+          IMPORT_SOURCE: ${{ inputs.source || (github.event.schedule == '47 4 * * *' && 'daily') || 'all' }}
           NEXT_TELEMETRY_DISABLED: '1'
         run: npx --no-install tsx scripts/import/run.ts "$IMPORT_SOURCE"

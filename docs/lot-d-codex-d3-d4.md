@@ -21,8 +21,8 @@ Aucune autre source : DGAL-agréments et EITI restent **hors périmètre** (déc
 
 ```bash
 git fetch origin && git log origin/main --oneline -15
-ls drizzle | tail -5                                  # dernière migration : 0017
-grep -n "ALL_SOURCES" scripts/import/run.ts           # camino, icpe, tresor_gels
+ls drizzle | tail -5                                  # dernière migration : 0019
+grep -n "SINGLE_SOURCES" scripts/import/lib/groups.ts  # camino, icpe, tresor_gels, sanctions_*
 test -f src/lib/connectors/camino.ts && test -f src/lib/connectors/icpe-import.ts
 test -f src/lib/connectors/tresor-gels-import.ts
 grep -n "isInformationalEvent" src/lib/graph/informational-events.ts
@@ -35,9 +35,13 @@ grep -n "source non importée" src/lib/connectors/degraded.ts
 | D1 Camino, D2 ICPE | fusionnés, actifs en production (#43, #45) | `scripts/import/camino.ts`, `icpe.ts`, `src/lib/connectors/camino.ts`, `icpe-import.ts` |
 | Presse GDELT collectée après la réponse | fusionné (#47) | `assembleCase(siren, { deferPress })` |
 | Registre des gels importé chaque jour | fusionné (#48) | `scripts/import/tresor-gels.ts`, migration **0017** |
+| D3 HATVP (organisations) | fusionné (#52) | `scripts/import/hatvp.ts`, migration **0018** |
+| Listes de sanctions internationales (US, UK, ONU, CH, CA) | PR « sanctions internationales » | `scripts/import/sanctions.ts`, `lib/groups.ts`, migration **0019** |
 
-**Numérotation** : D3 prend la migration **0018**, D4 la **0019**. À chaque ajout d'une
-source, étendre — sans rien écraser — le tableau `ALL_SOURCES` de `scripts/import/run.ts`,
+**Numérotation** : la **0018** est prise par D3 (HATVP), la **0019** par les sanctions
+internationales ; D4 prend la **0020**. À chaque ajout d'une source, étendre — sans rien
+écraser — `SINGLE_SOURCES` et `GROUPS` de `scripts/import/lib/groups.ts` (et l'aiguillage de
+`scripts/import/run.ts`),
 l'option `source` du workflow, `IMPORT_LABELS` (`src/lib/data/import-freshness.ts`) et
 `docs/lot-d-activation.sql`.
 
@@ -337,7 +341,7 @@ variable GitHub `OPEN_DATA_IMPORTS_ENABLED` pilote les rendez-vous automatiques.
 
 ## 6. Critères d'acceptation (par PR)
 
-- [ ] Prérequis §1 vérifiés ; migration idempotente, sans BOM, numérotée 0018 / 0019 ; enum
+- [ ] Prérequis §1 vérifiés ; migration idempotente, sans BOM, numérotée 0018 (D3, fait) / 0020 (D4) ; enum
       `source_kind` mis à jour **aux quatre endroits** (types, schéma, SQL, libellés).
 - [ ] Import reproductible, idempotent (« inchangé » à fichier identique), atomique ; mémoire
       bornée ; durée < 30 min par source dans Actions.
