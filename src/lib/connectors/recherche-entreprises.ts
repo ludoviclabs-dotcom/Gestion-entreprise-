@@ -35,6 +35,12 @@ export type ReDirigeant = {
   /** Personne morale dirigeante : son SIREN et sa dénomination. */
   siren: string | null;
   denomination: string | null;
+  /**
+   * Année de naissance publiée au RNE (personnes physiques) — jamais le mois ni la
+   * date. Sert UNIQUEMENT à départager un homonyme lors du contrôle des listes de
+   * sanctions ; n'est affichée nulle part.
+   */
+  anneeNaissance: number | null;
 };
 
 export type ReFinance = {
@@ -113,6 +119,11 @@ const str = (v: unknown): string | null =>
 const num = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 const isObj = (v: unknown): v is Json => !!v && typeof v === "object" && !Array.isArray(v);
+/** Année plausible (1880–2015) ou `null`. */
+const birthYear = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : typeof v === "string" && /^\d{4}$/.test(v.trim()) ? Number(v.trim()) : NaN;
+  return Number.isInteger(n) && n >= 1880 && n <= 2015 ? n : null;
+};
 
 const empty = (status: RechercheEntreprisesRaw["status"]): RechercheEntreprisesRaw => ({
   status,
@@ -134,6 +145,7 @@ export function simplifyResult(r: Json): RechercheEntreprisesRaw {
       qualite: str(d.qualite),
       siren: str(d.siren),
       denomination: str(d.denomination),
+      anneeNaissance: birthYear(d.annee_de_naissance),
     }));
 
   const finances: ReFinance[] = isObj(r.finances)

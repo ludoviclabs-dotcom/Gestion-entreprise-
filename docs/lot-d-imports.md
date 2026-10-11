@@ -474,3 +474,55 @@ Les cinq fichiers officiels, téléchargés et projetés par le vrai pipeline (s
 22 584 entrées, de 1,4 s (Canada) à 10,9 s (Suisse), pic mémoire 572 Mio. La requête SQL est
 exécutée sur un vrai moteur PostgreSQL (PGlite) avec les migrations réelles. La latence depuis
 Vercel est à mesurer après activation.
+
+## Sanctions internationales — contrôle des PERSONNES (dirigeants)
+
+**Pourquoi.** Les sociétés étaient contrôlées ; pas leurs dirigeants ni bénéficiaires. Un
+dirigeant inscrit sur une liste est l'un des signaux les plus importants d'un contrôle KYB.
+Mais un nom de personne est la donnée la plus sujette à l'homonymie : le dispositif est donc
+construit pour la **précision**, au prix assumé d'un rappel limité.
+
+**Données des listes** (table `sanctions_entries`, `kind = 'person'`, import v3) : nom,
+alias, **années** de naissance (jamais la date), pays/nationalité, programme, date
+d'inscription. Ni adresse, ni identifiant, ni commentaire. Environ 19 800 personnes
+(États-Unis 7 615, Royaume-Uni 4 056, ONU 736, Suisse 3 841 en vigueur, Canada 3 526).
+
+**Données du dossier.** L'**année** de naissance des dirigeants (Recherche d'entreprises /
+RNE, Pappers, Companies House) est lue dans la charge brute de la source pour départager les
+homonymes. Elle n'est **jamais affichée**, ni ajoutée à une fiche, ni persistée ailleurs.
+
+**Règle de rapprochement** (module pur `sanctions-persons-match.ts`) :
+
+| Nom | Année de naissance | Résultat |
+|---|---|---|
+| identique (ordre, casse, accents indifférents) ou inclus (≥ 2 mots) | concordante (≤ 3 années listées) | **corroborée** : nœud « sanction » en niveau *simulé*, lien `EST_VISE_PAR`, donc `PROXIMITE_SANCTION` |
+| identique ou inclus | inconnue d'un côté, ou voisine (± 1 an) | **à vérifier** : attribut sur la personne, aucun nœud ni signal |
+| identique ou inclus | connue des deux côtés et différente | **écartée** (comptée, jamais rapportée) |
+| proche, translittéré, un seul mot | — | aucun rapprochement |
+
+**Honnêteté de la couverture.** Une liste non importée avec les personnes (version < v3),
+absente ou vérifiée il y a plus de 72 h rend le contrôle **partiel** ; aucune liste prête :
+« source non importée », jamais « aucune correspondance ». La synthèse du dossier dit combien
+de personnes ont été contrôlées, combien sans année de naissance (contrôle par le nom seul),
+combien d'homonymes écartés et de personnes non contrôlées (limite 40 par dossier, nom d'un
+seul mot).
+
+**Mesures réelles (12 octobre 2026).** 1 978 dirigeants de grandes entreprises françaises
+(1 975 avec année) contre 19 774 personnes listées : **0** correspondance de nom, 0 écartée —
+aucun bruit. Auto-test de rappel : 1 516 personnes listées interrogées par leur nom (ordre
+inversé) et leur année → 1 516 retrouvées et corroborées. 70 noms très courants dépassent
+200 candidats : la limite garde d'abord les entrées partageant le plus de mots, et dit la
+troncature.
+
+### Activation — dans cet ordre
+
+1. Neon → SQL Editor : coller `drizzle/0020_sanctions_persons.sql` (ou la fin de
+   `docs/lot-d-activation.sql`, idempotent). Colonne + index uniquement ; aucun effet visible.
+2. Fusionner la PR (aucun comportement ne change tant que les deux drapeaux sont éteints).
+3. GitHub → Settings → Secrets and variables → Actions → **Variables** :
+   `SANCTIONS_PERSONS_IMPORT_ENABLED=true`, puis lancer l'import « sanctions » (le pipeline
+   écrit alors la version v3 ; relancer : « inchangé »).
+4. Vercel Production : `SANCTIONS_PERSONS_ENABLED=true`, redéployer (exige
+   `SANCTIONS_INTL_ENABLED=true`).
+5. Repli : `SANCTIONS_PERSONS_ENABLED=false` et redéploiement ; le contrôle des sociétés
+   n'est pas touché.

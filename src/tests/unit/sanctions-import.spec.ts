@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { Readable } from "node:stream";
 import postgres from "postgres";
 import {
+  birthYearsIn,
   parseCa,
   parseCh,
   parseCsl,
@@ -82,7 +83,7 @@ describe("parseUk — UK Sanctions List", () => {
       list_key: "uk", entry_key: "RUS0001", sublist: null, name: "Sample Defence JSC",
       aliases: ["Sample Def"], keys: expect.arrayContaining(["sampl", "defen"]),
       programs: ["The Russia (Sanctions) (EU Exit) Regulations 2019"], countries: ["Russia"],
-      listed_on: "2012-06-29", kind: "entity",
+      listed_on: "2012-06-29", kind: "entity", birth_years: [],
     }]);
     expect(JSON.stringify(rows)).not.toMatch(/Secrete|Smith/);
   });
@@ -214,7 +215,7 @@ describe("sanctionsWriter — table partagée par cinq listes", () => {
     };
     await sanctionsWriter("us").write(tx as never, "imp", [{
       list_key: "us", entry_key: "k", sublist: "SDN", name: "ACME", aliases: ["A"], keys: ["acme"],
-      programs: ["P"], countries: ["RU"], listed_on: "2022-01-01", kind: "entity",
+      programs: ["P"], countries: ["RU"], listed_on: "2022-01-01", kind: "entity", birth_years: [],
     }]);
     expect(query).toContain("on conflict (import_id, entry_key) do update");
     // Le client postgres sérialise lui-même le type jsonb : une chaîne déjà JSON y serait
@@ -294,5 +295,127 @@ describe("downloadWithRedirects — redirections contrôlées", () => {
     await expect(run(() => response(503, {}, "panne"), [])).rejects.toThrow("SOURCE_HTTP_ERROR");
     await expect(run(() => response(301, { location: "https://stockage.test/x" }, null), []))
       .rejects.toThrow("REDIRECT_HOST_NOT_ALLOWED");
+  });
+});
+
+describe("personnes physiques — importées seulement quand le drapeau est posé", () => {
+  const previous = process.env.SANCTIONS_PERSONS_IMPORT_ENABLED;
+  beforeEach(() => { process.env.SANCTIONS_PERSONS_IMPORT_ENABLED = "true"; });
+  afterEach(() => {
+    if (previous === undefined) delete process.env.SANCTIONS_PERSONS_IMPORT_ENABLED;
+    else process.env.SANCTIONS_PERSONS_IMPORT_ENABLED = previous;
+  });
+
+  it("birthYearsIn : années plausibles seulement, jamais la date complète", () => {
+    expect(birthYearsIn(["1955-09-24", "circa 1951; 16 Jan 1969", "dd/mm/1945"])).toEqual([1945, 1951, 1955, 1969]);
+    expect(birthYearsIn(["0206", "2099", "12345678", ""])).toEqual([]);
+  });
+
+  it("États-Unis : nom, alias, années de naissance, pays ; aucune date complète ni remarque", () => {
+    const text = csv([
+      { _id: "p1", source: "Specially Designated Nationals (SDN) - Treasury Department", type: "Individual", programs: "BELARUS", name: "Dzmitry LUKASHENKA", alt_names: "Dmitri LUKASHENKO; D. LUKASHENKA", dates_of_birth: "1980-03-23; 1980", start_date: "2020-09-25", remarks: "Texte libre confidentiel" },
+      { _id: "p2", source: "Palestinian Legislative Council (PLC) - Treasury Department", type: "Individual", name: "Mohammed ABU TEIR", dates_of_birth: "circa 1951" },
+      { _id: "e1", source: "Specially Designated Nationals (SDN) - Treasury Department", type: "Entity", name: "ACME HOLDING JSC" },
+    ]);
+    const { rows, stats } = parseCsl(text);
+    const persons = rows.filter((r) => r.kind === "person");
+    expect(stats).toMatchObject({ persons: 2, individuals: 0 });
+    expect(persons[0]).toMatchObject({
+      list_key: "us", entry_key: "p1", name: "Dzmitry LUKASHENKA", birth_years: [1980],
+      aliases: ["Dmitri LUKASHENKO", "D. LUKASHENKA"], listed_on: "2020-09-25",
+    });
+    expect(persons[0].keys).toEqual(expect.arrayContaining(["dzmit", "lukas"]));
+    expect(persons[1].birth_years).toEqual([1951]);
+    expect(rows.find((r) => r.kind === "entity")?.birth_years).toEqual([]);
+    expect(JSON.stringify(rows)).not.toMatch(/1980-03-23|Texte libre/);
+  });
+
+  it("Royaume-Uni : prénoms + nom, années (dd/mm/AAAA), nationalité", () => {
+    const xml = `<Designations>
+      <Designation><UniqueID>AFG0006</UniqueID><DateDesignated>25/01/2001</DateDesignated>
+        <Names><Name><Name1>MOHAMMAD</Name1><Name2>HASSAN</Name2><Name6>AKHUND</Name6><NameType>Primary Name</NameType></Name>
+          <Name><Name1>Hassan</Name1><Name6>Akhund</Name6><NameType>Alias</NameType></Name></Names>
+        <RegimeName>The Afghanistan (Sanctions) (EU Exit) Regulations 2020</RegimeName><IndividualEntityShip>Individual</IndividualEntityShip>
+        <IndividualDetails><Individual><DOBs><DOB>dd/mm/1945</DOB><DOB>15/03/1950</DOB></DOBs>
+          <PassportDetails><Passport><PassportNumber>P04581926</PassportNumber></Passport></PassportDetails>
+          <Nationalities><Nationality>Afghanistan</Nationality></Nationalities></Individual></IndividualDetails></Designation></Designations>`;
+    const { rows, stats } = parseUk(xml);
+    expect(stats).toMatchObject({ persons: 1, individuals: 0 });
+    expect(rows[0]).toMatchObject({
+      kind: "person", name: "MOHAMMAD HASSAN AKHUND", aliases: ["Hassan Akhund"],
+      birth_years: [1945, 1950], countries: ["Afghanistan"], listed_on: "2001-01-25",
+    });
+    expect(JSON.stringify(rows)).not.toMatch(/P04581926|15\/03/);
+  });
+
+  it("ONU : prénoms, alias non vides, année (YEAR / plage), nationalité", () => {
+    const xml = `<CONSOLIDATED_LIST><INDIVIDUALS>
+      <INDIVIDUAL><DATAID>1</DATAID><FIRST_NAME>ERIC</FIRST_NAME><SECOND_NAME>BADEGE</SECOND_NAME><UN_LIST_TYPE>DRC</UN_LIST_TYPE>
+        <REFERENCE_NUMBER>CDi.001</REFERENCE_NUMBER><LISTED_ON>2012-12-31</LISTED_ON><COMMENTS1>Texte libre</COMMENTS1>
+        <NATIONALITY><VALUE>Democratic Republic of the Congo</VALUE></NATIONALITY>
+        <INDIVIDUAL_ALIAS><QUALITY/><ALIAS_NAME/></INDIVIDUAL_ALIAS>
+        <INDIVIDUAL_ALIAS><QUALITY>a.k.a.</QUALITY><ALIAS_NAME>Eric Badege Lukwebo</ALIAS_NAME></INDIVIDUAL_ALIAS>
+        <INDIVIDUAL_DATE_OF_BIRTH><TYPE_OF_DATE>BETWEEN</TYPE_OF_DATE><FROM_YEAR>1970</FROM_YEAR><TO_YEAR>1972</TO_YEAR></INDIVIDUAL_DATE_OF_BIRTH>
+      </INDIVIDUAL></INDIVIDUALS>
+      <ENTITIES><ENTITY><DATAID>2</DATAID><FIRST_NAME>Groupe Fictif</FIRST_NAME><UN_LIST_TYPE>DRC</UN_LIST_TYPE><REFERENCE_NUMBER>CDe.001</REFERENCE_NUMBER></ENTITY></ENTITIES></CONSOLIDATED_LIST>`;
+    const { rows, stats } = parseUn(xml);
+    expect(stats).toMatchObject({ persons: 1, individuals: 0 });
+    const person = rows.find((r) => r.kind === "person");
+    expect(person).toMatchObject({
+      entry_key: "CDi.001", name: "ERIC BADEGE", aliases: ["Eric Badege Lukwebo"],
+      birth_years: [1970, 1972], countries: ["Democratic Republic of the Congo"], listed_on: "2012-12-31",
+    });
+    expect(rows.some((r) => r.kind === "entity" && r.name === "Groupe Fictif")).toBe(true);
+    expect(JSON.stringify(rows)).not.toMatch(/Texte libre/);
+  });
+
+  it("Suisse : nom assemblé, année du day-month-year ; une personne radiée n'est pas conservée", () => {
+    const person = (ssid: string, mods: string) => `<target ssid="${ssid}"><sanctions-set-id>4387</sanctions-set-id><individual>
+      <identity ssid="${ssid}1" main="true"><name ssid="${ssid}2" name-type="primary-name">
+        <name-part order="1" name-part-type="family-name"><value>Lukashenka</value></name-part>
+        <name-part order="2" name-part-type="given-name"><value>Dzmitry</value></name-part></name>
+        <day-month-year ssid="9" day="23" month="3" year="1980"/><address ssid="8"><address-details>Rue secrète</address-details></address></identity>
+      </individual>${mods}</target>`;
+    const xml = `<swiss-sanctions-list>
+      <sanctions-program ssid="20"><program-key lang="eng">Belarus</program-key><sanctions-set ssid="4387" lang="eng">art. 12</sanctions-set></sanctions-program>
+      ${person("500", `<modification modification-type="listed" enactment-date="2020-09-25"/>`)}
+      ${person("501", `<modification modification-type="de-listed" enactment-date="2024-06-01"/><modification modification-type="listed" enactment-date="2020-01-01"/>`)}
+    </swiss-sanctions-list>`;
+    const { rows, stats } = parseCh(xml);
+    expect(stats).toMatchObject({ persons: 1, delisted: 1, individuals: 0 });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ kind: "person", entry_key: "500", name: "Lukashenka Dzmitry", birth_years: [1980], programs: ["Suisse — Belarus"], listed_on: "2020-09-25" });
+    expect(JSON.stringify(rows)).not.toMatch(/Rue secrète|23/);
+  });
+
+  it("Canada : prénom + nom, année", () => {
+    const rec = (fields: Record<string, string>) => `<record>${Object.entries(fields).map(([k, v]) => `<${k}>${v}</${k}>`).join("")}</record>`;
+    const xml = `<data-set>${[
+      rec({ "Country-Pays": "Belarus / Bélarus", "LastName-NomDeFamille": "Balaba", "GivenName-Prenom": "Dmitry Vladimirovich", "DateOfBirthOrShipBuildDate-DateDeNaissanceOuDateDeConstructionDuNavire": "1972", "Schedule-Annexe": "1, Part 1", "Item-NumeroDarticle": "2", "DateOfListing-DateDinscription": "2020-09-28" }),
+    ].join("")}</data-set>`;
+    const { rows, stats } = parseCa(xml);
+    expect(stats).toMatchObject({ persons: 1, individuals: 0 });
+    expect(rows[0]).toMatchObject({ kind: "person", name: "Dmitry Vladimirovich Balaba", birth_years: [1972], programs: ["Canada — Belarus"] });
+  });
+
+  it("écrit la colonne birth_years seulement quand les personnes sont importées", async () => {
+    const written: Record<string, unknown>[][] = [];
+    const tx = Object.assign(
+      (first: unknown) => {
+        if (Array.isArray(first) && "raw" in first) return Promise.resolve([]);
+        written.push(first as Record<string, unknown>[]);
+        return "values";
+      },
+      {},
+    );
+    const row = {
+      list_key: "us" as const, entry_key: "k", sublist: null, name: "X Y", aliases: [], keys: ["x"], programs: [],
+      countries: [], listed_on: null, kind: "person" as const, birth_years: [1970],
+    };
+    await sanctionsWriter("us").write(tx as never, "imp", [row]);
+    expect(written[0][0]).toMatchObject({ birth_years: [1970], kind: "person" });
+    process.env.SANCTIONS_PERSONS_IMPORT_ENABLED = "false";
+    await sanctionsWriter("us").write(tx as never, "imp", [{ ...row, kind: "entity" as const, birth_years: [] }]);
+    expect("birth_years" in written[1][0]).toBe(false);
   });
 });

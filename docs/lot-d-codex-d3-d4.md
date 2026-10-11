@@ -39,7 +39,8 @@ grep -n "source non importée" src/lib/connectors/degraded.ts
 | Listes de sanctions internationales (US, UK, ONU, CH, CA) | PR « sanctions internationales » | `scripts/import/sanctions.ts`, `lib/groups.ts`, migration **0019** |
 
 **Numérotation** : la **0018** est prise par D3 (HATVP), la **0019** par les sanctions
-internationales ; D4 prend la **0020**. À chaque ajout d'une source, étendre — sans rien
+internationales, la **0020** par le contrôle des personnes (sanctions) ; D4 prend la **0021**
+(ou la suivante : toujours vérifier `ls drizzle | tail -5`). À chaque ajout d'une source, étendre — sans rien
 écraser — `SINGLE_SOURCES` et `GROUPS` de `scripts/import/lib/groups.ts` (et l'aiguillage de
 `scripts/import/run.ts`),
 l'option `source` du workflow, `IMPORT_LABELS` (`src/lib/data/import-freshness.ts`) et

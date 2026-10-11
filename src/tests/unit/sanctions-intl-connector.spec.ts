@@ -82,7 +82,7 @@ beforeAll(async () => {
   await db.exec(`create type "public"."source_kind" as enum ('sirene', 'manual');`);
   await db.exec(migration("0014_open_data_imports.sql").replace(/--> statement-breakpoint/g, ""));
   await db.exec(migration("0019_sanctions_entries.sql").replace(/--> statement-breakpoint/g, ""));
-});
+}, 60_000);
 afterAll(async () => { await db.close(); });
 
 beforeEach(async () => {

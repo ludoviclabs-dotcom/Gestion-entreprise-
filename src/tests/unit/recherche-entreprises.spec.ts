@@ -87,11 +87,25 @@ describe("simplifyResult", () => {
     expect(r.finances).toEqual([{ annee: 2024, ca: 2000000, resultatNet: 150000 }, { annee: 2022, ca: 1000, resultatNet: 100 }]);
     // Seuls les indicateurs vrais ET retenus.
     expect(r.labels).toEqual(["Agriculture biologique", "Qualiopi", "Alim'confiance"]);
-    // Minimisation : ni date de naissance, ni nationalité.
+    // Minimisation : ni mois ni date de naissance, ni nationalité. Seule l'ANNÉE est
+    // gardée (`anneeNaissance`), pour départager les homonymes lors du contrôle des
+    // listes de sanctions ; elle n'est jamais affichée.
     const dump = JSON.stringify(r);
-    for (const leaked of ["1970", "Française", "nationalite", "naissance"]) {
+    for (const leaked of ["1970-03", "Française", "nationalite", "date_de_naissance", "annee_de_naissance"]) {
       expect(dump).not.toContain(leaked);
     }
+    const alice = r.dirigeants.find((d) => d.nom === "DUPONT");
+    expect(alice?.anneeNaissance).toBe(1970);
+    // Année absente ou implausible : `null`, jamais une valeur inventée.
+    const odd = simplifyResult({
+      ...apiResult,
+      dirigeants: [
+        { nom: "A", prenoms: "B", annee_de_naissance: "1650", type_dirigeant: "personne physique" },
+        { nom: "C", prenoms: "D", annee_de_naissance: "abcd", type_dirigeant: "personne physique" },
+        { nom: "E", prenoms: "F", type_dirigeant: "personne physique" },
+      ],
+    });
+    expect(odd.dirigeants.map((d) => d.anneeNaissance)).toEqual([null, null, null]);
   });
 });
 

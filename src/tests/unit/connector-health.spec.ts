@@ -214,7 +214,7 @@ describe("getConnectorHealth — SQL réel sur PostgreSQL", () => {
         is_fixture text not null default 'false'
       );
     `);
-  });
+  }, 60_000);
   afterAll(async () => {
     // L'environnement du processus est partagé entre fichiers d'un même worker.
     if (originalUrl === undefined) delete process.env.DATABASE_URL;
