@@ -141,8 +141,8 @@ from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'source_k
 
 ## Activation utilisateur — une seule séquence, dans cet ordre
 
-1. **Neon → projet KYB GRAPH → SQL Editor** : coller le SQL 0021 ci-dessous. Le socle 0014 est déjà appliqué ; aucune commande locale ni db:migrate.
-2. Dans le même éditeur, exécuter séparément le contrôle pg_enum ci-dessous : **decp doit figurer avant manual**. S'il manque, arrêter et réappliquer l'ALTER TYPE.
+1. **Neon → projet KYB GRAPH → SQL Editor** : coller le SQL 0021 de la section « SQL exact » ci-dessus. Le socle 0014 est déjà appliqué ; aucune commande locale ni db:migrate.
+2. Dans le même éditeur, exécuter séparément le contrôle pg_enum de la section précédente : **decp doit figurer avant manual**. S'il manque, arrêter et réappliquer l'ALTER TYPE.
 3. **GitHub → cette PR → Merge pull request** : fusionner vers main seulement après le contrôle de l'enum.
 4. **GitHub → dépôt → onglet Actions en haut → Import open data à gauche → Run workflow à droite → branche main → source decp → bouton vert Run workflow**. Attendre le succès. Relancer le même jour pour vérifier « inchangé » si les fichiers n'ont pas changé. DATABASE_URL_UNPOOLED est déjà configuré ; aucun nouveau secret. Le job all mensuel inclut DECP, le job daily reste inchangé.
 5. **Vercel → kyb-graph → Settings → Environment Variables → Production** : ajouter/modifier DECP_ENABLED=true, Save. Puis **Deployments → dernier déploiement Production de main → ⋯ → Redeploy → Redeploy**. Attendre Ready.
