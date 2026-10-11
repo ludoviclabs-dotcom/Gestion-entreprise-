@@ -47,7 +47,7 @@ export type SourceCoverage = {
    * couvre ni les listes UE/ONU/OFAC complètes ni les PEP : « aucune entité
    * signalée » doit nommer ce qui a été vérifié.
    */
-  sanctionSources: ("tresor_gels" | "opensanctions")[];
+  sanctionSources: ("tresor_gels" | "opensanctions" | "sanctions_intl")[];
 };
 
 function completedLive(s: SourceRow): boolean {
@@ -71,12 +71,12 @@ export function getSourceCoverage(sources: SourceRow[]): SourceCoverage {
     return {
       bodacc: true,
       sanctions: true,
-      sanctionSources: ["tresor_gels", "opensanctions"],
+      sanctionSources: ["tresor_gels", "opensanctions", "sanctions_intl"],
     };
   }
   const done = (kinds: SourceKind[]) =>
     sources.some((s) => kinds.includes(s.source) && completedLive(s));
-  const sanctionSources = (["tresor_gels", "opensanctions"] as const).filter((k) =>
+  const sanctionSources = (["tresor_gels", "opensanctions", "sanctions_intl"] as const).filter((k) =>
     done([k]),
   );
   return {
@@ -104,6 +104,8 @@ export function getScoreStatus(
 
 function sourceFromText(text: string | undefined): SourceKind | null {
   const haystack = (text ?? "").toLowerCase();
+  // Avant « trésor » : les listes américaines citent le Treasury Department.
+  if (haystack.includes("sanctions internationales")) return "sanctions_intl";
   // Avant INPI : « agrégé par Pappers » peut citer le RNE sans en être issu.
   if (haystack.includes("pappers")) return "pappers";
   // Avant INPI : « dirigeants (RNE) » cite le RNE sans en être issu directement.
@@ -174,7 +176,17 @@ export function inferSignalSource(
   if (signal.ruleId.includes("PROCEDURE") || signal.ruleId.includes("RADIATION")) {
     return "bodacc";
   }
-  if (signal.ruleId.includes("SANCTION")) return "opensanctions";
+  if (signal.ruleId.includes("SANCTION")) {
+    // Provenance : si les seules entités signalées viennent des listes
+    // internationales, le signal s'y rattache ; sinon repli historique.
+    const sanctionSources = new Set(
+      bundle.entities.filter((e) => e.type === "sanction").map((e) => inferEntitySource(e)),
+    );
+    if (sanctionSources.size === 1 && sanctionSources.has("sanctions_intl")) {
+      return "sanctions_intl";
+    }
+    return "opensanctions";
+  }
   const subject = signal.subjectId
     ? bundle.entities.find((e) => e.id === signal.subjectId)
     : undefined;

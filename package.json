@@ -59,6 +59,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@next/bundle-analyzer": "^16.2.7",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
@@ -72,10 +73,11 @@
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "fast-xml-parser": "^5.11.2",
     "jsdom": "^26.1.0",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5",
-    "vitest": "^3.2.4",
-    "tsx": "^4.22.4"
+    "vitest": "^3.2.4"
   }
 }

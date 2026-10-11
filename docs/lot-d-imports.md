@@ -285,3 +285,82 @@ Publication du 9 octobre 2026 : 6 609 entrées reçues, 4 647 personnes physique
 1 962 lignes projetées (3 940 alias), 3,7 s de téléchargement et projection, pic RSS 208 Mio,
 SHA-256 `e3ea96db76e3d8a55f873615d2287a7a6ad2d3aa274fc0b478e9b8a6428eb6d4`. La lecture SQL est
 vérifiée par doubles de test ; la latence réelle depuis Vercel est à mesurer après activation.
+
+## Sanctions internationales (hors UE)
+
+**Pourquoi.** OpenSanctions (HTTP 402) ne couvre plus les listes américaines, britanniques,
+onusiennes, suisses et canadiennes. Les cinq publications officielles sont gratuites, sans
+clé, et se téléchargent en un fichier : elles sont importées chaque jour en base, comme le
+registre français des gels, puis lues en une requête.
+
+| Liste | Fichier | Entrées conservées (11 oct. 2026) |
+|---|---|---:|
+| États-Unis — liste consolidée (CSL : SDN, Entity List, DPL, ITAR, SSI, UVL, MEU, CMIC…) | CSV, 16,8 Mo | 16 591 |
+| Royaume-Uni — UK Sanctions List | XML, 22 Mo | 1 667 |
+| ONU — liste consolidée du Conseil de sécurité | XML, 2,2 Mo | 274 |
+| Suisse — SECO (historique inclus : les radiations sont écartées) | XML, 42 Mo | 2 602 |
+| Canada — mesures spéciales (SEMA) | XML, 2,9 Mo | 1 450 |
+
+**Périmètre : organisations seulement.** Les personnes physiques, navires et aéronefs ne sont
+jamais conservés ; ni adresses, ni identifiants personnels, ni commentaires. Sur les listes
+américaines de contrôle des exportations le type est souvent vide : l'entrée est alors
+`entity` si le nom ressemble à une organisation, sinon `unknown` (conservée pour ne pas
+manquer une société, **jamais** présentée comme un signal).
+
+**Import** (source par liste : `sanctions_us|uk|un|ch|ca`, version `sanctions-v1`) :
+une transaction par liste, mêmes garanties que D0 (atomicité, verrou, empreinte, « inchangé »).
+Table commune `sanctions_entries`, purge bornée à la liste importée. Garde-fous : taille
+maximale par fichier, seuil minimal de lignes, schéma vérifié, redirection tolérée seulement
+vers un hôte autorisé (l'ONU sert son fichier par un stockage à jeton temporaire ; l'URL
+finale n'est jamais journalisée). Groupes : `sanctions` (les cinq), `daily` (registre des
+gels + les cinq, chaque jour à 04 h 47 UTC), `all` (mensuel).
+
+**Lecture** : une requête SQL (en-têtes d'import + candidates de chaque liste). Pré-filtre par
+clés (préfixes de 5 caractères des mots significatifs), puis le MÊME rapprochement que le
+registre des gels. Sont interrogés le sujet **et ses sociétés mères GLEIF** (quatre noms au
+plus).
+
+**Honnêteté de la couverture.**
+- La réponse nomme chaque liste consultée avec sa date d'import et de dernière vérification
+  (attribut « Listes de sanctions internationales ») : un « aucune correspondance » ne vaut que
+  pour les listes qu'il nomme.
+- Une liste absente, ou vérifiée il y a plus de 72 h, rend la consultation **partielle**
+  (endpoint suffixé « (listes partielles) », comptée en échec, jamais une couverture complète).
+  Les correspondances des listes disponibles restent rapportées.
+- Aucun import validé : « source non importée », jamais une absence.
+
+**Correspondances fortes et faibles.** Un rapprochement par nom est une hypothèse. Mesuré sur
+906 sociétés françaises réelles, les noms génériques (« ATLAS », « ALLIANCE », « AM GROUP »)
+produisaient 9 « fortes » sur 15 correspondances, dont 6 homonymes. Sont donc retenues dans le
+graphe (et alimentent les signaux existants) seulement les correspondances :
+organisation typée comme telle, nom interrogé distinctif (au moins deux mots dont un d'usage
+non courant, aucun nom d'un seul mot), exactes — ou approximatives à ≥ 0,96 sur au moins
+10 caractères. Les autres sont **signalées dans l'attribut**, sans nœud ni signal. Résultat sur
+les mêmes 906 sociétés : 3 fortes, toutes véritables (filiales françaises de banques iraniennes
+inscrites) ; rappel conservé sur les sociétés réellement listées (Rosneft, Sberbank, Mahan Air,
+Huawei, SMIC, IRGC…). Limite : un nom d'un seul mot (« Sovcomflot ») reste en attribut.
+
+Un seul code source (`sanctions_intl`) : la table des pays/sujets s'affiche dans l'onglet
+Sources du dossier. Les listes de contrôle des exportations (BIS, ITAR) portent la mention
+« Contrôle des exportations ou exclusion (≠ gel d'avoirs) ».
+
+### Activation
+
+1. Neon → SQL Editor : coller `drizzle/0018_sanctions_entries.sql` (ou
+   `docs/lot-d-activation.sql`, idempotent). Puis vérifier l'enum :
+   `select string_agg(e.enumlabel, ', ' order by e.enumsortorder) from pg_enum e
+   join pg_type t on t.oid = e.enumtypid where t.typname = 'source_kind';` — la liste doit
+   contenir `sanctions_intl`.
+2. Fusionner la PR (aucun comportement ne change tant que le drapeau est éteint).
+3. Actions → Import open data → Run workflow → main → **sanctions**. Relancer : « inchangé »
+   pour chacune des cinq listes.
+4. Vercel Production : `SANCTIONS_INTL_ENABLED=true`, puis redéployer.
+5. `OPEN_DATA_IMPORTS_ENABLED=true` (déjà posée) assure le rafraîchissement quotidien.
+6. Repli : `SANCTIONS_INTL_ENABLED=false` et redéploiement.
+
+### Vérification réelle du 11 octobre 2026
+
+Les cinq fichiers officiels, téléchargés et projetés par le vrai pipeline (sans écriture Neon) :
+22 584 entrées, de 1,4 s (Canada) à 10,9 s (Suisse), pic mémoire 572 Mio. La requête SQL est
+exécutée sur un vrai moteur PostgreSQL (PGlite) avec les migrations réelles. La latence depuis
+Vercel est à mesurer après activation.

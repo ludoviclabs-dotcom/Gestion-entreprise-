@@ -38,6 +38,22 @@ export function companiesHouseParents(
   return out;
 }
 
+/**
+ * Sociétés mères (directe / ultime) NOMMÉES, avec leur LEI : seconde cible du
+ * contrôle des listes de sanctions (une mère étrangère sanctionnée est le cas
+ * typique qu'un contrôle du seul sujet français manquerait). Dédoublonné. Pur.
+ */
+export function gleifParents(raw: unknown): { lei: string; name: string }[] {
+  const data = (raw && typeof raw === "object" ? raw : {}) as Partial<GleifSimplified>;
+  const out: { lei: string; name: string }[] = [];
+  for (const p of [data.directParent, data.ultimateParent]) {
+    const name = typeof p?.legalName === "string" ? p.legalName.trim() : "";
+    if (!p?.lei || !name || out.some((x) => x.lei === p.lei)) continue;
+    out.push({ lei: p.lei, name });
+  }
+  return out;
+}
+
 function parentEntity(p: GleifEntityLite): CaseEntity {
   return {
     id: `co:lei:${p.lei}`,

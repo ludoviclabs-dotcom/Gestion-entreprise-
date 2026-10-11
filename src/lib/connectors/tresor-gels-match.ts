@@ -137,23 +137,35 @@ function isNaturalPerson(nature: string | null): boolean {
   return normalizeName(nature ?? "").includes("physique");
 }
 
+/** Entrée rapprochée, avec la correspondance qui la retient. */
+export type ScoredEntry<E extends GelsEntry = GelsEntry> = {
+  entry: E;
+  matchType: "exact" | "approximatif";
+  score: number;
+};
+
 /**
  * Compare la dénomination du sujet à chaque entrée (nom + alias).
  *  - égalité après normalisation (accents, ponctuation, formes juridiques) → « exact » ;
  *  - similarité ≥ seuil, dénominations assez longues → « approximatif ».
  * Les personnes physiques sont écartées : un sujet société ne se rapproche pas
  * d'un individu. Résultat = HYPOTHÈSE à vérifier, jamais un fait.
+ *
+ * Générique : renvoie l'entrée d'origine (liste, programme, référence…) pour les
+ * sources qui portent plus que nom / nature / alias (listes de sanctions
+ * internationales). `matchGelsEntries` en est l'enveloppe historique.
  */
-export function matchGelsEntries(
-  entries: GelsEntry[],
+export function matchEntries<E extends GelsEntry>(
+  entries: readonly E[],
   query: { name?: string | null },
-): GelsMatch[] {
+  limit: number = MAX_MATCHES,
+): ScoredEntry<E>[] {
   const name = query.name?.trim();
   if (!name) return [];
   const target = stripLegalForms(name);
   if (!target) return [];
 
-  const matches: GelsMatch[] = [];
+  const matches: ScoredEntry<E>[] = [];
   for (const entry of entries) {
     if (isNaturalPerson(entry.nature)) continue;
     let best: { score: number; exact: boolean } | null = null;
@@ -180,10 +192,8 @@ export function matchGelsEntries(
     }
     if (best) {
       matches.push({
-        nom: entry.nom,
-        type: entry.nature ?? "Entité",
+        entry,
         matchType: best.exact ? "exact" : "approximatif",
-        registre: GELS_REGISTRE,
         score: Math.round(best.score * 100) / 100,
       });
     }
@@ -193,5 +203,18 @@ export function matchGelsEntries(
     .sort((a, b) =>
       a.matchType === b.matchType ? b.score - a.score : a.matchType === "exact" ? -1 : 1,
     )
-    .slice(0, MAX_MATCHES);
+    .slice(0, limit);
+}
+
+export function matchGelsEntries(
+  entries: GelsEntry[],
+  query: { name?: string | null },
+): GelsMatch[] {
+  return matchEntries(entries, query).map(({ entry, matchType, score }) => ({
+    nom: entry.nom,
+    type: entry.nature ?? "Entité",
+    matchType,
+    registre: GELS_REGISTRE,
+    score,
+  }));
 }

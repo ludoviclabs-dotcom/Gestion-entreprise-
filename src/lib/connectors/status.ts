@@ -25,6 +25,7 @@ import {
   isCaminoEnabled,
   isIcpeImportEnabled,
   isTresorGelsImportEnabled,
+  isSanctionsIntlEnabled,
   isAnnuaireAdministrationEnabled,
 } from "@/lib/env";
 
@@ -80,6 +81,17 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isTresorGelsEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "TRESOR_GELS_ENABLED non activé → fixture.",
+    },
+    {
+      key: "sanctions_intl",
+      label: "Listes de sanctions internationales",
+      live: !demo && isSanctionsIntlEnabled(),
+      detail:
+        !demo && isSanctionsIntlEnabled()
+          ? "États-Unis (CSL), Royaume-Uni, ONU, Suisse, Canada : import quotidien en base, fraîcheur ci-dessous."
+          : isSanctionsIntlEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "SANCTIONS_INTL_ENABLED non activé → inactif.",
     },
     {
       key: "opensanctions",

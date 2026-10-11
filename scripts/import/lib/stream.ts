@@ -64,3 +64,39 @@ export async function download(url: string, signal: AbortSignal, headers: Record
   }
   return Readable.fromWeb(response.body as import("node:stream/web").ReadableStream<Uint8Array>);
 }
+
+/**
+ * Téléchargement avec redirections CONTRÔLÉES : au plus `maxRedirects`, en HTTPS,
+ * sans identifiants, et seulement vers un hôte explicitement autorisé. Certaines
+ * sources officielles (ONU) servent le fichier par une redirection vers un stockage
+ * objet à jeton temporaire. L'URL finale (jeton compris) n'est jamais journalisée
+ * ni persistée : l'appelant n'en reçoit que le flux.
+ */
+export async function downloadWithRedirects(
+  url: string,
+  signal: AbortSignal,
+  headers: Record<string, string>,
+  allowedHosts: readonly string[],
+  maxRedirects = 2,
+): Promise<Readable> {
+  let current = url;
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    const parsed = new URL(current);
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password) throw new Error("INVALID_SOURCE_URL");
+    if (hop > 0 && !allowedHosts.includes(parsed.hostname)) throw new Error("REDIRECT_HOST_NOT_ALLOWED");
+    const response = await fetch(current, { signal, redirect: "manual", headers });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      await response.body?.cancel();
+      if (!location) throw new Error("SOURCE_HTTP_ERROR");
+      current = new URL(location, current).toString();
+      continue;
+    }
+    if (!response.ok || !response.body) {
+      await response.body?.cancel();
+      throw new Error("SOURCE_HTTP_ERROR");
+    }
+    return Readable.fromWeb(response.body as import("node:stream/web").ReadableStream<Uint8Array>);
+  }
+  throw new Error("TOO_MANY_REDIRECTS");
+}
