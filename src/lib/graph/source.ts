@@ -23,5 +23,6 @@ export type SourceKind =
   | "georisques"
   | "annuaire_administration"
   | "camino"
+  | "hatvp"
   | "manual"
   | "fixture";

@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 
 export const IMPORT_LABELS = { camino: "Titres miniers (Camino)", icpe: "Installations classées nationales (ICPE)",
-  tresor_gels: "Registre national des gels (DG Trésor)" } as const;
+  tresor_gels: "Registre national des gels (DG Trésor)", hatvp: "Répertoire HATVP" } as const;
 export type ImportFreshness = {
   source: string;
   label: string;
