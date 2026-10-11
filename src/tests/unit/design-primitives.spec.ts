@@ -6,7 +6,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Inbox, X } from "lucide-react";
 
 import AppShell from "@/components/shell/AppShell";
-import { SidebarItem } from "@/components/shell/Sidebar";
+import { SidebarCount, SidebarItem, SidebarNav } from "@/components/shell/Sidebar";
+import TopBar, { OPEN_COMMAND_EVENT } from "@/components/shell/TopBar";
+import { isApplePlatform } from "@/components/shell/useModKey";
+import { Reveal } from "@/components/ui/reveal";
+import { StatCard } from "@/components/ui/stat-card";
 import PageHeader from "@/components/shell/PageHeader";
 import EmptyState from "@/components/empty/EmptyState";
 import ErrorState from "@/components/empty/ErrorState";
@@ -382,5 +386,119 @@ describe("Coque : AppShell · Sidebar · PageHeader", () => {
     expect(out.match(/<h1/g)).toHaveLength(1);
     expect(out).toContain("Tous vos dossiers.");
     expect(out).toContain("Nouveau");
+  });
+});
+
+describe("Shell : Sidebar (états, clavier) · Topbar (recherche globale)", () => {
+  it("SidebarItem désactivé : pas de lien, aria-disabled, jamais aria-current", () => {
+    const out = html(h(SidebarItem, { href: "/reglages", disabled: true, active: true, children: "Réglages" }));
+    expect(out).toContain('aria-disabled="true"');
+    expect(out).not.toContain("href=");
+    expect(out).not.toContain("aria-current");
+  });
+
+  it("SidebarItem : libellé complet = nom accessible, libellé court du rail masqué aux lecteurs d'écran", () => {
+    const out = html(
+      h(SidebarItem, { href: "/secteurs", shortLabel: "Secteurs", children: "Secteurs 2026" }),
+    );
+    expect(out).toContain("Secteurs 2026");
+    expect(out).toMatch(/<span aria-hidden="true"[^>]*>Secteurs<\/span>/);
+  });
+
+  it("SidebarCount : le chiffre est complété pour les lecteurs d'écran", () => {
+    const out = html(h(SidebarCount, { value: 3, srLabel: "dossiers à revoir", tone: "critical" }));
+    expect(out).toContain("3");
+    expect(out).toMatch(/class="sr-only"> dossiers à revoir/);
+  });
+
+  it("SidebarNav : ↓ ↑ Début Fin déplacent le focus, en sautant les entrées désactivées", () => {
+    const root = mount(
+      h(SidebarNav, {
+        label: "Navigation principale",
+        children: [
+          h(SidebarItem, { key: "a", href: "/dashboard", children: "Tableau de bord" }),
+          h(SidebarItem, { key: "b", href: "/cases", children: "Dossiers" }),
+          h(SidebarItem, { key: "c", href: "/x", disabled: true, children: "Désactivé" }),
+          h(SidebarItem, { key: "d", href: "/reglages", children: "Réglages" }),
+        ],
+      }),
+    );
+    const links = Array.from(root.querySelectorAll<HTMLElement>("a"));
+    expect(links).toHaveLength(3);
+    links[0].focus();
+    press("ArrowDown", document.activeElement as HTMLElement);
+    expect(document.activeElement?.textContent).toContain("Dossiers");
+    press("ArrowDown", document.activeElement as HTMLElement);
+    expect(document.activeElement?.textContent).toContain("Réglages");
+    press("ArrowDown", document.activeElement as HTMLElement);
+    expect(document.activeElement?.textContent).toContain("Tableau de bord");
+    press("ArrowUp", document.activeElement as HTMLElement);
+    expect(document.activeElement?.textContent).toContain("Réglages");
+    press("Home", document.activeElement as HTMLElement);
+    expect(document.activeElement?.textContent).toContain("Tableau de bord");
+    press("End", document.activeElement as HTMLElement);
+    expect(document.activeElement?.textContent).toContain("Réglages");
+  });
+
+  it("Topbar : recherche globale nommée, raccourci annoncé et visible, action « Nouveau dossier »", () => {
+    const out = html(h(TopBar, { demoMode: true }));
+    expect(out).toContain('aria-label="Recherche globale : dossier, SIREN ou page"');
+    expect(out).toContain('aria-keyshortcuts="Control+K Meta+K"');
+    expect(out).toMatch(/<kbd[^>]*>.*Ctrl.*K.*<\/kbd>/);
+    expect(out).toContain('href="/cases/new"');
+    expect(out).toContain("Nouveau dossier");
+    expect(out).toContain('aria-label="Session : Mode démo"');
+  });
+
+  it("Topbar : le champ de recherche ouvre la palette (évènement global)", () => {
+    const opened = vi.fn();
+    window.addEventListener(OPEN_COMMAND_EVENT, opened);
+    const root = mount(h(TopBar, { demoMode: false }));
+    click(root.querySelector('[data-slot="global-search"]'));
+    expect(opened).toHaveBeenCalledTimes(1);
+    window.removeEventListener(OPEN_COMMAND_EVENT, opened);
+  });
+
+  it("raccourci : ⌘ sur les plateformes Apple, Ctrl ailleurs", () => {
+    expect(isApplePlatform("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0)")).toBe(true);
+    expect(isApplePlatform("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)")).toBe(true);
+    expect(isApplePlatform("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")).toBe(false);
+  });
+});
+
+describe("Tableau de bord : StatCard · Reveal", () => {
+  it("StatCard : structure dl — libellé (dt), valeur et contexte (dd), lecture qualitative écrite", () => {
+    const out = html(
+      h(StatCard, {
+        label: "Signaux élevés",
+        value: 4,
+        status: { tone: "critical", label: "À instruire" },
+        context: "Sur 2 dossiers",
+      }),
+    );
+    expect(out).toMatch(/<dl[^>]*>.*<dt[^>]*>.*Signaux élevés.*<\/dt>.*<dd[^>]*>4<\/dd>/);
+    expect(out).toContain("À instruire");
+    expect(out).toContain('data-tone="critical"');
+    expect(out).toContain("Sur 2 dossiers");
+    expect(out).not.toContain("<a");
+  });
+
+  it("StatCard : lien quand href, variation toujours accompagnée de sa référence", () => {
+    const out = html(
+      h(StatCard, {
+        label: "Dossiers actifs",
+        value: 12,
+        href: "/cases",
+        delta: { value: "+3", direction: "up", label: "vs 7 jours" },
+      }),
+    );
+    expect(out).toContain('href="/cases"');
+    expect(out).toMatch(/data-slot="stat-delta".*\+3.*vs 7 jours/);
+  });
+
+  it("Reveal : index borné, utilitaire CSS motion-reveal (aucun JavaScript)", () => {
+    expect(html(h(Reveal, { index: 2, children: "x" }))).toMatch(/class="motion-reveal" style="--reveal-index:2"/);
+    expect(html(h(Reveal, { index: 99, children: "x" }))).toContain("--reveal-index:5");
+    expect(html(h(Reveal, { index: -3, as: "section", children: "x" }))).toMatch(/^<section[^>]*--reveal-index:0/);
   });
 });

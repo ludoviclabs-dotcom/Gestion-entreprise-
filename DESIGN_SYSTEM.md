@@ -256,8 +256,8 @@ Règles : `tabular-nums` pour tout nombre comparable ; légendes `text-eyebrow`
 | **Élévations** | `shadow-xs` … `shadow-lg`, `shadow-glow` | Voir § 3.7 |
 | **Opacités** | `--opacity-disabled` 0,5 · `--opacity-tint` 0,12 · `--opacity-tint-strong` 0,2 · `--opacity-border-tone` 0,3 · `--opacity-hover-fill` 0,6 | Teinte de pastille = `/12`, bordure = `/30`, survol de ligne = `bg-muted/60` |
 | **z-index** | `--z-base` 0 · `--z-raised` 10 · `--z-sticky` 20 · `--z-floating` 30 · `--z-overlay` 50 · `--z-toast` 60 · `--z-skip-link` 100 | Toute couche portalisée (menu, dialogue, tooltip) partage `--z-overlay` ; l'ordre du DOM les départage. Jamais de `z-[…]` brut. |
-| **Mise en page** | `--layout-sidebar-width` 15 rem · `--layout-topbar-height` 3,5 rem · `--layout-page-gutter` 1,5 rem · `--layout-page-max` 72 rem · `--layout-reading-max` 48 rem · `--layout-panel-width` 22 rem | Largeur de page : `max-w-[var(--layout-page-max)]` |
-| **Breakpoints** | `sm` 640 · `md` 768 · `lg` 1024 · `xl` 1280 · `2xl` 1536 | `md` : la sidebar remplace le tiroir · `lg` : panneaux latéraux persistants · `xl` : tables denses sans défilement |
+| **Mise en page** | `--layout-sidebar-width` 15 rem · `--layout-sidebar-rail-width` 5 rem (rail tablette) · `--layout-topbar-height` 3,5 rem · `--layout-page-gutter` 1,5 rem · `--layout-page-max` 72 rem · `--layout-reading-max` 48 rem · `--layout-panel-width` 22 rem | Largeur de page : `max-w-[var(--layout-page-max)]` |
+| **Breakpoints** | `sm` 640 · `md` 768 · `lg` 1024 · `xl` 1280 · `2xl` 1536 | `< md` : tiroir de navigation · `md → lg` : sidebar en rail (icône + libellé court, variante `rail:`) · `lg` : sidebar pleine, panneaux latéraux persistants · `xl` : tables denses sans défilement |
 
 ## 7. Composants
 
@@ -268,10 +268,14 @@ les nouvelles primitives composent les existantes.
 | Primitive | Fichier | Rôle et règles |
 | --- | --- | --- |
 | **AppShell** | `shell/AppShell.tsx` | `[sidebar \| topbar + contenu]` plein écran. Lien d'évitement « Aller au contenu principal », `<main id="contenu">`. `canvas="grid"` pour la grille technique. Les fournisseurs globaux restent dans `(app)/layout.tsx`. |
-| **Sidebar** | `shell/Sidebar.tsx` | Briques génériques : `Sidebar`, `SidebarHeader`, `SidebarNav`, `SidebarSection`, `SidebarItem`, `SidebarFooter`. `SidebarItem active` pose `aria-current="page"` + fond d'accent 10 % + liseré d'accent. Assemblée par `SidebarContent` ; `AppSidebar` (≥ md) et `MobileSidebar` (tiroir) l'habillent. |
-| **TopBar** | `shell/TopBar.tsx` | `[start] · recherche ⌘K · [end]`. Slots `start` / `end` recomposables. Seul endroit avec un flou d'arrière-plan léger. |
+| **Sidebar** | `shell/Sidebar.tsx` | **Couche** de navigation (pleine hauteur, filet), jamais une carte flottante. Briques : `Sidebar` (`collapsible="rail"`), `SidebarHeader`, `SidebarNav`, `SidebarSection`, `SidebarItem`, `SidebarCount`, `SidebarFooter`. `SidebarItem` : `active` → `aria-current="page"` + fond d'accent 10 % + liseré cyan qui **glisse** d'une entrée à l'autre (180 ms, `layoutId`) + icône cyan ; `disabled` → sans lien, `aria-disabled` ; `shortLabel` → libellé du rail (le libellé complet reste le nom accessible) ; point d'attente (`useLinkStatus`) si la page cible n'est pas prête. `SidebarCount` : compteur dont le chiffre est complété pour les lecteurs d'écran. Clavier : Tab + ↑ ↓ Début Fin. Assemblée par `SidebarContent` à partir de **`APP_NAV`** (`shell/nav.ts`, source unique des entrées, aussi lue par la recherche globale et les accès rapides) ; `AppSidebar` (rail md → lg, pleine ≥ lg) et `MobileSidebar` (tiroir < md) l'habillent. |
+| **TopBar** | `shell/TopBar.tsx` | `[menu mobile] · recherche globale · [Nouveau dossier · thème · statut de session]`. Raccourci **visible** (`Ctrl K`, `⌘ K` sur Apple — `useModKey`) et annoncé (`aria-keyshortcuts`). Sous `sm` : recherche en bouton icône, « Nouveau dossier » icône seule (libellé conservé pour les lecteurs d'écran). Slots `start` / `end` recomposables. Seul endroit avec un flou d'arrière-plan léger. |
+| **SessionStatus** | `shell/SessionStatus.tsx` | Statut de session dans la Topbar : mode d'exécution (démo / live, libellé de Réglages) et absence de compte dite en clair tant que l'authentification n'existe pas. |
+| **CommandPalette** | `shell/CommandPalette.tsx` | Recherche globale : pages (`APP_NAV` + mots-clés), « Nouveau dossier », dossiers par nom ou SIREN. |
 | **PageHeader** | `shell/PageHeader.tsx` | Un seul `h1` par vue : titre `font-display text-2xl font-bold`, légende, description, métadonnées, actions. Une seule action primaire. |
 | **Panel / Card** | `ui/card.tsx` | `Card` : `variant` `default` · `panel` · `raised` · `sunken`, `interactive` (bordure d'accent + halo au survol, jamais de déplacement). `Panel`, `PanelHeader`, `PanelTitle`, `PanelDescription`, `PanelBody`, `PanelFooter` : variante dense à filets. |
+| **StatCard** | `ui/stat-card.tsx` | Indicateur clé : libellé · valeur (+ unité) · lecture qualitative (`status` : teinte **et** libellé) · variation (`delta`, uniquement si une période de référence existe — référence obligatoire) · contexte (périmètre, période). Structure `dl`. `href` → carte-lien (bordure + halo). Valeur absente : « — », jamais un 0 trompeur. Remplace `KpiCard` pour les nouvelles vues. |
+| **Reveal** | `ui/reveal.tsx` | Apparition d'une page **par groupes** (`index` 0 → 5) : utilitaire CSS `motion-reveal`, composant serveur, aucun JavaScript. Uniquement à l'arrivée sur une page. |
 | **MetricChip** | `ui/metric-chip.tsx` | « libellé · valeur » compact, chiffres tabulaires, `tone` sur la valeur uniquement. Utilisé par `ScorePills`. |
 | **StatusBadge** | `ui/status-badge.tsx` | Statut = libellé + point ou icône + teinte (`soft` · `outline` · `solid`). Construit sur `Badge` (qui porte les variantes de teinte). |
 | **IconButton** | `ui/icon-button.tsx` | Étend `Button`. `label` **obligatoire** (nom accessible), infobulle au survol et au focus, `pressed` → `aria-pressed`. |
@@ -288,7 +292,12 @@ les nouvelles primitives composent les existantes.
 Pastilles métier (adaptateurs minces, mêmes props qu'avant) : `CaseStatusBadge`,
 `CaseQualityBadges`, `ReviewStateBadge`, `ScorePills`, `EvidenceBadge`,
 `SourceHealthBadge`, `KpiCard` — elles consomment `StatusBadge` / `MetricChip` et
-`domain-tones.ts` ; leurs libellés sont inchangés.
+`domain-tones.ts`. Libellés inchangés, sauf les accents corrigés de
+`CaseQualityBadges` (« Démo », « Score calculé », « échec »).
+
+Tableau de bord (`components/dashboard/*`, logique pure `lib/dashboard/portfolio.ts`) :
+`NextActionBanner`, `ReviewQueuePanel`, `RiskSignalsPanel`, `RecentActivityPanel`,
+`QuickAccessPanel` — composés uniquement de ces primitives (dans le territoire testé).
 
 ## 8. Motion
 
@@ -302,6 +311,7 @@ Pastilles métier (adaptateurs minces, mêmes props qu'avant) : `CaseStatusBadge
 | `--motion-duration-exit` | 140 ms | Sortie — toujours plus courte que l'entrée |
 | `--motion-distance-panel` | 12 px | Translation d'entrée d'un panneau |
 | `--motion-distance-fade` | 4 px | Décalage d'entrée d'une page / d'un bloc |
+| `--motion-stagger` | 50 ms | Décalage entre deux groupes d'une apparition progressive (`Reveal`) — 5 groupes au plus, la page entière en moins de 500 ms |
 | `--motion-ease-standard` | `cubic-bezier(0.2, 0, 0, 1)` | États (`transition-ui`) |
 | `--motion-ease-out` | `cubic-bezier(0.22, 1, 0.36, 1)` | Entrées de contenu |
 | `--motion-ease-in` | `cubic-bezier(0.4, 0, 1, 1)` | Sorties |
@@ -309,7 +319,15 @@ Pastilles métier (adaptateurs minces, mêmes props qu'avant) : `CaseStatusBadge
 
 Utilitaires (`globals.css`) : `motion-enter` / `motion-exit` (translation + opacité,
 vecteur donné par `motion-from-{top,right,bottom,left}`), `motion-fade-in` /
-`motion-fade-out`, `transition-ui` (couleur, bordure, halo, fond — 120 ms).
+`motion-fade-out`, `motion-reveal` (groupe de page, décalé par `--reveal-index`),
+`transition-ui` (couleur, bordure, halo, fond — 120 ms).
+
+Navigation : `PageMotion` ne fait qu'un **fondu** (180 ms) à chaque changement de
+page, identique partout ; la montée de 4 px appartient aux groupes (`Reveal`), pour
+qu'une page n'additionne jamais deux translations. Dans la sidebar, seul le liseré
+actif glisse. Micro-retours : recherche (bordure + icône d'accent, fond au clic),
+filtres (`SegmentedControl`, liste en fondu au changement), boutons et lignes
+(fond au clic `active:`), cartes-liens (bordure + halo).
 
 Règles :
 
@@ -317,12 +335,15 @@ Règles :
    `border-primary/40`) et **ne déplace ni ne redimensionne jamais**.
 2. **Seules les surcouches se déplacent** (panneaux, dialogues, menus) : entrée =
    ≤ 12 px + opacité (+ ressort doux pour panneaux et dialogues) ; sortie plus
-   courte, sans ressort. Aucun contenu en place ne bouge.
+   courte, sans ressort. Aucun contenu en place ne bouge. Exceptions bornées :
+   l'arrivée d'une page par groupes (4 px, `Reveal`) et le liseré actif de la sidebar.
 3. **Rien ne boucle** sur un contenu opérationnel. Exceptions : indicateurs de
    chargement uniquement — spinner de `LoadingState inline`, pulse du squelette,
    icône de chargement d'un toast.
 4. **`prefers-reduced-motion: reduce`** : règle globale (`globals.css`) — animations
-   et transitions à 0,01 ms ; `PageMotion` supprime la translation et le fondu.
+   et transitions à 0,01 ms, délais annulés (`Reveal` : tout apparaît d'emblée) ;
+   `PageMotion` supprime le fondu ; `MotionConfig reducedMotion="user"` fige le
+   liseré de la sidebar.
    Côté JS : `useReducedMotion()` de `motion/react`.
 5. Durées d'état d'interface : **120–220 ms** (testé, ainsi que la parité des
    constantes `lib/design/motion.ts`).
@@ -345,7 +366,8 @@ Règles :
   figée.
 
 Ce qui est automatisable est vérifié par `design-contract.spec.ts` sur le territoire
-`ui · shell · empty · design-system · lib/design`.
+`ui · shell · empty · design-system · dashboard · lib/design` (+ la page
+`(app)/dashboard`).
 
 ## 10. Prévisualisation
 
@@ -362,7 +384,9 @@ navigation.
 | --- | --- |
 | `design-tokens.spec.ts` | Complétude des tokens (2 thèmes) · tout en gamut sRGB · aucun hex hors alias documentés · profondeur ordonnée (sombre) · contrastes AA texte / non-texte · teintes distinctes (OKLab ≥ 0,08) · z-index croissants · motion 120–220 ms, sortie < entrée, parité TypeScript ↔ CSS · exposition à Tailwind · reduced-motion. |
 | `design-contract.spec.ts` | Territoire sans hex / rgb / palette Tailwind brute / alias historiques / z-index brut / `text-[Npx]` / flou / dégradé / boucle d'animation / mouvement au survol · aucune police ajoutée · `DESIGN_SYSTEM.md` documente chaque token et chaque primitive. |
-| `design-primitives.spec.ts` | Focus piégé, Échap, retour du focus (Dialog, SidePanel modal et non modal) · SegmentedControl exclusif et nommé · rôles `status` / `alert` · nom accessible des boutons icône · coque et `aria-current`. |
+| `design-primitives.spec.ts` | Focus piégé, Échap, retour du focus (Dialog, SidePanel modal et non modal) · SegmentedControl exclusif et nommé · rôles `status` / `alert` · nom accessible des boutons icône · coque et `aria-current` · sidebar (désactivé, ↑ ↓ Début Fin, compteur lu) · recherche globale (nom, raccourci annoncé et visible, ouverture) · `StatCard` (`dl`, lecture écrite) · `Reveal` (index borné). |
+| `dashboard-panels.spec.ts` | États vide / rempli des panneaux du tableau de bord · raisons et nombres écrits à côté des teintes · liens vers l'onglet où agir · filtre sans résultat désactivé. |
+| `dashboard-portfolio.spec.ts` | Indicateurs du tableau de bord identiques aux formules historiques · file de revue (raisons écrites, ordre, onglet cible) · prochaine action · signaux par dossier et par famille · activité 7 jours · `APP_NAV` (5 entrées, ordre) et état actif. |
 
 ## 12. Écarts assumés par rapport à l'accueil
 
@@ -393,8 +417,11 @@ Le contrat est en place ; ces zones ne l'adoptent pas encore (« lots » de l'au
 - **Démo, Lab, parcours** : `.landing-scope`, modules CSS dédiés.
 - **Pages publiques** (`SitePageHeader`, `PublicFooter`) : tokens déjà suivis, gabarit à
   aligner sur `PageHeader`.
-- **Libellés** à corriger (hors design) : « Score calcule », « Fiabilite »,
-  « masques », « echec », « Demo ».
+- **Libellés** à corriger (hors design) : « Fiabilite », et « masques » / « erreur »
+  sur la page Dossiers (« Score calcule », « echec », « Demo » sont corrigés dans
+  `CaseQualityBadges`, partagé).
+- **`KpiCard`** (page Analyse) : à remplacer par `StatCard` lors de la migration de
+  la page.
 - **Code mort** : `components/landing/*.tsx`, `components/landing/mockup/**`.
 
 Règle de migration : lorsqu'un fichier entre dans le territoire, il consomme les

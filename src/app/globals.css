@@ -14,6 +14,15 @@
  * next-themes n'ait posé sa classe.
  */
 @custom-variant dark (&:where(:root:not(.light) *));
+/* Sidebar compacte (« rail ») : entre md et lg, à l'intérieur d'une <Sidebar
+   collapsible="rail">. Le tiroir mobile, hors de ce conteneur, garde la forme pleine. */
+@custom-variant rail {
+  @media (width >= 48rem) and (width < 64rem) {
+    &:where([data-collapsible="rail"] *) {
+      @slot;
+    }
+  }
+}
 
 /* ── Exposition des tokens à Tailwind ── */
 @theme inline {
@@ -245,6 +254,16 @@
 }
 @utility motion-fade-out {
   animation: kyb-fade-out var(--motion-duration-exit) var(--motion-ease-in) both;
+}
+/* Apparition progressive d'une page par GROUPES (en-tête, indicateurs, panneaux) :
+   fondu + montée de 4 px, décalée de `--motion-stagger` × `--reveal-index`
+   (posé par <Reveal index>). Sous prefers-reduced-motion, la règle globale annule
+   durée ET délai : tout apparaît immédiatement. */
+@utility motion-reveal {
+  --motion-from-x: 0px;
+  --motion-from-y: var(--motion-distance-fade);
+  animation: kyb-enter var(--motion-duration-base) var(--motion-ease-out) both;
+  animation-delay: calc(var(--reveal-index, 0) * var(--motion-stagger));
 }
 /* Direction de provenance (vecteur lu par kyb-enter / kyb-exit). */
 @utility motion-from-right {

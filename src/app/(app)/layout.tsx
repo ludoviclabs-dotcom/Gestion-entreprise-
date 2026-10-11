@@ -15,8 +15,10 @@ import AppSidebar from "@/components/shell/AppSidebar";
 import TopBar from "@/components/shell/TopBar";
 import CommandPalette from "@/components/shell/CommandPalette";
 import PageMotion from "@/components/shell/PageMotion";
+import type { NavReview } from "@/components/shell/nav";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { curateCaseSummaries } from "@/lib/data/case-curation";
+import { buildReviewQueue } from "@/lib/dashboard/portfolio";
 import { isDemoMode } from "@/lib/env";
 
 export default async function AppLayout({
@@ -28,11 +30,19 @@ export default async function AppLayout({
   const curated = curateCaseSummaries(cases);
   const demoMode = isDemoMode();
 
+  // Compteur « dossiers à revoir » de la navigation : même file que le tableau
+  // de bord, calculée sur la liste déjà chargée (aucune requête de plus).
+  const queue = buildReviewQueue(curated.visible);
+  const review: NavReview = {
+    count: queue.length,
+    tone: queue.some((item) => item.reasons[0]?.tone === "critical") ? "critical" : "vigilance",
+  };
+
   return (
     <TooltipProvider delayDuration={200}>
       <AppShell
-        sidebar={<AppSidebar demoMode={demoMode} />}
-        topbar={<TopBar demoMode={demoMode} />}
+        sidebar={<AppSidebar review={review} />}
+        topbar={<TopBar demoMode={demoMode} review={review} />}
       >
         <PageMotion>{children}</PageMotion>
       </AppShell>

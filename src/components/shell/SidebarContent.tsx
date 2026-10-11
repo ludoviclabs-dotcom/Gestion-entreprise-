@@ -2,76 +2,70 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  FolderOpen,
-  Settings,
-  BriefcaseBusiness,
-  Coins,
-} from "lucide-react";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { LayoutGroup, MotionConfig } from "motion/react";
 import BrandMark from "./BrandMark";
-import {
-  SidebarFooter,
-  SidebarHeader,
-  SidebarItem,
-  SidebarNav,
-} from "./Sidebar";
-
-const NAV = [
-  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-  { href: "/cases", label: "Dossiers", icon: FolderOpen },
-  { href: "/transactions", label: "Transactions", icon: Coins },
-  { href: "/secteurs", label: "Secteurs 2026", icon: BriefcaseBusiness },
-  { href: "/reglages", label: "Réglages", icon: Settings },
-];
+import { APP_NAV, isNavActive, type NavReview } from "./nav";
+import { SidebarCount, SidebarHeader, SidebarItem, SidebarNav } from "./Sidebar";
 
 /**
- * Contenu de la sidebar (marque + navigation + mode d'exécution).
- * Partagé entre la sidebar desktop fixe et le drawer mobile (Sheet).
- * Assemble les briques génériques de ./Sidebar : aucune valeur de style en dur.
+ * Contenu de la sidebar : marque + navigation principale (APP_NAV).
+ * Partagé entre la sidebar fixe (desktop / rail tablette) et le tiroir mobile.
+ * `instance` isole le liseré glissant de chaque instance (les deux peuvent être
+ * montées en même temps). Le mode d'exécution est affiché dans la Topbar.
  */
 export default function SidebarContent({
-  demoMode,
+  review,
+  instance,
   onNavigate,
 }: {
-  demoMode: boolean;
+  /** Dossiers à revoir (badge de l'entrée « Dossiers »). */
+  review?: NavReview;
+  instance: "desktop" | "drawer";
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-full flex-col">
-      <SidebarHeader>
-        <Link
-          href="/"
-          onClick={onNavigate}
-          className="flex items-center gap-2.5 rounded-md text-sidebar-foreground"
-        >
-          <BrandMark />
-          <span className="font-display text-lg font-semibold">KYB Graph</span>
-        </Link>
-      </SidebarHeader>
-
-      <SidebarNav label="Navigation principale">
-        {NAV.map(({ href, label, icon }) => (
-          <SidebarItem
-            key={href}
-            href={href}
-            icon={icon}
-            active={pathname === href || pathname.startsWith(`${href}/`)}
+    <MotionConfig reducedMotion="user">
+      <div className="flex h-full flex-col">
+        <SidebarHeader>
+          <Link
+            href="/"
             onClick={onNavigate}
+            className="flex items-center gap-2.5 rounded-md text-sidebar-foreground"
           >
-            {label}
-          </SidebarItem>
-        ))}
-      </SidebarNav>
+            <BrandMark />
+            <span className="font-display text-lg font-semibold rail:sr-only">KYB Graph</span>
+          </Link>
+        </SidebarHeader>
 
-      <SidebarFooter>
-        <StatusBadge tone={demoMode ? "vigilance" : "success"}>
-          {demoMode ? "Mode démo" : "Mode live"}
-        </StatusBadge>
-      </SidebarFooter>
-    </div>
+        <LayoutGroup id={`sidebar-${instance}`}>
+          <SidebarNav label="Navigation principale">
+            {APP_NAV.map(({ href, label, shortLabel, icon }) => (
+              <SidebarItem
+                key={href}
+                href={href}
+                icon={icon}
+                shortLabel={shortLabel}
+                indicatorId="sidebar-active"
+                active={isNavActive(pathname, href)}
+                onClick={onNavigate}
+                badge={
+                  href === "/cases" && review && review.count > 0 ? (
+                    <SidebarCount
+                      value={review.count}
+                      tone={review.tone}
+                      srLabel={review.count > 1 ? "dossiers à revoir" : "dossier à revoir"}
+                    />
+                  ) : undefined
+                }
+              >
+                {label}
+              </SidebarItem>
+            ))}
+          </SidebarNav>
+        </LayoutGroup>
+      </div>
+    </MotionConfig>
   );
 }
