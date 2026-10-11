@@ -63,7 +63,7 @@ export default function PressNotice({
     <div
       role="status"
       data-testid="press-notice"
-      className="mx-4 mt-3 flex items-start gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted-foreground"
+      className="mx-4 mt-4 flex items-start gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-muted-foreground sm:mx-8"
     >
       <Newspaper size={14} className="mt-0.5 shrink-0" aria-hidden />
       {state === "pending" ? (

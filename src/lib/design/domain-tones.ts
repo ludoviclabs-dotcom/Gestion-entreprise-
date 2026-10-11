@@ -50,6 +50,18 @@ export const EVIDENCE_TONE: Record<EvidenceLevel, Tone> = {
 };
 
 /**
+ * Jauge de score de l'en-tête du dossier (refonte « Registre / Nuit ») : lecture
+ * volontairement calme, sans rouge ni vert. Un score de risque haut (≥ 67) passe
+ * en vigilance, sinon neutre ; la qualité de preuve haute prend l'accent — comme
+ * une preuve confirmée (`EVIDENCE_TONE.confirmed`) —, moyenne en vigilance.
+ */
+export function scoreGaugeTone(value: number | undefined, polarity: "risk" | "good"): Tone {
+  if (value === undefined) return "neutral";
+  if (polarity === "good") return value >= 67 ? "accent" : value >= 34 ? "vigilance" : "neutral";
+  return value >= 67 ? "vigilance" : "neutral";
+}
+
+/**
  * Score continu 0–100 → teinte (seuils 34 / 67, ceux de ScorePills).
  * `polarity` : "risk" = plus haut est pire (complexité, vigilance) ;
  * "good" = plus haut est mieux (qualité de preuve). `undefined` → neutre.

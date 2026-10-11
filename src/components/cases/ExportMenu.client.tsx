@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Download, FileText, FileJson, FileArchive } from "lucide-react";
+import { FileText, FileJson, FileArchive } from "lucide-react";
+import { HEADER_LINK } from "./header-styles";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -31,13 +32,9 @@ export default function ExportMenu({ caseId }: { caseId: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="flex h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-sm text-muted-foreground transition hover:text-foreground"
-          aria-label="Exporter le dossier"
-        >
-          <Download size={15} />
-          Exporter
+        <button type="button" className={HEADER_LINK} aria-label="Exporter le dossier">
+          <span>Exporter</span>
+          <span aria-hidden>↓</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

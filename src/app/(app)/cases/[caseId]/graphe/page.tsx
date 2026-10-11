@@ -30,9 +30,13 @@ export default async function GrapheTab(props: {
     );
   }
 
+  // Date du jour fixée ici (borne droite du curseur temporel) : le rendu serveur
+  // et l'hydratation affichent la même date.
+  const today = new Date().toISOString().slice(0, 10);
+
   return (
     <div className="h-full">
-      <GraphCanvas dto={dto} bundle={detail.bundle} />
+      <GraphCanvas dto={dto} bundle={detail.bundle} today={today} />
     </div>
   );
 }

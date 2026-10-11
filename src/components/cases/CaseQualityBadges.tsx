@@ -13,7 +13,12 @@ const ORIGIN_META: Record<
   unknown: { label: "Origine inconnue", icon: DatabaseZap },
 };
 
-const SCORE_LABELS: Record<ScoreStatus, string> = {
+/** Libellés d'origine seuls (texte de l'en-tête du dossier). */
+export const ORIGIN_LABELS = Object.fromEntries(
+  Object.entries(ORIGIN_META).map(([k, v]) => [k, v.label]),
+) as Record<CaseOrigin, string>;
+
+export const SCORE_LABELS: Record<ScoreStatus, string> = {
   computed: "Score calculé",
   partial: "Score partiel",
   missing: "Score manquant",
