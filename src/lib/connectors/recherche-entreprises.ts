@@ -121,7 +121,7 @@ const num = (v: unknown): number | null =>
 const isObj = (v: unknown): v is Json => !!v && typeof v === "object" && !Array.isArray(v);
 /** Année plausible (1880–2015) ou `null`. */
 const birthYear = (v: unknown): number | null => {
-  const n = typeof v === "number" ? v : typeof v === "string" && /^d{4}$/.test(v.trim()) ? Number(v.trim()) : NaN;
+  const n = typeof v === "number" ? v : typeof v === "string" && /^\d{4}$/.test(v.trim()) ? Number(v.trim()) : NaN;
   return Number.isInteger(n) && n >= 1880 && n <= 2015 ? n : null;
 };
 

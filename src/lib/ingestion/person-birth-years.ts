@@ -1,6 +1,7 @@
 import type { CaseEntity } from "@/lib/graph/graph-types";
 import { personTokens } from "@/lib/connectors/sanctions-lists";
 import type { PersonQuery } from "@/lib/connectors/sanctions-persons-match";
+import { displayName } from "./normalize-companies-house";
 
 /**
  * Années de naissance des dirigeants, relues dans les charges brutes des sources
@@ -61,7 +62,9 @@ export function collectBirthYears(sources: BirthYearSources): Map<string, number
     const ch = asObj(raw);
     for (const o of [...asList(ch?.officers), ...asList(ch?.pscs)]) {
       if (o.corporate === true) continue;
-      add(text(o.name), year(o.birthYear));
+      // Même nom d'affichage que le graphe (« BRANCH, Sonya Judith Clara, Ms. » → sans
+      // titre) : sinon l'année est indexée sous une clé que la personne n'a pas.
+      add(displayName(text(o.name), false), year(o.birthYear));
     }
   }
 

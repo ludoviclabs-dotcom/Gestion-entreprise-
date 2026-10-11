@@ -113,6 +113,11 @@ describe("collectBirthYears / buildPersonQueries", () => {
     expect(years.get(personNameKey("Martin Bob"))).toEqual([1969]);
     expect(years.get(personNameKey("Carla Rossi"))).toEqual([1980]);
     expect(years.get(personNameKey("John William Smith"))).toEqual([1955]);
+    // Titres de civilité de Companies House : écartés, comme dans le graphe.
+    const titled = collectBirthYears({
+      companiesHouse: [{ officers: [{ name: "BRANCH, Sonya Judith Clara, Ms.", corporate: false, birthYear: 1962 }], pscs: [] }],
+    });
+    expect(titled.get(personNameKey("Sonya Judith Clara Branch"))).toEqual([1962]);
     expect(years.has(personNameKey("ACME"))).toBe(false);
   });
 
