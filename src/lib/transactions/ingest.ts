@@ -68,6 +68,8 @@ export type TransactionRecord = {
 
 export type IngestResult = {
   transactions: TransactionRecord[];
+  /** En-tête du fichier, dans son ordre (export fidèle, colonnes vides comprises). */
+  headers: string[];
   columns: DetectedColumns;
   /** Lignes sans montant exploitable (ignorées, comptées). */
   skipped: number;
@@ -140,7 +142,7 @@ function signedAmount(row: Record<string, string>): { amount: number; cell?: str
   return { amount: NaN };
 }
 
-export function ingestRows(rows: Record<string, unknown>[]): IngestResult {
+export function ingestRows(rows: Record<string, unknown>[], headers?: string[]): IngestResult {
   const columns = Object.fromEntries(
     (Object.keys(COLUMNS) as ColumnKey[]).map((k) => [k, false]),
   ) as DetectedColumns;
@@ -193,5 +195,7 @@ export function ingestRows(rows: Record<string, unknown>[]): IngestResult {
     });
   });
 
-  return { transactions, columns, skipped };
+  const seen = new Set<string>(headers ?? []);
+  for (const t of transactions) for (const k of Object.keys(t.raw)) seen.add(k);
+  return { transactions, headers: [...seen], columns, skipped };
 }

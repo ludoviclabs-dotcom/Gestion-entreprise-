@@ -18,12 +18,12 @@ import PageHeader from "@/components/shell/PageHeader";
 import { cn } from "@/lib/utils";
 import { formatDateFr } from "@/lib/format-date";
 import { ingestRows, type IngestResult } from "@/lib/transactions/ingest";
+import { buildTriageCsv } from "@/lib/transactions/export";
 import {
-  RISK_LABELS,
   SIGNAL_KINDS,
-  TRIAGE_LABELS,
   TRIAGE_STATUSES,
   activeFilterCount,
+  clean,
   countryOf,
   filtersFromParams,
   filtersToParams,
@@ -105,13 +105,27 @@ export default function TransactionsWorkspace({ cases }: { cases: LinkedCase[] }
     }
   }, [file, statuses]);
 
+  // Dernier état demandé : deux saisies validées avant que l'URL ne se mette à
+  // jour (router.replace est asynchrone) se cumulent au lieu de s'écraser.
+  const latest = useRef({ filters, sort });
+  useEffect(() => {
+    latest.current = { filters, sort };
+  }, [filters, sort]);
+
   const navigate = useCallback(
-    (next: TxFilters, nextSort: Sort = sort) => {
-      const qs = filtersToParams(next, nextSort).toString();
+    (next: TxFilters, nextSort?: Sort) => {
+      const s = nextSort ?? latest.current.sort;
+      latest.current = { filters: next, sort: s };
+      const qs = filtersToParams(next, s).toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
       setLimit(PAGE);
     },
-    [pathname, router, sort],
+    [pathname, router],
+  );
+
+  const patchFilters = useCallback(
+    (patch: Partial<TxFilters>) => navigate(clean({ ...latest.current.filters, ...patch })),
+    [navigate],
   );
 
   function onFile(f: File) {
@@ -123,7 +137,7 @@ export default function TransactionsWorkspace({ cases }: { cases: LinkedCase[] }
       header: true,
       skipEmptyLines: true,
       complete: (res) => {
-        const result = ingestRows(res.data);
+        const result = ingestRows(res.data, res.meta.fields);
         if (result.transactions.length === 0) {
           setData(null);
           setFile(null);
@@ -232,15 +246,9 @@ export default function TransactionsWorkspace({ cases }: { cases: LinkedCase[] }
 
   const exportView = () => {
     if (!file) return;
-    const rows = visible.map((t) => ({
-      ligne: t.line,
-      ...t.raw,
-      signaux: t.signals.map((s) => s.label).join(" ; "),
-      motifs: t.signals.map((s) => s.motif).join(" | "),
-      vigilance: RISK_LABELS[t.risk],
-      statut_triage: TRIAGE_LABELS[statusOf(t.id)],
-    }));
-    const blob = new Blob([Papa.unparse(rows)], { type: "text/csv;charset=utf-8" });
+    if (!data) return;
+    const csv = buildTriageCsv(visible, statusOf, data.headers);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -370,6 +378,7 @@ export default function TransactionsWorkspace({ cases }: { cases: LinkedCase[] }
             <TransactionFilters
               filters={filters}
               onChange={(next) => navigate(next)}
+              onPatch={patchFilters}
               availability={availability}
               shown={visible.length}
               total={summary.count}

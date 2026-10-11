@@ -107,19 +107,23 @@ export function describeFilters(filters: TxFilters): { key: keyof TxFilters; lab
 export default function TransactionFilters({
   filters,
   onChange,
+  onPatch,
   availability,
   shown,
   total,
 }: {
   filters: TxFilters;
+  /** Remplace tous les filtres (réinitialisation). */
   onChange: (next: TxFilters) => void;
+  /** Modifie quelques filtres, appliqué au DERNIER état (pas à celui de ce rendu). */
+  onPatch: (patch: Partial<TxFilters>) => void;
   availability: FilterAvailability;
   shown: number;
   total: number;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
-  const set = (patch: Partial<TxFilters>) => onChange(clean({ ...filters, ...patch }));
+  const set = onPatch;
   const active = activeFilterCount(filters);
   const chips = describeFilters(filters);
 

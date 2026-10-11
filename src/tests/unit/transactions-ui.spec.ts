@@ -107,7 +107,7 @@ describe("TransactionFilters", () => {
   };
 
   it("filtres sans donnée : désactivés, motif écrit ; signal sans occurrence désactivé", () => {
-    const out = html(h(TransactionFilters, { filters: {}, onChange: noop, availability, shown: 3, total: 3 }));
+    const out = html(h(TransactionFilters, { filters: {}, onChange: noop, onPatch: noop, availability, shown: 3, total: 3 }));
     expect(out).toContain("Colonne SIREN absente");
     expect(out).toContain("Aucune devise dans le fichier");
     expect(out).toContain("Ni colonne pays ni IBAN valide");
@@ -116,7 +116,7 @@ describe("TransactionFilters", () => {
 
   it("filtres actifs : puces nommées et retirables", () => {
     const out = html(
-      h(TransactionFilters, { filters: { signal: "duplicate", min: 100 }, onChange: noop, availability, shown: 2, total: 3 }),
+      h(TransactionFilters, { filters: { signal: "duplicate", min: 100 }, onChange: noop, onPatch: noop, availability, shown: 2, total: 3 }),
     );
     expect(out).toContain('aria-label="Retirer le filtre Signal : Doublon"');
     expect(out).toContain("Montant ≥ 100");
