@@ -417,7 +417,7 @@ américaines de contrôle des exportations le type est souvent vide : l'entrée 
 `entity` si le nom ressemble à une organisation, sinon `unknown` (conservée pour ne pas
 manquer une société, **jamais** présentée comme un signal).
 
-**Import** (source par liste : `sanctions_us|uk|un|ch|ca`, version `sanctions-v1`) :
+**Import** (source par liste : `sanctions_us|uk|un|ch|ca`, version `sanctions-v2`) :
 une transaction par liste, mêmes garanties que D0 (atomicité, verrou, empreinte, « inchangé »).
 Table commune `sanctions_entries`, purge bornée à la liste importée. Garde-fous : taille
 maximale par fichier, seuil minimal de lignes, schéma vérifié, redirection tolérée seulement

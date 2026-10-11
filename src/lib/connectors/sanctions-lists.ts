@@ -28,7 +28,12 @@ export const SANCTION_LIST_LABELS: Record<SanctionListKey, string> = {
 };
 
 /** Version de projection : changer les champs retenus force un réimport. */
-export const SANCTIONS_PROJECTION_VERSION = "sanctions-v1";
+/**
+ * v2 : les colonnes jsonb sont écrites en vrais tableaux JSON. La v1 les écrivait en
+ * chaînes JSON (double encodage par le client PostgreSQL) : le pré-filtre par clés ne
+ * trouvait alors aucune candidate.
+ */
+export const SANCTIONS_PROJECTION_VERSION = "sanctions-v2";
 
 /**
  * Nature d'une entrée : `entity` = organisation typée comme telle par la liste ;

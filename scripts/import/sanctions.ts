@@ -413,10 +413,11 @@ export const sanctionsWriter = (list: SanctionListKey): DatasetWriter<SanctionRo
       entry_key: r.entry_key,
       sublist: r.sublist,
       name: r.name,
-      aliases: JSON.stringify(r.aliases),
-      keys: JSON.stringify(r.keys),
-      programs: JSON.stringify(r.programs),
-      countries: JSON.stringify(r.countries),
+      // Tableaux, jamais des chaînes : le client sérialise lui-même le type jsonb.
+      aliases: r.aliases,
+      keys: r.keys,
+      programs: r.programs,
+      countries: r.countries,
       listed_on: r.listed_on,
       kind: r.kind,
     })))}

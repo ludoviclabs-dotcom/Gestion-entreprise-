@@ -218,3 +218,26 @@ describe("sanctionsIntl.match — SQL réel sur PostgreSQL", () => {
     expect(demo.isFixture).toBe(true);
   });
 });
+
+describe("lignes écrites en v1 (colonnes jsonb contenant une chaîne JSON)", () => {
+  it("restent trouvées par le pré-filtre : jamais un « aucune correspondance » par erreur", async () => {
+    for (const list of SANCTION_LIST_KEYS) await addImport(list, fresh);
+    const name = "Bank Sepah";
+    // Double encodage du client postgres : le jsonb est une chaîne qui contient le tableau.
+    await db.query(
+      `insert into sanctions_entries (import_id, list_key, entry_key, sublist, name, aliases, keys, programs, countries, kind)
+       values ($1, 'uk', 'legacy-1', null, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb, 'entity')`,
+      [
+        importIds.get("uk"), name,
+        JSON.stringify(JSON.stringify([])),
+        JSON.stringify(JSON.stringify(sanctionKeys([name]))),
+        JSON.stringify(JSON.stringify(["Iran"])),
+        JSON.stringify(JSON.stringify(["Iran"])),
+      ],
+    );
+    const res = await sanctionsIntl.match([{ key: "subject", name: "BANK SEPAH" }], NOW);
+    const raw = res.raw as SanctionsIntlRaw;
+    expect(raw.matches).toHaveLength(1);
+    expect(raw.matches[0]).toMatchObject({ list: "uk", nom: "Bank Sepah", matchType: "exact", programs: ["Iran"], countries: ["Iran"] });
+  });
+});

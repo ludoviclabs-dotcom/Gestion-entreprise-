@@ -128,10 +128,16 @@ export const sanctionsIntl = {
                e.countries, e.listed_on, e.kind
         from latest l
         left join lateral (
-          select s.* from sanctions_entries s
-          where s.import_id = l.id
-            and s.keys ?| array(select k from q)
-            and (select count(*) from jsonb_array_elements_text(s.keys) kk(v)
+          select s.* from (
+            -- Lignes écrites avant la v2 : colonne jsonb contenant une chaîne JSON.
+            select s0.*,
+                   case when jsonb_typeof(s0.keys) = 'string' then (s0.keys #>> '{}')::jsonb
+                        else s0.keys end as key_array
+            from sanctions_entries s0
+            where s0.import_id = l.id
+          ) s
+          where s.key_array ?| array(select k from q)
+            and (select count(*) from jsonb_array_elements_text(s.key_array) kk(v)
                  where kk.v in (select k from q)) >= ${need}
           limit ${CANDIDATES_PER_LIST}
         ) e on true
