@@ -122,6 +122,14 @@ describe("sanctionsIntl.match — SQL réel sur PostgreSQL", () => {
     expect(raw.truncated).toBe(false);
   });
 
+  it("rapprochement par alias : le nom réellement rapproché est rapporté", async () => {
+    await seedAllLists();
+    const res = await sanctionsIntl.match([{ key: "subject", name: "Rosneft" }], NOW);
+    const raw = res.raw as SanctionsIntlRaw;
+    const us = raw.matches.find((m) => m.list === "us");
+    expect(us).toMatchObject({ nom: "Rosneft Oil Company", matchedName: "Rosneft", matchType: "exact" });
+  });
+
   it("aucune correspondance : les listes consultées sont quand même nommées", async () => {
     await seedAllLists();
     const res = await sanctionsIntl.match([{ key: "subject", name: "ELECTRICITE DE FRANCE" }], NOW);

@@ -33,6 +33,8 @@ export type GelsMatch = {
   matchType: "exact" | "approximatif";
   registre: string;
   score: number;
+  /** Nom (principal ou alias) réellement rapproché ; diffère de `nom` pour un alias. */
+  matchedName?: string;
 };
 
 export const GELS_REGISTRE = "Gels des avoirs (DG Trésor)";
@@ -142,6 +144,8 @@ export type ScoredEntry<E extends GelsEntry = GelsEntry> = {
   entry: E;
   matchType: "exact" | "approximatif";
   score: number;
+  /** Nom (principal ou alias) de l'entrée qui a produit la meilleure correspondance. */
+  matchedName: string;
 };
 
 /**
@@ -168,12 +172,12 @@ export function matchEntries<E extends GelsEntry>(
   const matches: ScoredEntry<E>[] = [];
   for (const entry of entries) {
     if (isNaturalPerson(entry.nature)) continue;
-    let best: { score: number; exact: boolean } | null = null;
+    let best: { score: number; exact: boolean; name: string } | null = null;
     for (const candidate of [entry.nom, ...entry.aliases]) {
       const stripped = stripLegalForms(candidate);
       if (!stripped) continue;
       if (stripped === target) {
-        best = { score: 1, exact: true };
+        best = { score: 1, exact: true, name: candidate };
         break;
       }
       if (target.length < MIN_APPROX_LENGTH || stripped.length < MIN_APPROX_LENGTH) {
@@ -187,7 +191,7 @@ export function matchEntries<E extends GelsEntry>(
         tokenCoverage(target, stripped) >= MIN_TOKEN_COVERAGE &&
         (!best || score > best.score)
       ) {
-        best = { score, exact: false };
+        best = { score, exact: false, name: candidate };
       }
     }
     if (best) {
@@ -195,6 +199,7 @@ export function matchEntries<E extends GelsEntry>(
         entry,
         matchType: best.exact ? "exact" : "approximatif",
         score: Math.round(best.score * 100) / 100,
+        matchedName: best.name,
       });
     }
   }
@@ -210,11 +215,12 @@ export function matchGelsEntries(
   entries: GelsEntry[],
   query: { name?: string | null },
 ): GelsMatch[] {
-  return matchEntries(entries, query).map(({ entry, matchType, score }) => ({
+  return matchEntries(entries, query).map(({ entry, matchType, score, matchedName }) => ({
     nom: entry.nom,
     type: entry.nature ?? "Entité",
     matchType,
     registre: GELS_REGISTRE,
     score,
+    matchedName,
   }));
 }

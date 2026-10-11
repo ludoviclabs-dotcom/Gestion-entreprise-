@@ -1,6 +1,6 @@
 import type { CaseEdge, CaseEntity, EvidenceLevel } from "@/lib/graph/graph-types";
 import type { SanctionMatch, SanctionsIntlRaw } from "@/lib/connectors/sanctions-intl";
-import { stripLegalForms } from "@/lib/match/normalize";
+import { normalizeName, stripLegalForms } from "@/lib/match/normalize";
 import { slugify } from "@/lib/text";
 
 /**
@@ -92,6 +92,17 @@ export type SanctionsIntlNormalized = {
 const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "date inconnue");
 
 /**
+ * Nom effectivement rapproché, lorsqu'il diffère du nom principal de l'entrée (alias,
+ * ancienne dénomination, translittération) : sans lui, « MB BANK » apparaît pour un
+ * sujet « BANK MELLI IRAN » sans aucune raison visible.
+ */
+const aliasMatched = (m: SanctionMatch): string | null => {
+  const matched = (m.matchedName ?? "").trim();
+  if (!matched) return null;
+  return normalizeName(matched) === normalizeName(m.nom) ? null : matched;
+};
+
+/**
  * @param ctx.entityIds clé de requête (« subject », « lei:… ») → identifiant du
  *   nœud société interrogé ; une correspondance dont la clé est inconnue est ignorée.
  */
@@ -128,6 +139,7 @@ export function normalizeSanctionsIntl(
           ...(m.programs.length > 0 ? { Programmes: m.programs.slice(0, 3).join(" ; ") } : {}),
           ...(m.countries.length > 0 ? { Pays: m.countries.slice(0, 3).join(" ; ") } : {}),
           ...(m.listedOn ? { "Inscrit le": m.listedOn } : {}),
+          ...(aliasMatched(m) ? { "Nom rapproché": `${aliasMatched(m)} (alias ou autre dénomination de la même entrée)` } : {}),
           Type: m.matchType === "exact" ? "Correspondance exacte" : "Correspondance approximative",
         },
         source: `Listes de sanctions internationales — ${m.listLabel}`,
@@ -175,7 +187,10 @@ export function normalizeSanctionsIntl(
   if (weak.length > 0) {
     const shown = weak
       .slice(0, 3)
-      .map((m) => `« ${m.nom} » (${m.sublist ?? m.listLabel}${m.countries[0] ? `, ${m.countries[0]}` : ""})`)
+      .map(
+        (m) =>
+          `« ${m.nom} »${aliasMatched(m) ? ` (rapproché de « ${aliasMatched(m)} »)` : ""} (${m.sublist ?? m.listLabel}${m.countries[0] ? `, ${m.countries[0]}` : ""})`,
+      )
       .join(" ; ");
     parts.push(
       `${weak.length} correspondance(s) faible(s) non retenue(s) (nom court ou générique, type non précisé ou rapprochement incertain) : ${shown}.`,

@@ -54,6 +54,8 @@ export type SanctionMatch = {
   listLabel: string;
   sublist: string | null;
   nom: string;
+  /** Nom (principal ou alias) de l'entrée réellement rapproché du nom interrogé. */
+  matchedName: string;
   matchType: "exact" | "approximatif";
   score: number;
   kind: SanctionEntryKind;
@@ -202,6 +204,7 @@ export const sanctionsIntl = {
             listLabel: SANCTION_LIST_LABELS[m.entry.list],
             sublist: typeof r.sublist === "string" ? r.sublist : null,
             nom: m.entry.nom,
+            matchedName: m.matchedName,
             matchType: m.matchType,
             score: m.score,
             kind: r.kind === "entity" ? "entity" : "unknown",

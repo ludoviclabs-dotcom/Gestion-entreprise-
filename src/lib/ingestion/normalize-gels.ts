@@ -1,4 +1,5 @@
 import type { CaseEntity, CaseEdge, EvidenceLevel } from "@/lib/graph/graph-types";
+import { normalizeName } from "@/lib/match/normalize";
 import { slugify } from "@/lib/text";
 
 type GelsMatch = {
@@ -6,6 +7,7 @@ type GelsMatch = {
   type?: string;
   matchType?: string;
   registre?: string;
+  matchedName?: string;
 };
 type GelsResponse = { matches?: GelsMatch[] };
 
@@ -29,6 +31,11 @@ export function normalizeGels(
       evidenceLevel: level,
       attributes: {
         Registre: m.registre ?? "Gels des avoirs (DG Trésor)",
+        // Alias ou autre dénomination réellement rapprochée (sinon le nom principal
+        // de l'entrée apparaît sans raison visible).
+        ...(m.matchedName && normalizeName(m.matchedName) !== normalizeName(m.nom)
+          ? { "Nom rapproché": `${m.matchedName} (alias ou autre dénomination de la même entrée)` }
+          : {}),
         Type:
           m.matchType === "exact"
             ? "Correspondance exacte"
