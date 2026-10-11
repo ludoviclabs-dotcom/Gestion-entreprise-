@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { Readable } from "node:stream";
+import postgres from "postgres";
 import {
   parseCa,
   parseCh,
@@ -204,7 +205,7 @@ describe("sanctionsWriter — table partagée par cinq listes", () => {
     expect(queries[0]).toContain('"import-new"');
   });
 
-  it("écrit les colonnes jsonb en JSON et met à jour sur (import_id, entry_key)", async () => {
+  it("écrit les colonnes jsonb en tableaux (jamais en chaînes) et met à jour sur (import_id, entry_key)", async () => {
     let values: unknown, query = "";
     const tx = (first: unknown) => {
       if (Array.isArray(first) && "raw" in first) { query = first.join("?"); return Promise.resolve([]); }
@@ -216,7 +217,20 @@ describe("sanctionsWriter — table partagée par cinq listes", () => {
       programs: ["P"], countries: ["RU"], listed_on: "2022-01-01", kind: "entity",
     }]);
     expect(query).toContain("on conflict (import_id, entry_key) do update");
-    expect(values).toEqual([expect.objectContaining({ import_id: "imp", aliases: '["A"]', keys: '["acme"]', kind: "entity" })]);
+    // Le client postgres sérialise lui-même le type jsonb : une chaîne déjà JSON y serait
+    // double-encodée et le pré-filtre « ?| » ne trouverait plus rien.
+    expect(values).toEqual([
+      expect.objectContaining({
+        import_id: "imp", aliases: ["A"], keys: ["acme"], programs: ["P"], countries: ["RU"], kind: "entity",
+      }),
+    ]);
+    // Preuve sur le vrai sérialiseur du client : ce qu'il envoie pour le type jsonb
+    // (oid 3802) doit être un tableau JSON, pas une chaîne contenant un tableau.
+    const serialize = (postgres({ host: "localhost" }).options.serializers as Record<number, (x: unknown) => string>)[3802];
+    const row = (values as Record<string, unknown>[])[0];
+    for (const column of ["aliases", "keys", "programs", "countries"]) {
+      expect(Array.isArray(JSON.parse(serialize(row[column])))).toBe(true);
+    }
   });
 });
 
