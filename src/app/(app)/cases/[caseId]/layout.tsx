@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import CaseHeader from "@/components/cases/CaseHeader";
 import WorkspaceTabs from "@/components/cases/WorkspaceTabs";
 import PressNotice from "@/components/cases/PressNotice.client";
-import { isPressStale } from "@/lib/data/press-status";
+import { isPressConsultationFailed, isPressStale } from "@/lib/data/press-status";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
 import { reviewStateFromEvents } from "@/lib/audit/journal";
@@ -42,7 +42,10 @@ export default async function CaseWorkspaceLayout(props: {
       ? press.state === "pending" && !isPressStale(press)
         ? "pending"
         : "interrupted"
-      : null;
+      : // Terminée, mais GDELT n'a jamais donné de réponse exploitable : non consultée.
+        press && isPressConsultationFailed(detail.sources)
+        ? "unreachable"
+        : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -67,7 +70,7 @@ export default async function CaseWorkspaceLayout(props: {
       />
 
       {pressNotice ? (
-        <PressNotice state={pressNotice} requestedAt={press?.requestedAt} />
+        <PressNotice state={pressNotice} requestedAt={press?.requestedAt} caseId={caseId} />
       ) : null}
 
       <WorkspaceTabs caseId={caseId} />

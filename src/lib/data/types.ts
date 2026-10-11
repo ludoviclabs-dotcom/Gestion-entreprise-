@@ -112,6 +112,14 @@ export interface CasesRepository {
    */
   completePendingPress(caseId: string): Promise<void>;
   /**
+   * Relance la collecte de presse d'un dossier dont elle n'a pas abouti (échec,
+   * collecte interrompue, ou GDELT saturé sans consultation réussie). Remet l'état
+   * « en attente » et renvoie `true` ; `false` si rien ne justifie une reprise
+   * (collecte en cours, réussie, ou dossier inconnu). Les appelants enchaînent
+   * `completePendingPress` APRÈS la réponse.
+   */
+  requestPressRetry(caseId: string): Promise<boolean>;
+  /**
    * Enregistre la synthèse manuelle (workflow Claude Code) d'un dossier.
    * `referencedRuleIds` : règles déclenchées citées dans le texte (validées
    * en amont par l'action) — journalisées dans `synthese_enregistree`.

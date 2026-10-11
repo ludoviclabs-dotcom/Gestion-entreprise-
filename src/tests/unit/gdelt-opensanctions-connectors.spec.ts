@@ -28,12 +28,89 @@ vi.mock("@sentry/nextjs", () => ({
   captureMessage: mocks.captureMessage,
 }));
 
-import { gdelt } from "@/lib/connectors/gdelt";
+import { gdelt, GDELT_RETRY, isRetryableGdelt } from "@/lib/connectors/gdelt";
 import { openSanctions } from "@/lib/connectors/opensanctions";
 import { isDegradedEndpoint } from "@/lib/connectors/degraded";
 
 const reply = (status: number, body: string) =>
   new Response(body, { status, headers: { "content-type": "text/plain" } });
+
+describe("gdelt.byNameResilient — collecte différée avec reprises", () => {
+  const fetchMock = vi.fn();
+  const noSleep = async () => {};
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const throttled = () => Promise.resolve(reply(429, "Please limit requests to one every 5 seconds"));
+  const success = () => Promise.resolve(reply(200, JSON.stringify({ articles: [{ title: "x" }] })));
+
+  it("saturation puis succès : reprend jusqu'à obtenir les articles, et le dit", async () => {
+    fetchMock
+      .mockImplementationOnce(throttled)
+      .mockImplementationOnce(throttled)
+      .mockImplementationOnce(success);
+    const res = await gdelt.byNameResilient("ACME", { sleep: noSleep });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(res.httpStatus).toBe(200);
+    expect(isDegradedEndpoint(res.endpoint)).toBe(false);
+    expect(res.raw).toMatchObject({ attempts: 3, articles: [{ title: "x" }] });
+  });
+
+  it("échec persistant : borné en tentatives, dernière réponse dégradée, jamais « aucun article »", async () => {
+    fetchMock.mockImplementation(throttled);
+    const res = await gdelt.byNameResilient("ACME", { sleep: noSleep });
+    expect(fetchMock).toHaveBeenCalledTimes(GDELT_RETRY.maxAttempts);
+    expect(res.httpStatus).toBe(429);
+    expect(isDegradedEndpoint(res.endpoint)).toBe(true);
+    expect(res.raw).toMatchObject({ attempts: GDELT_RETRY.maxAttempts, articles: [] });
+  });
+
+  it("borné en durée : s'arrête quand le budget ne permet plus une tentative", async () => {
+    let clock = 0;
+    fetchMock.mockImplementation(throttled);
+    const res = await gdelt.byNameResilient("ACME", {
+      maxAttempts: 10,
+      budgetMs: 40_000,
+      pauseMs: 2_000,
+      now: () => clock,
+      // Chaque pause fait avancer l'horloge de 12 s (10 s de refus + pause).
+      sleep: async () => { clock += 12_000; },
+    });
+    // t = 0 → essai 1 ; 0 + 2 s + 15 s ≤ 40 s → essai 2 (t = 12) ; 12 + 17 ≤ 40 → essai 3 (t = 24) ;
+    // 24 + 17 > 40 → fin.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect((res.raw as { attempts: number }).attempts).toBe(3);
+  });
+
+  it("ne reprend pas une erreur qui ne se corrige pas (4xx autre que 429)", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(reply(400, "bad query")));
+    const res = await gdelt.byNameResilient("ACME", { sleep: noSleep });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.httpStatus).toBe(400);
+  });
+
+  it("succès immédiat : une seule tentative ; corps non JSON : repris", async () => {
+    fetchMock.mockImplementationOnce(success);
+    const first = await gdelt.byNameResilient("ACME", { sleep: noSleep });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(first.raw).toMatchObject({ attempts: 1 });
+
+    fetchMock.mockReset();
+    fetchMock
+      .mockImplementationOnce(() => Promise.resolve(reply(200, "Your query was too short or too common.")))
+      .mockImplementationOnce(success);
+    const second = await gdelt.byNameResilient("ACME", { sleep: noSleep });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(second.raw).toMatchObject({ attempts: 2, articles: [{ title: "x" }] });
+  });
+
+  it("fixture / démo : jamais de reprise", () => {
+    expect(isRetryableGdelt({ raw: {}, endpoint: "fixture:gdelt:X", httpStatus: 0, isFixture: true })).toBe(false);
+  });
+});
 
 describe("gdelt.byName (live)", () => {
   const fetchMock = vi.fn();

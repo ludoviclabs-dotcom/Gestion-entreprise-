@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { env, isDemoMode, isGdeltEnabled } from "@/lib/env";
 import { RateLimiter } from "./http";
+import { isDegradedEndpoint } from "./degraded";
 import gdeltFixture from "@/lib/fixtures/gdelt.sample.json";
 import type { ConnectorResult } from "./types";
 
@@ -23,6 +24,13 @@ import type { ConnectorResult } from "./types";
  * tentative (jamais de nouvel essai sur 429 — il échouait presque toujours aussi)
  * et un délai maximal borné ; au-delà, consultation dégradée « délai dépassé ».
  *
+ * 🔁 Reprises (collecte APRÈS la réponse uniquement, `byNameResilient`) : mesuré le
+ * 12 octobre 2026, GDELT refuse (429, ≈ 10 s par refus) environ trois requêtes sur
+ * quatre MÊME depuis une IP unique espacée de 20 s — c'est une saturation côté
+ * GDELT, pas seulement l'IP partagée de l'hébergeur. Une tentative unique échoue
+ * donc presque toujours. La collecte différée (qui n'attend personne) retente dans
+ * un budget borné ; le chemin synchrone, lui, reste à UNE tentative.
+ *
  * Modes (calqués sur les connecteurs opt-in) :
  *  - démo / flag absent → fixture.
  *  - live OK → données réelles.
@@ -41,6 +49,10 @@ function shouldMock(): boolean {
 type GdeltPayload = { articles?: unknown[] };
 
 export const gdelt = {
+  /** Avec reprises : collecte DIFFÉRÉE seulement (voir `resilient`). */
+  byNameResilient(name: string, options?: GdeltRetryOptions): Promise<ConnectorResult<unknown>> {
+    return resilient(name, options);
+  },
   async byName(name: string): Promise<ConnectorResult<unknown>> {
     if (shouldMock()) {
       return {
@@ -101,8 +113,68 @@ export const gdelt = {
         return degraded(res.status, "(schéma non reconnu)");
       }
     } catch (error) {
-      Sentry.captureException(error);
+      // Connexion réinitialisée par GDELT sous charge (« fetch failed », TypeError) :
+      // attendu et fréquent (mesuré le 12 oct. 2026), tracé par le statut, sans bruit.
+      if (!(error instanceof TypeError)) Sentry.captureException(error);
       return degraded(0, "(exception)");
     }
   },
 };
+
+/** Reprises de la collecte différée : bornées en tentatives ET en durée. */
+export const GDELT_RETRY = {
+  maxAttempts: 6,
+  /** Pause entre deux tentatives (en plus du limiteur, `GDELT_SPACING_MS`). */
+  pauseMs: 2_000,
+  /** Durée totale maximale, tentatives comprises (la route autorise 120 s). */
+  budgetMs: 90_000,
+};
+
+export type GdeltRetryOptions = Partial<typeof GDELT_RETRY> & {
+  /** Injectables pour les tests. */
+  sleep?: (ms: number) => Promise<void>;
+  now?: () => number;
+};
+
+const isOk = (r: ConnectorResult<unknown>): boolean =>
+  r.isFixture || (r.httpStatus >= 200 && r.httpStatus < 300 && !isDegradedEndpoint(r.endpoint));
+
+/**
+ * Une tentative vaut d'être reprise si l'échec est transitoire : saturation (429),
+ * indisponibilité (5xx), délai dépassé, réponse texte au lieu de JSON, panne
+ * réseau. Une autre erreur 4xx (requête refusée) ne se corrige pas en réessayant.
+ */
+export const isRetryableGdelt = (r: ConnectorResult<unknown>): boolean =>
+  !isOk(r) && (r.httpStatus === 0 || r.httpStatus === 429 || r.httpStatus >= 500 || r.httpStatus === 200);
+
+/**
+ * Comme `gdelt.byName`, avec reprises. À n'utiliser que hors du chemin de réponse
+ * à l'utilisateur. Ne lève jamais. Renvoie la dernière tentative ; `raw.attempts`
+ * dit combien ont été nécessaires (preuve conservée avec la charge brute).
+ */
+async function resilient(
+  name: string,
+  options: GdeltRetryOptions = {},
+): Promise<ConnectorResult<unknown>> {
+  const cfg = { ...GDELT_RETRY, ...options };
+  const now = options.now ?? Date.now;
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const startedAt = now();
+  let attempts = 0;
+  let last = await gdelt.byName(name);
+  attempts++;
+  while (
+    attempts < cfg.maxAttempts &&
+    isRetryableGdelt(last) &&
+    now() - startedAt + cfg.pauseMs + TIMEOUT_MS <= cfg.budgetMs
+  ) {
+    await sleep(cfg.pauseMs);
+    last = await gdelt.byName(name);
+    attempts++;
+  }
+  const raw =
+    last.raw && typeof last.raw === "object" && !Array.isArray(last.raw)
+      ? { ...(last.raw as Record<string, unknown>), attempts }
+      : last.raw;
+  return { ...last, raw };
+}

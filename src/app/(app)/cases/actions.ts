@@ -71,6 +71,33 @@ export async function createCaseAction(
 }
 
 /**
+ * Relance la collecte de presse d'un dossier dont elle n'a pas abouti. La collecte
+ * (avec reprises) se fait APRÈS la réponse ; la page se rafraîchit seule.
+ */
+export async function retryPressAction(
+  caseId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const repository = getCasesRepository();
+    const accepted = await repository.requestPressRetry(caseId);
+    if (!accepted) {
+      return { ok: false, error: "Aucune reprise nécessaire pour ce dossier." };
+    }
+    after(async () => {
+      try {
+        await repository.completePendingPress(caseId);
+      } catch (error) {
+        console.error("[retryPressAction] collecte de presse en échec", error);
+      }
+    });
+    return { ok: true };
+  } catch (error) {
+    console.error("[retryPressAction] échec", error);
+    return { ok: false, error: "La reprise n'a pas pu être lancée." };
+  }
+}
+
+/**
  * Calcule le plus court chemin entre deux entités d'un dossier, pondéré par
  * le niveau de preuve (`shortestEvidenceWeightedPath`). Renvoie la séquence
  * de nœuds ou un message d'erreur.

@@ -1,3 +1,5 @@
+import { isDegradedEndpoint } from "@/lib/connectors/degraded";
+
 /**
  * État de la collecte de PRESSE (GDELT) d'un dossier, conservé dans les
  * métadonnées du dossier (colonne jsonb, aucune migration).
@@ -29,6 +31,20 @@ export function pressOf(metadata: unknown): PressStatus | undefined {
     ...(typeof requestedAt === "string" ? { requestedAt } : {}),
     ...(typeof completedAt === "string" ? { completedAt } : {}),
   };
+}
+
+/**
+ * La presse a été interrogée mais n'a abouti à aucune consultation réelle réussie :
+ * toutes les lignes GDELT du dossier sont en erreur HTTP ou dégradées (429,
+ * délai dépassé, réponse non JSON…). Sans ligne GDELT : `false` (rien n'a été tenté
+ * — c'est `pressOf` qui le dit). Les fixtures ne comptent pas.
+ */
+export function isPressConsultationFailed(
+  sources: readonly { source: string; endpoint: string; httpStatus: number; isFixture: boolean }[],
+): boolean {
+  const gdelt = sources.filter((s) => s.source === "gdelt" && !s.isFixture);
+  if (gdelt.length === 0) return false;
+  return gdelt.every((s) => s.httpStatus >= 400 || s.httpStatus === 0 || isDegradedEndpoint(s.endpoint));
 }
 
 /**
