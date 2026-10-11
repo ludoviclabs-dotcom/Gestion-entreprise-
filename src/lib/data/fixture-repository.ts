@@ -148,6 +148,10 @@ export class FixtureCasesRepository implements CasesRepository {
     return toSummary(bundle, "draft", updatedAt, sources);
   }
 
+  async completePendingPress(): Promise<void> {
+    // La presse n'est jamais différée en mode démo/session (fixture instantanée).
+  }
+
   async saveSynthesis(
     caseId: string,
     content: string,

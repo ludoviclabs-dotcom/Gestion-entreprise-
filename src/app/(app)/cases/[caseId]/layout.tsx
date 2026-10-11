@@ -8,6 +8,8 @@ import ReviewActionBar from "@/components/cases/ReviewActionBar.client";
 import CaseQualityBadges from "@/components/cases/CaseQualityBadges";
 import WorkspaceTabs from "@/components/cases/WorkspaceTabs";
 import ExportMenu from "@/components/cases/ExportMenu.client";
+import PressNotice from "@/components/cases/PressNotice.client";
+import { isPressStale } from "@/lib/data/press-status";
 import { getCasesRepository } from "@/lib/data/cases-repository";
 import { getScoreStatus, getSourceHealth } from "@/lib/data/case-quality";
 import { reviewStateFromEvents } from "@/lib/audit/journal";
@@ -38,6 +40,16 @@ export default async function CaseWorkspaceLayout(props: {
   const reviewEvents = await getCasesRepository().listProofEvents(caseId);
   const reviewState = reviewStateFromEvents(reviewEvents);
   const reviewHighBand = (bundle.case.scores?.vigilance ?? 0) >= 67;
+
+  // Presse (GDELT) collectée APRÈS la création : tant qu'elle n'est pas arrivée,
+  // elle n'est pas « interrogée » — ni « aucun article », ni panne.
+  const press = detail.press;
+  const pressNotice =
+    press && press.state !== "done"
+      ? press.state === "pending" && !isPressStale(press)
+        ? "pending"
+        : "interrupted"
+      : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -88,6 +100,10 @@ export default async function CaseWorkspaceLayout(props: {
           <ExportMenu caseId={caseId} />
         </div>
       </div>
+
+      {pressNotice ? (
+        <PressNotice state={pressNotice} requestedAt={press?.requestedAt} />
+      ) : null}
 
       <div className="mt-3 px-4">
         <ReviewActionBar

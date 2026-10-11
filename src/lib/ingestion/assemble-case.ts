@@ -45,6 +45,7 @@ import {
   isCompaniesHouseEnabled,
   isDcaEnabled,
   isDemoMode,
+  isGdeltEnabled,
   isInpiUboExposed,
   isJoafeEnabled,
   isQualiopiEnabled,
@@ -117,11 +118,22 @@ function usableResult(r: { isFixture: boolean }): boolean {
  */
 export async function assembleCase(
   siren: string,
+  options: {
+    /**
+     * Ne PAS attendre la presse (GDELT, 10 à 15 s) : aucune consultation, donc
+     * aucune ligne source_records « gdelt » ni événement média — le dossier est
+     * complété ensuite (`completePendingPress`). Sans effet en démo ou si GDELT
+     * n'est pas activé (la fixture est instantanée).
+     */
+    deferPress?: boolean;
+  } = {},
 ): Promise<{
   bundle: CaseBundle;
   sources: SourceRecordInput[];
   /** Durée (ms) par source, + `_total` : pour repérer la source qui ralentit. */
   timings: Record<string, number>;
+  /** Vrai si la presse n'a PAS été consultée et reste à collecter. */
+  pressDeferred: boolean;
 }> {
   const sources: SourceRecordInput[] = [];
   const startedAt = Date.now();
@@ -189,6 +201,7 @@ export async function assembleCase(
   // interrogés que pour une catégorie juridique 9xxx (associations, fondations,
   // fonds de dotation) : aucun appel inutile pour une société commerciale.
   const live = !isDemoMode();
+  const pressDeferred = options.deferPress === true && live && isGdeltEnabled();
   const isAssociation = /^9/.test(sireneNorm.legalCategory ?? "");
   const baloOn = live && isBaloEnabled();
   const boampOn = live && isBoampEnabled();
@@ -358,7 +371,7 @@ export async function assembleCase(
     gleifP,
     timed("vies", () => vies.validateFr(siren)),
     timed("pappers", () => pappers.bySiren(siren)),
-    timed("gdelt", () => gdelt.byName(subjectLabel)),
+    pressDeferred ? none : timed("gdelt", () => gdelt.byName(subjectLabel)),
     rechercheP,
     baloOn ? timed("balo", () => balo.bySiren(siren)) : none,
     boampOn ? timed("boamp", () => boamp.bySiren(siren)) : none,
@@ -380,8 +393,9 @@ export async function assembleCase(
     toSource("gleif", gleifRes),
     toSource("vies", viesRes),
     toSource("pappers", pappersRes),
-    toSource("gdelt", gdeltRes),
   );
+  // Presse différée : pas de consultation → pas de ligne (source non interrogée).
+  if (gdeltRes) sources.push(toSource("gdelt", gdeltRes));
   if (rechercheRes) sources.push(toSource("recherche_entreprises", rechercheRes));
   if (baloRes) sources.push(toSource("balo", baloRes));
   if (boampRes) sources.push(toSource("boamp", boampRes));
@@ -604,7 +618,7 @@ export async function assembleCase(
   }
 
   // GDELT — couverture médiatique (presse), appariée au graphe CANONIQUE.
-  const mediaEvents = usableResult(gdeltRes)
+  const mediaEvents = gdeltRes && usableResult(gdeltRes)
     ? normalizeGdelt(gdeltRes.raw, {
         subjectId: canonicalSubjectId,
         entities: resolvedEntities,
@@ -645,5 +659,5 @@ export async function assembleCase(
   bundle.case.scores = scores;
 
   timings._total = Date.now() - startedAt;
-  return { bundle, sources, timings };
+  return { bundle, sources, timings, pressDeferred };
 }
