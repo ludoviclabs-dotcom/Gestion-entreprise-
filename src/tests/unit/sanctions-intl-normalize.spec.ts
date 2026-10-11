@@ -11,6 +11,7 @@ import type { SanctionMatch } from "@/lib/connectors/sanctions-intl";
 const m = (over: Partial<SanctionMatch> = {}): SanctionMatch => ({
   queryKey: "subject", queryName: "Rosneft Oil Company", list: "us", listLabel: "États-Unis — liste consolidée (CSL)",
   sublist: "SDN — OFAC (Trésor)", nom: "Rosneft Oil Company", matchType: "exact", score: 1, kind: "entity",
+  matchedName: over.nom ?? "Rosneft Oil Company",
   programs: ["RUSSIA-EO14024"], countries: ["RU"], listedOn: "2022-03-24", entryKey: "e-1", ...over,
 });
 
@@ -105,5 +106,42 @@ describe("normalizeSanctionsIntl", () => {
   it("couverture tronquée : dite", () => {
     const out = normalizeSanctionsIntl({ status: "ok", lists: lists(), matches: [], truncated: true }, { entityIds: ids });
     expect(out.attributes[SANCTIONS_INTL_ATTRIBUTE]).toContain("Pré-sélection tronquée");
+  });
+
+  describe("nom rapproché (alias ou autre dénomination de la même entrée)", () => {
+    const melli = {
+      queryName: "BANK MELLI IRAN", nom: "MB BANK", matchedName: "BANK MELLI IRAN ZAO",
+      matchType: "approximatif" as const, score: 0.97,
+    };
+
+    it("correspondance forte : le nom réellement rapproché est affiché, le nom principal reste le libellé", () => {
+      const out = normalizeSanctionsIntl({ status: "ok", lists: lists(), matches: [m(melli)] }, { entityIds: ids });
+      expect(out.entities[0].label).toBe("Correspondance « MB BANK »");
+      expect(out.entities[0].attributes?.["Nom rapproché"]).toContain("BANK MELLI IRAN ZAO");
+    });
+
+    it("nom principal rapproché : aucun attribut superflu (casse, accents, formes juridiques ignorés)", () => {
+      const same = normalizeSanctionsIntl(
+        { status: "ok", lists: lists(), matches: [m({ nom: "Rosneft Oil Company", matchedName: "ROSNEFT OIL COMPANY" })] },
+        { entityIds: ids },
+      );
+      expect(same.entities[0].attributes?.["Nom rapproché"]).toBeUndefined();
+    });
+
+    it("correspondance faible : l'alias est dit dans l'attribut", () => {
+      const out = normalizeSanctionsIntl(
+        { status: "ok", lists: lists(), matches: [m({ ...melli, kind: "unknown" })] },
+        { entityIds: ids },
+      );
+      expect(out.entities).toHaveLength(0);
+      expect(out.attributes[SANCTIONS_INTL_ATTRIBUTE]).toContain("« MB BANK » (rapproché de « BANK MELLI IRAN ZAO »)");
+    });
+
+    it("donnée antérieure sans nom rapproché : aucun attribut, aucune exception", () => {
+      const legacy = { ...m(), matchedName: undefined } as unknown as SanctionMatch;
+      const out = normalizeSanctionsIntl({ status: "ok", lists: lists(), matches: [legacy] }, { entityIds: ids });
+      expect(out.entities).toHaveLength(1);
+      expect(out.entities[0].attributes?.["Nom rapproché"]).toBeUndefined();
+    });
   });
 });

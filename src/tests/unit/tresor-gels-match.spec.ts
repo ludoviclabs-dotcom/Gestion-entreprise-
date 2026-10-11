@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { normalizeGels } from "@/lib/ingestion/normalize-gels";
 import {
   extractGelsEntries,
   matchGelsEntries,
@@ -136,5 +137,22 @@ describe("matchGelsEntries", () => {
     const m = matchGelsEntries(many, { name: "Global Trading Partners" });
     expect(m.length).toBeLessThanOrEqual(5);
     expect(m[0].matchType).toBe("exact");
+  });
+
+  it("indique le nom réellement rapproché (alias) et l'affiche seulement s'il diffère", () => {
+    const registry: GelsEntry[] = [
+      { nom: "MB BANK", nature: "Personne morale", aliases: ["BANK MELLI IRAN ZAO"] },
+      { nom: "ACME INTERNATIONAL HOLDING", nature: "Personne morale", aliases: ["ACME HOLDING"] },
+    ];
+    const viaAlias = matchGelsEntries(registry, { name: "Bank Melli Iran ZAO" });
+    expect(viaAlias).toHaveLength(1);
+    expect(viaAlias[0]).toMatchObject({ nom: "MB BANK", matchedName: "BANK MELLI IRAN ZAO", matchType: "exact" });
+    const shown = normalizeGels({ matches: viaAlias }, { companyId: "co:1" });
+    expect(shown.entities[0].attributes?.["Nom rapproché"]).toContain("BANK MELLI IRAN ZAO");
+
+    const viaName = matchGelsEntries(registry, { name: "Acme International Holding" });
+    expect(viaName[0].matchedName).toBe("ACME INTERNATIONAL HOLDING");
+    const hidden = normalizeGels({ matches: viaName }, { companyId: "co:1" });
+    expect(hidden.entities[0].attributes?.["Nom rapproché"]).toBeUndefined();
   });
 });
