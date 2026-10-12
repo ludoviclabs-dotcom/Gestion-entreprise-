@@ -28,5 +28,6 @@ export type SourceKind =
   | "hatvp"
   | "sanctions_intl"
   | "decp"
+  | "dgal"
   | "manual"
   | "fixture";

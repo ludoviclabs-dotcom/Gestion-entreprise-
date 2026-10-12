@@ -162,6 +162,13 @@
       "when": 1791800942932,
       "tag": "0022_registres_etrangers",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791803109862,
+      "tag": "0023_dgal_approvals",
+      "breakpoints": true
     }
   ]
 }

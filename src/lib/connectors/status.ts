@@ -25,6 +25,7 @@ import {
   isCaminoEnabled,
   isHatvpEnabled,
   isDecpEnabled,
+  isDgalEnabled,
   isIcpeImportEnabled,
   isTresorGelsImportEnabled,
   isBrregEnabled,
@@ -299,6 +300,14 @@ export function getConnectorStatuses(): ConnectorStatus[] {
       detail: !demo && isDecpEnabled()
         ? "Titulaire et acheteur par SIREN, fenêtre de notification de 12 mois ; fraîcheur indiquée ci-dessous."
         : "DECP inactif (mode démo ou DECP_ENABLED non activé).",
+    },
+    {
+      key: "dgal",
+      label: "Agréments sanitaires CE (DGAL)",
+      live: !demo && isDgalEnabled(),
+      detail: !demo && isDgalEnabled()
+        ? "18 listes CE, établissements par SIREN, sans données nominatives ; fraîcheur indiquée ci-dessous."
+        : "DGAL inactif (mode démo ou DGAL_ENABLED non activé).",
     },
     {
       key: "georisques",
