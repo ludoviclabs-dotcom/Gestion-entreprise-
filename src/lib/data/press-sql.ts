@@ -1,5 +1,17 @@
 import { sql, type SQL } from "drizzle-orm";
 import { sourceRecords } from "@/lib/db/schema";
+import type { PressStatus } from "@/lib/data/press-status";
+
+/**
+ * Condition de prise de possession d'une reprise de collecte : l'état de presse
+ * enregistré est TOUJOURS celui qui a été lu (même état, même horodatage de demande).
+ * Utilisée dans le `where` de la mise à jour ; une seule de deux relances
+ * simultanées la satisfait (l'autre trouve l'état déjà passé à « en attente »).
+ */
+export function pressStateIs(press: Pick<PressStatus, "state" | "requestedAt">): SQL {
+  return sql`(metadata->'press'->>'state') is not distinct from ${press.state}::text
+    and (metadata->'press'->>'requestedAt') is not distinct from ${press.requestedAt ?? null}::text`;
+}
 
 /**
  * Lignes GDELT d'un dossier dont la consultation n'a PAS abouti (erreur HTTP, statut

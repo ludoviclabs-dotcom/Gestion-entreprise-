@@ -41,7 +41,7 @@ import { SCORE_MODEL_VERSION, scoreModelVersionOf } from "@/lib/risk/engine";
 import { timingsOf } from "@/lib/data/timings";
 import { isPressConsultationFailed, isPressStale, pressOf } from "@/lib/data/press-status";
 import { planPressCompletion } from "@/lib/data/press-completion";
-import { unachievedGdeltRecords } from "@/lib/data/press-sql";
+import { pressStateIs, unachievedGdeltRecords } from "@/lib/data/press-sql";
 import { gdelt } from "@/lib/connectors/gdelt";
 
 /** Format UUID (les ids de dossiers réels) — un id non-UUID est une fixture. */
@@ -878,10 +878,15 @@ export class DbCasesRepository implements CasesRepository {
         (press.state === "failed" ||
           (press.state === "pending" && isPressStale(press)) ||
           (press.state === "done" && isPressConsultationFailed(consulted)));
-      if (!allowed) return false;
+      if (!allowed || !press) return false;
 
+      // Prise de possession ATOMIQUE : la transition n'a lieu que si l'état lu est
+      // toujours l'état courant (même état ET même horodatage de demande). Deux
+      // relances simultanées passent toutes deux la lecture ci-dessus, mais une
+      // seule met à jour une ligne — l'autre renvoie false et ne planifie rien,
+      // donc aucune collecte en double (événements, signaux, preuves dupliqués).
       const requestedAt = new Date().toISOString();
-      await db
+      const claimed = await db
         .update(cases)
         .set({
           metadata: sql`jsonb_set(coalesce(metadata, '{}'::jsonb), '{press}', ${JSON.stringify({
@@ -889,8 +894,9 @@ export class DbCasesRepository implements CasesRepository {
             requestedAt,
           })}::jsonb)`,
         })
-        .where(eq(cases.id, caseId));
-      return true;
+        .where(and(eq(cases.id, caseId), pressStateIs(press)))
+        .returning({ id: cases.id });
+      return claimed.length === 1;
     } catch (error) {
       console.error("[requestPressRetry] échec", error);
       return false;

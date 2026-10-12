@@ -26,6 +26,8 @@ const state = vi.hoisted(() => ({
   failBatch: false,
   /** Lignes renvoyées par une lecture de `source_records` (reprise de la collecte). */
   sourceRows: [] as Record<string, unknown>[],
+  /** Lignes mises à jour par la prise de possession d'une reprise (0 = course perdue). */
+  claimRows: [{ id: "claimed" }] as Record<string, unknown>[],
   proof: [] as { kind: string; payload: Record<string, unknown> }[],
 }));
 
@@ -77,6 +79,11 @@ function makeDb() {
               (op as unknown as { then: unknown }).then = (resolve: (v?: unknown) => void) => {
                 state.updates.push({ table, values });
                 resolve(undefined);
+              };
+              // Prise de possession atomique : update … where … returning id.
+              (op as unknown as { returning: unknown }).returning = async () => {
+                state.updates.push({ table, values });
+                return state.claimRows;
               };
               return op;
             },
@@ -356,6 +363,7 @@ describe("DbCasesRepository.requestPressRetry", () => {
   beforeEach(() => {
     state.updates.length = 0;
     state.sourceRows = [];
+    state.claimRows = [{ id: "claimed" }];
     state.caseRow = {
       id: CASE_ID, title: "SOCIETE EXEMPLE", rootSiren: "552032534", metadata: { press: { state: "done" } },
     };
@@ -366,6 +374,12 @@ describe("DbCasesRepository.requestPressRetry", () => {
     await expect(new DbCasesRepository().requestPressRetry(CASE_ID)).resolves.toBe(true);
     expect(state.updates).toHaveLength(1);
     expect(state.updates[0].table).toBe(cases);
+  });
+
+  it("course perdue : l'autre relance a déjà pris la main → false, rien n'est planifié", async () => {
+    state.sourceRows = [failedRow];
+    state.claimRows = []; // la mise à jour conditionnelle ne touche aucune ligne
+    await expect(new DbCasesRepository().requestPressRetry(CASE_ID)).resolves.toBe(false);
   });
 
   it("collecte en échec ou interrompue : reprise acceptée", async () => {
