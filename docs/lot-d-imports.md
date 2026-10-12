@@ -526,3 +526,10 @@ troncature.
    `SANCTIONS_INTL_ENABLED=true`).
 5. Repli : `SANCTIONS_PERSONS_ENABLED=false` et redéploiement ; le contrôle des sociétés
    n'est pas touché.
+
+
+## D4 — DECP, marchés publics (plan agrégé)
+
+Livré après validation D3 du 12 octobre 2026. Migration **0021_decp_summaries.sql**, source decp, version decp-v1-aggregate avec les bornes de fenêtre. Le plan B du §4.4 est retenu pour le quota Neon confirmé (0,21 Go utilisés sur 0,5 Go). Les totaux titulaire/acheteur couvrent tous les marchés distincts de la sélection de fichiers dans les douze mois de notification ; seules les vingt références récentes par SIREN/rôle et les cinq principaux acheteurs sont persistés. Aucune donnée nominative, aucun effet sur les scores/signaux, événements informatifs plafonnés à vingt.
+
+Le fichier [validation et activation D4](lot-d-decp-validation.md) contient les mesures réelles, les limites, le SQL exact, le contrôle pg_enum et l’unique séquence d’activation. SINGLE_SOURCES/all inclut decp ; daily et sanctions sont conservés. Réglages reprend automatiquement son import et son fonctionnement observé via la déclaration CONNECTOR_SOURCE.

@@ -8,7 +8,7 @@ on:
         required: true
         type: choice
         default: check
-        options: [check, camino, icpe, tresor_gels, hatvp, sanctions, daily, all]
+        options: [check, camino, icpe, tresor_gels, hatvp, decp, sanctions, daily, all]
   schedule:
     # Mensuel : tous les jeux volumineux.
     - cron: '17 3 4 * *'
@@ -29,8 +29,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.OPEN_DATA_IMPORTS_ENABLED == 'true')
     runs-on: ubuntu-latest
     # Camino, ICPE et HATVP ≤ 25 min chacun ; gels et listes de sanctions ≈ 1 min chacun ;
-    # plus installation.
-    timeout-minutes: 90
+    # DECP ≤ 28 min pour la sélection complète ; plus installation.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

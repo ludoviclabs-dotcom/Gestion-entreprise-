@@ -94,6 +94,7 @@ const serverSchema = z.object({
   SANCTIONS_PERSONS_ENABLED: z.enum(["true", "false"]).default("false"),
   CAMINO_ENABLED: z.enum(["true", "false"]).default("false"),
   HATVP_ENABLED: z.enum(["true", "false"]).default("false"),
+  DECP_ENABLED: z.enum(["true", "false"]).default("false"),
   GEORISQUES_ENABLED: z.enum(["true", "false"]).default("false"),
   ANNUAIRE_ADMINISTRATION_ENABLED: z.enum(["true", "false"]).default("false"),
   GEORISQUES_BASE_URL: z.string().default("https://www.georisques.gouv.fr"),
@@ -148,6 +149,7 @@ export const isSanctionsPersonsEnabled = (): boolean =>
   env.SANCTIONS_PERSONS_ENABLED === "true";
 export const isCaminoEnabled = (): boolean => env.CAMINO_ENABLED === "true";
 export const isHatvpEnabled = (): boolean => env.HATVP_ENABLED === "true";
+export const isDecpEnabled = (): boolean => env.DECP_ENABLED === "true";
 export const isGeorisquesEnabled = (): boolean => env.GEORISQUES_ENABLED === "true";
 export const isAnnuaireAdministrationEnabled = (): boolean =>
   env.ANNUAIRE_ADMINISTRATION_ENABLED === "true";

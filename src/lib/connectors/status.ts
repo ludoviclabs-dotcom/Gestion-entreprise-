@@ -24,6 +24,7 @@ import {
   isGeorisquesEnabled,
   isCaminoEnabled,
   isHatvpEnabled,
+  isDecpEnabled,
   isIcpeImportEnabled,
   isTresorGelsImportEnabled,
   isSanctionsIntlEnabled,
@@ -288,6 +289,14 @@ export function getConnectorStatuses(): ConnectorStatus[] {
       detail: !demo && isHatvpEnabled()
         ? "Organisations par SIREN, sans identité personnelle ; fraîcheur indiquée ci-dessous."
         : "HATVP inactif (mode démo ou HATVP_ENABLED non activé).",
+    },
+    {
+      key: "decp",
+      label: "Marchés publics (DECP)",
+      live: !demo && isDecpEnabled(),
+      detail: !demo && isDecpEnabled()
+        ? "Titulaire et acheteur par SIREN, fenêtre de notification de 12 mois ; fraîcheur indiquée ci-dessous."
+        : "DECP inactif (mode démo ou DECP_ENABLED non activé).",
     },
     {
       key: "georisques",
