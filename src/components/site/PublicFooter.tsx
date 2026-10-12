@@ -46,8 +46,9 @@ export function PublicFooter() {
       </div>
 
       <div className="mx-auto mt-8 max-w-6xl border-t border-border pt-6 text-xs leading-6 text-muted-foreground">
-        Conforme LCB-FT · AMLR 2024/1624 · RGPD. Démonstrateur sur données
-        fictives anonymisées — trajectoire d&apos;hébergement souverain détaillée
+        Conforme LCB-FT · AMLR 2024/1624 · RGPD. Pilote sur données publiques
+        réelles ; la page Démo et les maquettes utilisent des données fictives
+        anonymisées — trajectoire d&apos;hébergement souverain détaillée
         sur la page{" "}
         <Link href="/souverainete" className="text-violet hover:underline">
           Souveraineté

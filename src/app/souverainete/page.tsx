@@ -13,7 +13,7 @@ import {
 export const metadata = {
   title: "Souveraineté & hébergement — KYB Graph",
   description:
-    "Trajectoire d'hébergement souverain : démonstrateur Vercel aujourd'hui, cible SecNumCloud qualifiée, jalons de migration et cadre réglementaire (Cloud au centre, loi SREN, AMLR, CJUE).",
+    "Trajectoire d'hébergement souverain : pilote sur données publiques réelles (Vercel) aujourd'hui, cible SecNumCloud qualifiée, jalons de migration et cadre réglementaire (Cloud au centre, loi SREN, AMLR, CJUE).",
 };
 
 export default function SouverainetePage() {

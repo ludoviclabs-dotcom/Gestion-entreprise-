@@ -350,7 +350,7 @@ export default function NightLanding() {
           </div>
           <p className="b-legal">
             <span>
-              {COMPLIANCE}. Démonstrateur sur données fictives anonymisées — trajectoire d&apos;hébergement souverain
+              {COMPLIANCE}. Pilote sur données publiques réelles ; maquettes et démo sur données fictives — trajectoire d&apos;hébergement souverain
               détaillée sur la page{" "}
             </span>
             <Link href="/souverainete">Souveraineté</Link>

@@ -20,14 +20,16 @@ export const HOSTING_LAYERS: HostingLayer[] = [
     layer: "Frontend & API",
     provider: "Vercel",
     region: "UE (CDG / FRA)",
-    dataScope: "Aucune donnée personnelle réelle ne transite par le frontend.",
+    dataScope:
+      "Pages et API de l'application. Les dossiers affichent des informations publiques sur des sociétés et leurs dirigeants ; les pages Démo n'utilisent que des fixtures anonymisées.",
     sovereign: false,
   },
   {
     layer: "Base de données",
     provider: "Neon (Postgres)",
     region: "Francfort (UE)",
-    dataScope: "Dossiers et sources chiffrés ; en démo, fixtures anonymisées.",
+    dataScope:
+      "Dossiers, réponses brutes des sources (empreinte SHA-256), journal d'audit et jeux ouverts importés (sanctions, marchés publics, agréments…). Chiffré au repos.",
     sovereign: false,
   },
   {
@@ -38,18 +40,44 @@ export const HOSTING_LAYERS: HostingLayer[] = [
     sovereign: false,
   },
   {
-    layer: "Sanctions / PEP",
+    layer: "Sanctions et gels des avoirs",
+    provider: "DG Trésor · listes États-Unis, Royaume-Uni, ONU, Suisse, Canada",
+    region: "Importées dans la base (UE)",
+    dataScope:
+      "Listes publiques téléchargées puis conservées dans notre base : la consultation d'un dossier n'envoie aucune requête vers l'extérieur pour ces listes.",
+    sovereign: true,
+  },
+  {
+    layer: "Personnes politiquement exposées",
     provider: "OpenSanctions",
     region: "UE",
-    dataScope: "Données publiques de sanctions et PEP.",
+    dataScope:
+      "En cours de mise en service : le contrôle des personnes politiquement exposées n'est pas encore actif.",
     sovereign: true,
   },
   {
     layer: "Sources officielles FR",
-    provider: "Sirene · BODACC · INPI · DG Trésor",
+    provider: "Sirene · Recherche d'entreprises · BODACC · jeux ouverts de l'administration",
     region: "France",
-    dataScope: "Registres publics interrogés en temps réel (mode live).",
+    dataScope:
+      "Interrogées en direct (SIREN ou nom de l'entité) ou importées dans la base. Détail et état de chaque source sur la page Sources.",
     sovereign: true,
+  },
+  {
+    layer: "Registres étrangers",
+    provider: "GLEIF · Companies House · Brønnøysund · ACRA",
+    region: "Suisse · Royaume-Uni · Norvège · Singapour",
+    dataScope:
+      "Interrogés par identifiant public (LEI, numéro d'immatriculation) ; aucune autre donnée du dossier n'est transmise.",
+    sovereign: false,
+  },
+  {
+    layer: "Presse",
+    provider: "GDELT Project",
+    region: "États-Unis",
+    dataScope:
+      "Reçoit le nom de l'entité recherchée (requête de recherche). Aucun identifiant de dossier ni information sur ses dirigeants n'est transmis.",
+    sovereign: false,
   },
   {
     layer: "Synthèse (LLM)",
@@ -73,7 +101,8 @@ export const SUB_PROCESSORS: SubProcessor[] = [
     name: "Vercel",
     service: "Hébergement frontend / API",
     region: "UE",
-    dataScope: "Trafic applicatif, pas de donnée personnelle réelle.",
+    dataScope:
+      "Trafic applicatif : les pages et réponses des dossiers peuvent contenir des noms de dirigeants issus de registres publics.",
     dpaUrl: "https://vercel.com/legal/dpa",
   },
   {
@@ -89,6 +118,14 @@ export const SUB_PROCESSORS: SubProcessor[] = [
     region: "US",
     dataScope: "Traces techniques uniquement (payloads scrubbés).",
     dpaUrl: "https://sentry.io/legal/dpa/",
+  },
+  {
+    name: "GitHub",
+    service: "Exécution des imports planifiés de jeux ouverts",
+    region: "États-Unis",
+    dataScope:
+      "Données publiques uniquement. L'accès à la base passe par un secret chiffré ; aucun dossier ni donnée de client ne transite.",
+    dpaUrl: "https://github.com/customer-terms/github-data-protection-agreement",
   },
 ];
 

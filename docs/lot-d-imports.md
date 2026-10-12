@@ -489,7 +489,9 @@ d'inscription. Ni adresse, ni identifiant, ni commentaire. Environ 19 800 person
 
 **Données du dossier.** L'**année** de naissance des dirigeants (Recherche d'entreprises /
 RNE, Pappers, Companies House) est lue dans la charge brute de la source pour départager les
-homonymes. Elle n'est **jamais affichée**, ni ajoutée à une fiche, ni persistée ailleurs.
+homonymes. Elle n'est pas mise en avant dans les fiches ni persistée ailleurs que dans la
+réponse brute de la source (visible dans l'onglet Sources). Pour un rapprochement corroboré,
+la fiche du rapprochement affiche l'année concordante (attribut « Année de naissance concordante »).
 
 **Règle de rapprochement** (module pur `sanctions-persons-match.ts`) :
 
