@@ -28,6 +28,8 @@ import { camino } from "@/lib/connectors/camino";
 import { hatvp } from "@/lib/connectors/hatvp";
 import { decp } from "@/lib/connectors/decp";
 import { decpAttributes, normalizeDecp } from "./normalize-decp";
+import { dgal } from "@/lib/connectors/dgal";
+import { dgalAttributes, normalizeDgal } from "./normalize-dgal";
 import { hatvpAttributes } from "./normalize-hatvp";
 import { caminoAttributes, normalizeCamino } from "./normalize-camino";
 import { balo } from "@/lib/connectors/balo";
@@ -49,6 +51,7 @@ import {
   isCaminoEnabled,
   isHatvpEnabled,
   isDecpEnabled,
+  isDgalEnabled,
   isIcpeImportEnabled,
   isBaloEnabled,
   isBoampEnabled,
@@ -415,6 +418,7 @@ export async function assembleCase(
     hatvpRes,
     decpRes,
     { parents: registryParents, results: registryResults },
+    dgalRes,
   ] = await Promise.all([
     timed("bodacc", () => bodacc.bySiren(siren)),
     timed("inpi", () => inpi.getRne(siren)),
@@ -447,6 +451,7 @@ export async function assembleCase(
     live && isHatvpEnabled() ? timed("hatvp", () => hatvp.bySiren(siren)) : none,
     live && isDecpEnabled() ? timed("decp", () => decp.bySiren(siren)) : none,
     registryHop,
+    live && isDgalEnabled() ? timed("dgal", () => dgal.bySiren(siren)) : none,
   ]);
   // Ordre des source_records déterministe, indépendant de l'ordre d'arrivée.
   sources.push(
@@ -473,6 +478,7 @@ export async function assembleCase(
   if (caminoRes) sources.push(toSource("camino", caminoRes));
   if (hatvpRes) sources.push(toSource("hatvp", hatvpRes));
   if (decpRes) sources.push(toSource("decp", decpRes));
+  if (dgalRes) sources.push(toSource("dgal", dgalRes));
   if (icpeImportAttempt) sources.push(toSource("georisques", icpeImportAttempt));
   if (icpeRes) sources.push(toSource("georisques", icpeRes));
   if (annuaireRes) sources.push(toSource("annuaire_administration", annuaireRes));
@@ -486,6 +492,7 @@ export async function assembleCase(
     ...bodaccEvents,
     ...(openDataUsable(caminoRes) ? normalizeCamino(caminoRes.raw, companyId) : []),
     ...(openDataUsable(decpRes) ? normalizeDecp(decpRes.raw, companyId) : []),
+    ...(openDataUsable(dgalRes) ? normalizeDgal(dgalRes.raw, companyId) : []),
     ...(openDataUsable(baloRes) ? normalizeBalo(baloRes.raw, companyId) : []),
     ...(openDataUsable(boampRes) ? normalizeBoamp(boampRes.raw, companyId) : []),
     ...(openDataUsable(dcaRes) ? normalizeDca(dcaRes.raw, companyId) : []),
@@ -751,6 +758,7 @@ export async function assembleCase(
       ...personsNorm.attributes,
       ...hatvpAttributes(openDataUsable(hatvpRes) ? hatvpRes.raw : null),
       ...decpAttributes(openDataUsable(decpRes) ? decpRes.raw : null),
+      ...dgalAttributes(openDataUsable(dgalRes) ? dgalRes.raw : null),
       ...regulatoryAttributes({
         icpe: openDataUsable(icpeRes) ? icpeRes.raw : null,
         annuaire: openDataUsable(annuaireRes) ? annuaireRes.raw : null,

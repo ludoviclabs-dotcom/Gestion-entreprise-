@@ -13,3 +13,4 @@ export * from "./tresor-gels";
 export * from "./hatvp";
 export * from "./sanctions";
 export * from "./decp";
+export * from "./dgal";

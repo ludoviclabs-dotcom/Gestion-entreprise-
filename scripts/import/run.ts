@@ -3,6 +3,7 @@ import { connectImportDatabase } from "./lib/postgres-store";
 import { importCamino } from "./camino";
 import { importHatvp, type HatvpStats } from "./hatvp";
 import { importDecp, type DecpStats } from "./decp";
+import { importDgal, type DgalStats } from "./dgal";
 import type { ImportReport } from "./lib/runner";
 import { importIcpe, type IcpeStats } from "./icpe";
 import { importGels, type GelsStats } from "./tresor-gels";
@@ -25,7 +26,7 @@ async function main() {
     if (source === "check") await summary("Infrastructure accessible.");
     await runSources(keys, async (key) => {
       const started = Date.now();
-      let report: ImportReport & { stats?: IcpeStats | GelsStats | SanctionsStats | HatvpStats | DecpStats };
+      let report: ImportReport & { stats?: IcpeStats | GelsStats | SanctionsStats | HatvpStats | DecpStats | DgalStats };
       let detail = "";
       const list = listOfSource(key);
       if (key === "camino") report = await importCamino(db);
@@ -45,6 +46,12 @@ async function main() {
         detail += ` Attributions distinctes conservées : ${r.stats.retained} ; synthèses SIREN/rôle : ${r.recordCount} ; pic RSS du processus : ${(process.resourceUsage().maxRSS / 1024).toFixed(1)} Mio.`;
         await summary("| DECP fichier | Marchés lus | Dans la fenêtre | Octets | Durée (s) | SHA-256 |\n|---|---:|---:|---:|---:|---|\n" +
           r.stats.files.map(f => `| ${f.month} | ${f.read} | ${f.inWindow} | ${f.bytes} | ${f.seconds.toFixed(1)} | ${f.sha256} |`).join("\n"));
+      } else if (key === "dgal") {
+        const r = await importDgal(db); report = r;
+        const total = (field: "read" | "usable" | "missingSiret" | "invalidSiren" | "invalidApproval" | "unknownCodes") => r.stats.files.reduce((n, f) => n + f[field], 0);
+        detail = ` Lignes lues : ${total("read")} ; rapprochables : ${total("usable")} ; sans SIRET : ${total("missingSiret")} ; SIREN invalides : ${total("invalidSiren")} ; agréments inexploitables : ${total("invalidApproval")} ; codes inconnus omis : ${total("unknownCodes")} ; doublons fusionnés : ${r.stats.duplicates} ; SHA-256 : ${r.sha256} ; pic RSS : ${(process.resourceUsage().maxRSS / 1024).toFixed(1)} Mio.`;
+        await summary("| DGAL section | Lues | Rapprochables | Octets | Export | Durée (s) | SHA-256 |\n|---|---:|---:|---:|---|---:|---|\n" +
+          r.stats.files.map(f => `| ${f.section} | ${f.read} | ${f.usable} | ${f.bytes} | ${f.exportedOn ?? "inconnu"} | ${f.seconds.toFixed(2)} | ${f.sha256} |`).join("\n"));
       } else if (list) {
         const r = await importSanctionsList(db, list);
         report = r;

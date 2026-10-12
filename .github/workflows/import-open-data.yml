@@ -8,7 +8,7 @@ on:
         required: true
         type: choice
         default: check
-        options: [check, camino, icpe, tresor_gels, hatvp, decp, sanctions, daily, all]
+        options: [check, camino, icpe, tresor_gels, hatvp, decp, dgal, sanctions, daily, all]
   schedule:
     # Mensuel : tous les jeux volumineux.
     - cron: '17 3 4 * *'

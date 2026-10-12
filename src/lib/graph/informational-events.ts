@@ -2,7 +2,7 @@ import type Graph from "graphology";
 
 /** Décision lot D : les dates Camino enrichissent le dossier sans effet de score. */
 export function isInformationalEvent(event: { kind: string }): boolean {
-  return event.kind === "titre_minier_debut" || event.kind === "titre_minier_echeance" || event.kind === "marche_public_attribue";
+  return event.kind === "titre_minier_debut" || event.kind === "titre_minier_echeance" || event.kind === "marche_public_attribue" || event.kind === "agrement_sanitaire_liste";
 }
 
 /** Copie de calcul partagée par le risque, l'Analyse et les requêtes de graphe.

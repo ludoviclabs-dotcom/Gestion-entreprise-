@@ -17,6 +17,7 @@ describe("getConnectorStatuses", () => {
         "camino",
         "hatvp",
         "decp",
+        "dgal",
         "georisques",
         "annuaire_administration",
         "agence_bio",

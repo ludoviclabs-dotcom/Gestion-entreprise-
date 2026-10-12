@@ -567,3 +567,9 @@ Sources `brreg` et `acra` (valeurs d'enum, migration 0022) ; drapeaux `BRREG_ENA
 2. Fusionner la PR (rien ne change tant que les drapeaux sont éteints).
 3. Vercel Production : `BRREG_ENABLED=true` et/ou `ACRA_ENABLED=true`, puis redéployer.
 4. Repli : remettre les drapeaux à `false` et redéployer.
+
+## D5 — DGAL, établissements agréés CE
+
+Migration 0023_dgal_approvals.sql, version dgal-v1-ce, flag DGAL_ENABLED=false. Les 18 CSV UTF-8 officiels sont importés mensuellement (SINGLE_SOURCES/all, pas daily). Rapprochement uniquement par SIREN valide du SIRET, sans noms ni adresses. Totaux par établissements et par couples site/agrément, activités par section et vingt événements d’observation au maximum (agrement_sanitaire_liste), sans effet sur scores/signaux. Une disparition ne devient jamais une radiation. CONNECTOR_SOURCE déclare dgal pour le fonctionnement observé de Réglages.
+
+[Validation D5](lot-d-dgal-validation.md) : URL exactes et 18 jeux data.gouv actuels, licence non renseignée, usage interne confirmé, colonnes, mesures réelles (23711 lignes lues, 23697 retenues, 16625 SIREN, 6,30 Mo), SQL, contrôle de l’enum et séquence d’activation.

@@ -29,6 +29,7 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   camino: "Titres miniers (Camino)",
   hatvp: "Répertoire HATVP",
   decp: "Données essentielles de la commande publique (DECP)",
+  dgal: "Agréments sanitaires CE (DGAL)",
   sanctions_intl: "Listes de sanctions internationales",
   manual: "Manuel",
   fixture: "Fixture",

@@ -51,6 +51,7 @@ export const CONNECTOR_SOURCE: Record<string, SourceKind | null> = {
   camino: "camino",
   hatvp: "hatvp",
   decp: "decp",
+  dgal: "dgal",
   companies_house: "companies_house",
   brreg: "brreg",
   acra: "acra",

@@ -55,6 +55,7 @@ export const sourceKind = pgEnum("source_kind", [
   "decp",
   "brreg",
   "acra",
+  "dgal",
   "manual",
   "fixture",
 ]); // étendu au fil des connecteurs (cf. drizzle/ migrations)
