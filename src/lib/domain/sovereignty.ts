@@ -124,8 +124,8 @@ export const SOVEREIGNTY_COMPONENTS: SovereigntyComponent[] = [
   {
     component: "Registres étrangers (GLEIF, Companies House, Brønnøysund, ACRA)",
     today: "Interrogés par identifiant public ; aucune autre donnée du dossier transmise",
-    target: "Inchangé — identifiants publics seulement",
-    sovereign: true,
+    target: "Non substituable : registres publics étrangers, interrogés par identifiant public seulement",
+    sovereign: false,
   },
   {
     component: "Presse (GDELT)",

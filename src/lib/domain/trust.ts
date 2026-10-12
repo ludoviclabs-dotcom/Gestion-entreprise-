@@ -101,7 +101,8 @@ export const SUB_PROCESSORS: SubProcessor[] = [
     name: "Vercel",
     service: "Hébergement frontend / API",
     region: "UE",
-    dataScope: "Trafic applicatif, pas de donnée personnelle réelle.",
+    dataScope:
+      "Trafic applicatif : les pages et réponses des dossiers peuvent contenir des noms de dirigeants issus de registres publics.",
     dpaUrl: "https://vercel.com/legal/dpa",
   },
   {

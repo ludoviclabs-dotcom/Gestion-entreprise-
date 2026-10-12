@@ -30,7 +30,7 @@ export type PrivacyPrinciple = {
 export const PRIVACY_PRINCIPLES: PrivacyPrinciple[] = [
   {
     title: "Minimisation",
-    body: "Aucune donnée stockée au-delà du nécessaire. Les dossiers du pilote ne reprennent que des informations publiques ; l'année de naissance d'un dirigeant sert au seul rapprochement avec les listes de sanctions et n'est jamais affichée. Les pages Démo n'utilisent que des fixtures anonymisées, sans bénéficiaire effectif réel.",
+    body: "Aucune donnée stockée au-delà du nécessaire. Les dossiers du pilote ne reprennent que des informations publiques ; l'année de naissance d'un dirigeant sert au rapprochement avec les listes de sanctions. Elle n'est pas mise en avant dans les fiches, mais elle figure dans les réponses brutes des sources (onglet Sources) et, pour un rapprochement corroboré, dans la fiche du rapprochement. Les pages Démo n'utilisent que des fixtures anonymisées, sans bénéficiaire effectif réel.",
   },
   {
     title: "Conservation — 5 ans",

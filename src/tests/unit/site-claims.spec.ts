@@ -52,9 +52,24 @@ describe("affirmations publiques de confiance", () => {
     expect(SOVEREIGNTY_COMPONENTS.some((c) => /OpenSanctions/.test(c.today) && /en cours/.test(c.today))).toBe(true);
   });
 
-  it("précise que l'année de naissance n'est jamais affichée", () => {
+  it("dit où l'année de naissance peut apparaître, sans prétendre qu'elle n'est jamais affichée", () => {
     const min = PRIVACY_PRINCIPLES.find((p) => p.title === "Minimisation");
     expect(min?.body).toMatch(/année de naissance/i);
-    expect(min?.body).toMatch(/jamais affichée/i);
+    expect(min?.body).toMatch(/réponses brutes des sources/i);
+    expect(min?.body).toMatch(/rapprochement corroboré/i);
+    expect(min?.body).not.toMatch(/jamais affichée/i);
+  });
+
+  it("n'annonce pas qu'aucune donnée personnelle ne transite chez l'hébergeur applicatif", () => {
+    const vercel = SUB_PROCESSORS.find((s) => s.name === "Vercel");
+    expect(vercel?.dataScope).not.toMatch(/pas de donnée personnelle/i);
+    expect(vercel?.dataScope).toMatch(/dirigeants/i);
+  });
+
+  it("ne qualifie pas de souverains des registres hébergés hors de l'UE", () => {
+    const foreign = SOVEREIGNTY_COMPONENTS.find((c) => /Registres étrangers/.test(c.component));
+    expect(foreign?.sovereign).toBe(false);
+    const layer = HOSTING_LAYERS.find((l) => /GLEIF/.test(l.provider));
+    expect(layer?.sovereign).toBe(foreign?.sovereign);
   });
 });
