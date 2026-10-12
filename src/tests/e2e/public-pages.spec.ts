@@ -18,6 +18,7 @@ const PAGES = [
     anchor: /5 ans/i,
   },
   { path: "/ressources", heading: /Ancrages réglementaires/i, anchor: /AMLR/i },
+  { path: "/sources", heading: /Sources publiques et officielles/i, anchor: /INSEE Sirene/i },
 ];
 
 for (const p of PAGES) {
@@ -42,6 +43,7 @@ test("le footer public (landmark contentinfo) relie les pages de crédibilité",
     "/securite",
     "/confidentialite",
     "/ressources",
+    "/sources",
   ]) {
     await expect(footer.locator(`a[href="${href}"]`).first()).toBeVisible();
   }

@@ -3,6 +3,7 @@
  * Sources : README, docs/regulatory.md, docs/sovereignty.md, docs/risk-rules.md.
  */
 
+import { familySummaries, sourcesIntro } from "@/lib/domain/public-sources";
 import type { Proof } from "./data";
 
 export const PILLARS = [
@@ -22,16 +23,26 @@ export const PROOF_LEVELS: { id: Proof; label: string; verify?: boolean; text: s
 export const PROOF_INTRO =
   "Chaque nœud, lien, événement et signal porte un niveau de preuve. Un élément inféré ou simulé porte toujours la mention « à vérifier ».";
 
-export const SOURCES = [
-  { name: "INSEE Sirene", text: "Identité légale et établissements", access: "API officielle" },
-  { name: "BODACC", text: "Annonces légales, procédures collectives, radiations", access: "API publique" },
-  { name: "INPI / RNE", text: "Bénéficiaires effectifs, accès conditionné à un intérêt légitime", access: "Derrière authentification" },
-  { name: "DG Trésor", text: "Registre national des gels des avoirs", access: "API publique" },
-  { name: "OpenSanctions", text: "Sanctions et personnes politiquement exposées", access: "Source UE" },
-];
+/**
+ * Section « Sources » : une ligne par famille, calculée à partir du catalogue
+ * public (`src/lib/domain/public-sources.ts`). Aucune liste à tenir à jour ici.
+ */
+export const SOURCES = familySummaries().map((f) => ({
+  name: f.title,
+  text: f.names,
+  access:
+    f.inProgress > 0
+      ? `${f.active} actives · ${f.inProgress} en cours`
+      : f.partial > 0
+        ? `${f.active} ${f.active > 1 ? "sources" : "source"} · disponibilité partielle`
+        : `${f.active} ${f.active > 1 ? "sources" : "source"}`,
+}));
 
-export const SOURCES_INTRO =
-  "API officielles uniquement, jamais de scraping. Chaque réponse brute est conservée dans la chaîne de preuve.";
+export const SOURCES_TITLE = "Sources publiques";
+
+export const SOURCES_INTRO = sourcesIntro();
+
+export const SOURCES_LINK = { label: "Voir toutes les sources", href: "/sources" };
 
 export const SCORES = [
   { name: "Complexité", text: "Score structurel : densité du réseau, nombre d'entités, degré maximal." },

@@ -11,6 +11,7 @@ import {
   FAMILIES,
   PALETTE,
   SECTORS,
+  SOURCE_COUNTS,
   scoreColor,
   scoreLabel,
   type DimensionKey,
@@ -40,8 +41,8 @@ function SourceStrip() {
   return (
     <div style={{ border: `1px solid ${PALETTE.line}`, borderRadius: 14, background: "rgba(17,20,42,0.5)", padding: "16px 18px" }}>
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", gap: "4px 16px" }}>
-        <p style={{ fontSize: 14, fontWeight: 600, color: PALETTE.textHi, margin: 0 }}>Mode live — sources officielles connectées</p>
-        <p style={{ fontSize: 12, color: PALETTE.textLow, margin: 0 }}>Les connecteurs interrogent les API officielles en temps réel.</p>
+        <p style={{ fontSize: 14, fontWeight: 600, color: PALETTE.textHi, margin: 0 }}>Sources publiques connectées, par famille</p>
+        <p style={{ fontSize: 12, color: PALETTE.textLow, margin: 0 }}>Interrogées par API ou importées depuis les jeux ouverts ; détail sur la page <Link href="/sources" style={{ color: ACCENT_TEXT }}>Sources</Link>.</p>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
         {CONNECTORS.map((c) => (
@@ -50,9 +51,9 @@ function SourceStrip() {
             style={{ display: "inline-flex", alignItems: "center", gap: 8, borderRadius: 9, border: `1px solid ${PALETTE.line}`, background: "rgba(10,11,20,0.6)", padding: "7px 11px" }}
           >
             <span style={{ fontSize: 12.5, color: "#cdd2e6" }}>{c.label}</span>
-            <LiveDot live={c.live} />
-            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", color: c.live ? "#4ade9b" : "#f5b544", fontFamily: MONO, textTransform: "uppercase" }}>
-              {c.live ? "Live" : "Démo"}
+            <LiveDot live={c.inProgress === 0} />
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", color: c.inProgress === 0 ? "#4ade9b" : "#f5b544", fontFamily: MONO, textTransform: "uppercase" }}>
+              {c.active} {c.inProgress > 0 ? `actives · ${c.inProgress} en cours` : c.active > 1 ? "actives" : "active"}
             </span>
           </div>
         ))}
@@ -245,7 +246,6 @@ export default function SectorsExperience() {
   const [q, setQ] = useState("");
 
   const totalThreats = SECTORS.reduce((a, s) => a + s.threats2026.length + s.kybSignals.length, 0);
-  const liveCount = CONNECTORS.filter((c) => c.live).length;
   const maxSector = SECTORS.reduce((a, s) => (s.intensity > a.intensity ? s : a));
 
   const toggleFam = (f: string) => setFams((p) => (p.includes(f) ? p.filter((x) => x !== f) : [...p, f]));
@@ -324,7 +324,7 @@ export default function SectorsExperience() {
                 [SECTORS.length, "secteurs analysés", ""],
                 [DIMENSIONS.length, "dimensions de risque", ""],
                 [totalThreats, "signaux catalogués", ""],
-                [liveCount, "connecteurs live", `/${CONNECTORS.length}`],
+                [SOURCE_COUNTS.active, "sources actives", `/${SOURCE_COUNTS.total}`],
               ] as [number, string, string][]).map(([n, l, sfx]) => (
                 <div key={l}>
                   <div style={{ display: "flex", alignItems: "baseline" }}>

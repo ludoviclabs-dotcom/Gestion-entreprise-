@@ -19,12 +19,12 @@ export function SourceHealthStrip({ className = "" }: { className?: string }) {
         <p className="text-sm font-medium text-foreground">
           {demo
             ? "Mode démo — fixtures anonymisées"
-            : "Mode live — sources officielles connectées"}
+            : "Mode live — sources publiques connectées"}
         </p>
         <p className="text-xs text-muted-foreground">
           {demo
             ? "Aucune donnée réelle. Chaque connecteur bascule en live dès l'activation de sa clé."
-            : "Les connecteurs interrogent les API officielles en temps réel."}
+            : "Les connecteurs interrogent les sources publiques en temps réel ou sur les jeux ouverts importés."}
         </p>
       </div>
       <ul className="mt-3 flex flex-wrap gap-2">

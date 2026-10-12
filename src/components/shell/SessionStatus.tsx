@@ -53,7 +53,7 @@ export default function SessionStatus({ demoMode }: { demoMode: boolean }) {
           <p className="text-muted-foreground">
             {demoMode
               ? "Les connecteurs renvoient des données de démonstration (fixtures)."
-              : "Les connecteurs interrogent les API officielles en temps réel."}
+              : "Les connecteurs interrogent les sources publiques en temps réel ou sur les jeux ouverts importés."}
           </p>
           <p className="text-xs text-subtle">
             Aucun compte utilisateur : l&apos;authentification n&apos;est pas encore activée sur cet

@@ -14,6 +14,7 @@ import {
   SECTOR_THREAT_PROFILES,
   type SectorThreatProfile,
 } from "./sector-threats";
+import { familySummaries, publicSourceCounts } from "./public-sources";
 
 export type DimensionKey = "geo" | "struct" | "sanctions" | "ubo" | "cyber";
 
@@ -147,17 +148,25 @@ export const SECTORS: SectorView[] = SECTOR_THREAT_PROFILES.map((p) => {
 
 export const FAMILIES: string[] = [...new Set(SECTORS.map((s) => s.family))];
 
-export type Connector = { key: string; label: string; live: boolean };
+/** Une famille de sources, calculée à partir du catalogue public. */
+export type Connector = {
+  key: string;
+  label: string;
+  /** Sources actives de la famille (y compris à disponibilité partielle). */
+  active: number;
+  /** Sources de la famille encore en cours de mise en service. */
+  inProgress: number;
+};
 
-/** Connecteurs / sources (repris du SourceHealthStrip : INPI/RNE en démo). */
-export const CONNECTORS: Connector[] = [
-  { key: "insee", label: "INSEE Sirene", live: true },
-  { key: "bodacc", label: "BODACC", live: true },
-  { key: "tresor", label: "DG Trésor — gels", live: true },
-  { key: "opensanctions", label: "OpenSanctions", live: true },
-  { key: "inpi", label: "INPI / RNE", live: false },
-  { key: "neon", label: "Base de données (Neon)", live: true },
-];
+/** Familles de sources : aucune liste à tenir à jour ici (cf. public-sources.ts). */
+export const CONNECTORS: Connector[] = familySummaries().map((f) => ({
+  key: f.id,
+  label: f.title,
+  active: f.active,
+  inProgress: f.inProgress,
+}));
+
+export const SOURCE_COUNTS = publicSourceCounts();
 
 /* ── Palette (teal de marque + palette de risque, alignée landing-scope) ── */
 export const PALETTE = {

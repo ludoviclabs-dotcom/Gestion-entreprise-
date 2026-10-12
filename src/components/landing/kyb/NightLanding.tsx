@@ -10,6 +10,8 @@ import {
   SCORE_MODEL,
   SOURCES,
   SOURCES_INTRO,
+  SOURCES_LINK,
+  SOURCES_TITLE,
   THREAT_HEAD,
   THREAT_INTRO,
   THREAT_ROWS,
@@ -200,7 +202,7 @@ export default function NightLanding() {
           <div className="b-wrap b-split">
             <div data-reveal="" className="b-split-head">
               <div className="b-kicker">02 / Sources</div>
-              <h2 className="b-h2">Sources officielles</h2>
+              <h2 className="b-h2">{SOURCES_TITLE}</h2>
               <p className="b-intro">{SOURCES_INTRO}</p>
             </div>
             <div className="b-split-body">
@@ -213,6 +215,11 @@ export default function NightLanding() {
                   </span>
                 </div>
               ))}
+              <div className="b-source-row">
+                <Link href={SOURCES_LINK.href} className="b-link-under b-link-sm">
+                  {SOURCES_LINK.label}
+                </Link>
+              </div>
             </div>
           </div>
         </section>

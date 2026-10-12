@@ -3,6 +3,7 @@ export type NavItem = { label: string; href: string };
 
 export const PUBLIC_NAV: NavItem[] = [
   { label: "Secteurs", href: "/secteurs" },
+  { label: "Sources", href: "/sources" },
   { label: "Souveraineté", href: "/souverainete" },
   { label: "Sécurité", href: "/securite" },
   { label: "Confidentialité", href: "/confidentialite" },

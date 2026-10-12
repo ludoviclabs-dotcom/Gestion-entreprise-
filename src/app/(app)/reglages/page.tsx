@@ -78,7 +78,7 @@ export default async function ReglagesPage() {
             <p className="text-sm text-muted-foreground">
               {demo
                 ? "Les connecteurs renvoient des données de démonstration (fixtures)."
-                : "Les connecteurs configurés interrogent les API officielles. Configuré ne veut pas dire opérationnel : l'état observé de chaque source est donné ci-dessous."}
+                : "Les connecteurs configurés interrogent les sources publiques (API ou jeux ouverts importés). Configuré ne veut pas dire opérationnel : l'état observé de chaque source est donné ci-dessous."}
             </p>
           </div>
           <Badge
