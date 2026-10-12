@@ -10,6 +10,8 @@ import {
   SCORE_MODEL,
   SOURCES,
   SOURCES_INTRO,
+  SOURCES_LINK,
+  SOURCES_TITLE,
   THREAT_HEAD,
   THREAT_INTRO,
   THREAT_ROWS,
@@ -191,7 +193,7 @@ export default function DayLanding() {
 
         {/* ── 02 Sources ── */}
         <section id="sources-a" className="a-split">
-          <SectionHead kicker="02 · Sources" title="Sources officielles" intro={SOURCES_INTRO} />
+          <SectionHead kicker="02 · Sources" title={SOURCES_TITLE} intro={SOURCES_INTRO} />
           <div className="a-split-body">
             {SOURCES.map((s, i) => (
               <div key={s.name} data-reveal="" data-delay={i * 60} className="a-source-row">
@@ -200,6 +202,11 @@ export default function DayLanding() {
                 <span className="a-mono-muted">{s.access}</span>
               </div>
             ))}
+            <div className="a-source-row">
+              <Link href={SOURCES_LINK.href} className="a-link-under">
+                {SOURCES_LINK.label}
+              </Link>
+            </div>
           </div>
         </section>
 

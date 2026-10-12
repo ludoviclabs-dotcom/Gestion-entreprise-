@@ -76,7 +76,7 @@ Le sélecteur `getCasesRepository()` choisit automatiquement. **L'UI est inchang
 2. **Scores labellisés** complexité / vigilance / qualité de preuve. **Jamais « fraude ».**
 3. **Mode démo zéro-clé** : l'app boote et affiche tout sans aucune clé API ni base de données.
 4. **Traçabilité** : chaque payload API brut est persisté dans `source_records` (chaîne de preuve).
-5. **RGPD** : profilage de dirigeants → fixtures anonymisées en démo, clés API côté serveur uniquement, **API officielles** seulement (jamais de scraping).
+5. **RGPD** : profilage de dirigeants → fixtures anonymisées en démo, clés API côté serveur uniquement, sources **publiques et officielles** seulement, par API ou jeux ouverts importés (jamais de scraping).
 
 ---
 
