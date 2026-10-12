@@ -14,6 +14,8 @@ import { ban, banAddressFrom } from "@/lib/connectors/ban";
 import { gdelt } from "@/lib/connectors/gdelt";
 import { pappers } from "@/lib/connectors/pappers";
 import { companiesHouse } from "@/lib/connectors/companies-house";
+import { foreignRegistries, foreignRegistryParents } from "@/lib/connectors/foreign-registries";
+import { foreignRegistryAttributes } from "./normalize-foreign-registry";
 import {
   LABEL_ALIM_CONFIANCE,
   LABEL_BIO,
@@ -51,6 +53,8 @@ import {
   isBaloEnabled,
   isBoampEnabled,
   isCompaniesHouseEnabled,
+  isBrregEnabled,
+  isAcraEnabled,
   isDcaEnabled,
   isDemoMode,
   isGdeltEnabled,
@@ -353,6 +357,25 @@ export async function assembleCase(
     return { parents, results };
   });
 
+  // Registres étrangers (Norvège, Singapour) — SECOND SAUT PAR IDENTIFIANT : GLEIF
+  // donne le registre d'origine et le numéro d'immatriculation de la mère ; le
+  // registre officiel est interrogé avec ce numéro (rapprochement exact, sans
+  // homonymie). Appelé seulement en live ET registre activé.
+  const registryHop = gleifP.then(async (gleifRes) => {
+    const parents =
+      !isDemoMode() && usableResult(gleifRes)
+        ? foreignRegistryParents(gleifRes.raw).filter((p) =>
+            p.registry === "no" ? isBrregEnabled() : isAcraEnabled(),
+          )
+        : [];
+    const results = await Promise.all(
+      parents.map((p) =>
+        timed(p.registry === "no" ? "brreg" : "acra", () => foreignRegistries.lookup(p.registry, p.number)),
+      ),
+    );
+    return { parents, results };
+  });
+
   // Listes de sanctions internationales — SECOND SAUT : le sujet ET ses sociétés
   // mères GLEIF (une mère étrangère sanctionnée est le cas qu'un contrôle du seul
   // sujet français manquerait). Lecture en base : aucun appel réseau. Appelé
@@ -391,6 +414,7 @@ export async function assembleCase(
     sanctionsRes,
     hatvpRes,
     decpRes,
+    { parents: registryParents, results: registryResults },
   ] = await Promise.all([
     timed("bodacc", () => bodacc.bySiren(siren)),
     timed("inpi", () => inpi.getRne(siren)),
@@ -422,6 +446,7 @@ export async function assembleCase(
     sanctionsHop,
     live && isHatvpEnabled() ? timed("hatvp", () => hatvp.bySiren(siren)) : none,
     live && isDecpEnabled() ? timed("decp", () => decp.bySiren(siren)) : none,
+    registryHop,
   ]);
   // Ordre des source_records déterministe, indépendant de l'ordre d'arrivée.
   sources.push(
@@ -532,6 +557,19 @@ export async function assembleCase(
   const gleifNorm = usableResult(gleifRes)
     ? normalizeGleif(gleifRes.raw, companyId)
     : { entities: [], edges: [], subjectLei: null };
+
+  // Registres étrangers : une ligne de source par consultation ; les attributs
+  // (statut, forme, comptes…) sont greffés sur le nœud société mère GLEIF.
+  registryParents.forEach((parent, i) => {
+    const res = registryResults[i];
+    sources.push(toSource(parent.registry === "no" ? "brreg" : "acra", res));
+    // Absence (404) ou panne : rien à greffer, jamais une donnée inventée.
+    if (res.isFixture || res.httpStatus < 200 || res.httpStatus >= 300) return;
+    const parentNode = gleifNorm.entities.find((e) => e.id === `co:lei:${parent.lei}`);
+    if (parentNode) {
+      parentNode.attributes = { ...parentNode.attributes, ...foreignRegistryAttributes(res.raw) };
+    }
+  });
 
   // Companies House : résultats déjà obtenus (second saut enchaîné sur GLEIF).
   for (const r of chResults) sources.push(toSource("companies_house", r));

@@ -27,6 +27,8 @@ describe("getConnectorStatuses", () => {
         "ban",
         "boamp",
         "bodacc",
+        "brreg",
+        "acra",
         "companies_house",
         "database",
         "dca",

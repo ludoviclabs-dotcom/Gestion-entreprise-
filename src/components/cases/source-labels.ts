@@ -13,6 +13,8 @@ export const SOURCE_LABELS: Record<SourceKind, string> = {
   gdelt: "Presse (GDELT)",
   pappers: "Pappers",
   companies_house: "Companies House (UK)",
+  brreg: "Registre norvégien (Brønnøysund)",
+  acra: "Registre de Singapour (ACRA)",
   recherche_entreprises: "Recherche d'entreprises (DINUM)",
   balo: "BALO (annonces financières)",
   boamp: "BOAMP (marchés publics)",

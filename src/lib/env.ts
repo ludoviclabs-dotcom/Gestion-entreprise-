@@ -52,6 +52,10 @@ const serverSchema = z.object({
   // personnes à contrôle significatif des SOCIÉTÉS MÈRES britanniques repérées par
   // GLEIF (second saut). Opt-in : flag ET clé API (auth HTTP Basic, clé en login).
   COMPANIES_HOUSE_ENABLED: z.enum(["true", "false"]).default("false"),
+  // Registres étrangers des sociétés mères repérées par GLEIF, interrogés par
+  // identifiant : Norvège (Brønnøysund) et Singapour (ACRA). SANS clé, opt-in.
+  BRREG_ENABLED: z.enum(["true", "false"]).default("false"),
+  ACRA_ENABLED: z.enum(["true", "false"]).default("false"),
   COMPANIES_HOUSE_API_KEY: z.string().optional(),
   COMPANIES_HOUSE_BASE_URL: z
     .string()
@@ -143,6 +147,8 @@ export const isQualiopiEnabled = (): boolean => env.QUALIOPI_ENABLED === "true";
 export const isIcpeImportEnabled = (): boolean => env.ICPE_IMPORT_ENABLED === "true";
 export const isTresorGelsImportEnabled = (): boolean =>
   env.TRESOR_GELS_IMPORT_ENABLED === "true";
+export const isBrregEnabled = (): boolean => env.BRREG_ENABLED === "true";
+export const isAcraEnabled = (): boolean => env.ACRA_ENABLED === "true";
 export const isSanctionsIntlEnabled = (): boolean =>
   env.SANCTIONS_INTL_ENABLED === "true";
 export const isSanctionsPersonsEnabled = (): boolean =>

@@ -533,3 +533,37 @@ troncature.
 Livré après validation D3 du 12 octobre 2026. Migration **0021_decp_summaries.sql**, source decp, version decp-v1-aggregate avec les bornes de fenêtre. Le plan B du §4.4 est retenu pour le quota Neon confirmé (0,21 Go utilisés sur 0,5 Go). Les totaux titulaire/acheteur couvrent tous les marchés distincts de la sélection de fichiers dans les douze mois de notification ; seules les vingt références récentes par SIREN/rôle et les cinq principaux acheteurs sont persistés. Aucune donnée nominative, aucun effet sur les scores/signaux, événements informatifs plafonnés à vingt.
 
 Le fichier [validation et activation D4](lot-d-decp-validation.md) contient les mesures réelles, les limites, le SQL exact, le contrôle pg_enum et l’unique séquence d’activation. SINGLE_SOURCES/all inclut decp ; daily et sanctions sont conservés. Réglages reprend automatiquement son import et son fonctionnement observé via la déclaration CONNECTOR_SOURCE.
+
+## Registres étrangers des sociétés mères (Norvège, Singapour)
+
+**Principe.** GLEIF publie, pour la mère directe ou ultime d'une société, son **registre
+d'origine** (code RA) et son **numéro d'immatriculation**. Le registre officiel du pays est
+interrogé avec ce numéro : un rapprochement par IDENTIFIANT, donc sans homonymie — à la
+différence d'un rapprochement par nom (voir l'essai Offshore Leaks : 13 correspondances de nom
+sur 600 sociétés, presque toutes des homonymes). Même mécanique que Companies House.
+
+| Registre | Code RA (vérifié GLEIF) | Accès | Ce qui est conservé |
+|---|---|---|---|
+| Norvège — Brønnøysundregistrene, Enhetsregisteret | RA000472 | API ouverte, sans clé | nom, forme juridique, statut (activité, faillite, liquidation, radiation), date d'immatriculation, dernier exercice déposé, effectif, activité |
+| Singapour — ACRA (jeu data.gov.sg « Registered Entities with UEN ») | RA000523 | jeu ouvert, sans clé, 1 appel / 3 s | nom, type, statut, date d'immatriculation |
+
+Ni adresse, ni dirigeant, ni téléphone, ni site. **Information seulement** : un attribut sur le
+nœud société mère, sans nœud, lien ni signal ni effet sur les scores.
+
+**Honnêteté.** Numéro inconnu → HTTP 404 (absence, pas une panne) ; limitation de débit (429),
+erreur serveur, schéma inattendu ou délai dépassé → consultation dégradée, jamais « absent ».
+Sources `brreg` et `acra` (valeurs d'enum, migration 0022) ; drapeaux `BRREG_ENABLED` et
+`ACRA_ENABLED` (défaut `false`).
+
+**Vérifié sur les registres réels (12 octobre 2026).** Equinor (923 609 016, 349 ms), Telenor
+(982 463 718), DBS Group Holdings (199901152M), Singtel (199201624D) trouvés ; numéros inconnus
+→ 404.
+
+### Activation
+
+1. Neon → SQL Editor : `drizzle/0022_registres_etrangers.sql` (ou la fin de
+   `docs/lot-d-activation.sql`, idempotent), puis la requête de contrôle de l'enum : elle doit
+   lister `brreg` et `acra`.
+2. Fusionner la PR (rien ne change tant que les drapeaux sont éteints).
+3. Vercel Production : `BRREG_ENABLED=true` et/ou `ACRA_ENABLED=true`, puis redéployer.
+4. Repli : remettre les drapeaux à `false` et redéployer.

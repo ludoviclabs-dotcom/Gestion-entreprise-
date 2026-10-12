@@ -124,6 +124,10 @@ CREATE TABLE IF NOT EXISTS "sanctions_entries" (
 ALTER TABLE "sanctions_entries" ADD COLUMN IF NOT EXISTS "birth_years" jsonb DEFAULT '[]'::jsonb NOT NULL;
 CREATE INDEX IF NOT EXISTS "sanctions_entries_keys_gin" ON "sanctions_entries" USING gin ("keys");
 
+-- Registres étrangers (Norvège, Singapour) : 0022_registres_etrangers.sql — valeurs d'enum seulement.
+ALTER TYPE "public"."source_kind" ADD VALUE IF NOT EXISTS 'brreg' BEFORE 'manual';
+ALTER TYPE "public"."source_kind" ADD VALUE IF NOT EXISTS 'acra' BEFORE 'manual';
+
 -- Exécuter APRÈS le SQL ; la liste doit contenir hatvp et sanctions_intl avant manual.
 select string_agg(e.enumlabel, ', ' order by e.enumsortorder)
 from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'source_kind';

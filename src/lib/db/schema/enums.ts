@@ -53,6 +53,8 @@ export const sourceKind = pgEnum("source_kind", [
   "hatvp",
   "sanctions_intl",
   "decp",
+  "brreg",
+  "acra",
   "manual",
   "fixture",
 ]); // étendu au fil des connecteurs (cf. drizzle/ migrations)
