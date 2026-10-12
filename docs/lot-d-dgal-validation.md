@@ -122,7 +122,7 @@ Les écritures sont passées par le vrai socle D0/postgresImportStore, les vraie
 
 ## Vérifications du code
 
-Suite complète : **1013 tests / 115 fichiers** ; TypeScript, eslint src/scripts, compilation de production et **47 parcours Playwright** réussis. Les tests dédiés couvrent PostgreSQL avec migrations réelles deux fois, sérialiseur postgres 3802, colonnes réordonnées/manquantes, données privées piégées, fichier vide/tronqué, coupure, SIREN invalide/NIC non interprété, doubles sections et multi-sites, 20 événements, rollback/cascade, suppression sans radiation, état absent/non importé/échec, gating et non-régression des trois scores/signaux/métriques. La CI et la revue automatique revalident la version publiée.
+Suite complète après rebase sur les registres étrangers : **1033 tests / 117 fichiers** ; TypeScript et eslint complets réussis. Compilation de production et **47 parcours Playwright** réussis avant ce rebase ; la CI revalide la version publiée. Les tests dédiés couvrent PostgreSQL avec migrations réelles deux fois, sérialiseur postgres 3802, colonnes réordonnées/manquantes, données privées piégées, fichier vide/tronqué, coupure, SIREN invalide/NIC non interprété, doubles sections et multi-sites, 20 événements, rollback/cascade, suppression sans radiation, état absent/non importé/échec, gating et non-régression des trois scores/signaux/métriques. La revue automatique est attendue avant livraison.
 
 ## SQL exact 0023
 

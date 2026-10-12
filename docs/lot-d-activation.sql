@@ -170,7 +170,7 @@ from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'source_k
 
 
 -- D5 — DGAL CE (0023), flag désactivé par défaut.
--- 0022 réservée aux registres étrangers ; ne pas écraser.
+-- 0022 des registres étrangers conservée ; ne pas écraser.
 ALTER TYPE "public"."source_kind" ADD VALUE IF NOT EXISTS 'dgal' BEFORE 'manual';--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "dgal_approvals" (
 	"import_id" uuid NOT NULL,
