@@ -58,10 +58,16 @@ export const FOREIGN_REGISTRY_LABELS: Record<ForeignRegistryKey, string> = {
 
 /** Numéro normalisé selon le registre, ou `null` si le format est invalide. */
 export function normalizeRegistryNumber(registry: ForeignRegistryKey, raw: string): string | null {
-  const compact = raw.replace(/[\s.\-]/g, "").toUpperCase();
-  if (registry === "no") return /^\d{9}$/.test(compact) ? compact : null;
-  // UEN : 9 chiffres + lettre (entreprises) ou 10 caractères alphanumériques.
-  return /^[0-9A-Z]{9,10}$/.test(compact) ? compact : null;
+  if (registry === "no") {
+    const digits = raw.replace(/[\s.\-]/g, "");
+    return /^\d{9}$/.test(digits) ? digits : null;
+  }
+  // UEN : 9 chiffres + lettre (entreprises) ou 10 caractères alphanumériques ; un
+  // sous-fonds de VCC porte en plus un suffixe « -SFxxx » (ex. T20VC0001A-SF001),
+  // à conserver tel quel (le tiret en fait partie).
+  const m = /^([0-9A-Z]{9,10})(?:-?(SF\d{3}))?$/.exec(raw.replace(/[\s.]/g, "").toUpperCase());
+  if (!m) return null;
+  return m[2] ? `${m[1]}-${m[2]}` : m[1];
 }
 
 /** Sociétés mères (directe / ultime) immatriculées dans un registre couvert. Pur, dédoublonné. */

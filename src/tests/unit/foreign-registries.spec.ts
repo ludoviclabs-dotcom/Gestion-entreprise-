@@ -62,6 +62,18 @@ describe("normalizeRegistryNumber / foreignRegistryParents", () => {
     expect(normalizeRegistryNumber("sg", "??")).toBeNull();
   });
 
+  it("Singapour : le suffixe de sous-fonds VCC « -SFxxx » est conservé", () => {
+    expect(normalizeRegistryNumber("sg", "T20VC0001A-SF001")).toBe("T20VC0001A-SF001");
+    expect(normalizeRegistryNumber("sg", "t20vc0001a sf001")).toBe("T20VC0001A-SF001"); // casse, espace
+    expect(normalizeRegistryNumber("sg", "T20VC0001ASF001")).toBe("T20VC0001A-SF001");
+    expect(normalizeRegistryNumber("sg", "T20VC0001A-XX001")).toBeNull();
+    expect(
+      foreignRegistryParents({
+        directParent: { lei: "L9", registeredAs: "T20VC0001A-SF001", registrationAuthority: "RA000523" },
+      }),
+    ).toEqual([{ lei: "L9", registry: "sg", number: "T20VC0001A-SF001" }]);
+  });
+
   it("repère les mères norvégiennes et singapouriennes par code RA, dédoublonnées", () => {
     const parents = foreignRegistryParents({
       directParent: { lei: "L1", registeredAs: "923 609 016", registrationAuthority: "RA000472" },
