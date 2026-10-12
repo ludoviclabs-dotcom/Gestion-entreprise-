@@ -152,6 +152,10 @@ export class FixtureCasesRepository implements CasesRepository {
     // La presse n'est jamais différée en mode démo/session (fixture instantanée).
   }
 
+  async requestPressRetry(): Promise<boolean> {
+    return false;
+  }
+
   async saveSynthesis(
     caseId: string,
     content: string,

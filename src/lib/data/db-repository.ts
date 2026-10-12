@@ -39,8 +39,9 @@ import {
 } from "./case-quality";
 import { SCORE_MODEL_VERSION, scoreModelVersionOf } from "@/lib/risk/engine";
 import { timingsOf } from "@/lib/data/timings";
-import { pressOf } from "@/lib/data/press-status";
+import { isPressConsultationFailed, isPressStale, pressOf } from "@/lib/data/press-status";
 import { planPressCompletion } from "@/lib/data/press-completion";
+import { pressStateIs, unachievedGdeltRecords } from "@/lib/data/press-sql";
 import { gdelt } from "@/lib/connectors/gdelt";
 
 /** Format UUID (les ids de dossiers réels) — un id non-UUID est une fixture. */
@@ -848,6 +849,60 @@ export class DbCasesRepository implements CasesRepository {
     }
   }
 
+  async requestPressRetry(caseId: string): Promise<boolean> {
+    if (!UUID_RE.test(caseId)) return false;
+    const db = getDb();
+    try {
+      const [row] = await db.select().from(cases).where(eq(cases.id, caseId));
+      if (!row) return false;
+      const press = pressOf(row.metadata);
+      const gdeltRows = await db
+        .select({
+          source: sourceRecords.source,
+          endpoint: sourceRecords.endpoint,
+          httpStatus: sourceRecords.httpStatus,
+          isFixture: sourceRecords.isFixture,
+        })
+        .from(sourceRecords)
+        .where(and(eq(sourceRecords.caseId, caseId), eq(sourceRecords.source, "gdelt")));
+      const consulted = gdeltRows.map((r) => ({
+        source: r.source as string,
+        endpoint: r.endpoint,
+        httpStatus: Number(r.httpStatus ?? 0) || 0,
+        isFixture: r.isFixture === "true",
+      }));
+      // Reprise légitime : collecte échouée ou interrompue, ou terminée sans aucune
+      // consultation réelle réussie. Jamais pendant une collecte en cours.
+      const allowed =
+        !!press &&
+        (press.state === "failed" ||
+          (press.state === "pending" && isPressStale(press)) ||
+          (press.state === "done" && isPressConsultationFailed(consulted)));
+      if (!allowed || !press) return false;
+
+      // Prise de possession ATOMIQUE : la transition n'a lieu que si l'état lu est
+      // toujours l'état courant (même état ET même horodatage de demande). Deux
+      // relances simultanées passent toutes deux la lecture ci-dessus, mais une
+      // seule met à jour une ligne — l'autre renvoie false et ne planifie rien,
+      // donc aucune collecte en double (événements, signaux, preuves dupliqués).
+      const requestedAt = new Date().toISOString();
+      const claimed = await db
+        .update(cases)
+        .set({
+          metadata: sql`jsonb_set(coalesce(metadata, '{}'::jsonb), '{press}', ${JSON.stringify({
+            state: "pending",
+            requestedAt,
+          })}::jsonb)`,
+        })
+        .where(and(eq(cases.id, caseId), pressStateIs(press)))
+        .returning({ id: cases.id });
+      return claimed.length === 1;
+    } catch (error) {
+      console.error("[requestPressRetry] échec", error);
+      return false;
+    }
+  }
+
   async completePendingPress(caseId: string): Promise<void> {
     if (!UUID_RE.test(caseId)) return;
     const db = getDb();
@@ -860,7 +915,9 @@ export class DbCasesRepository implements CasesRepository {
 
       const startedAt = Date.now();
       // Même libellé que celui utilisé à la création (dénomination du sujet).
-      const result = await gdelt.byName(row.title);
+      // Collecte différée (personne n'attend) : avec reprises — GDELT sature, une
+      // tentative unique échoue presque toujours (voir connecteur).
+      const result = await gdelt.byNameResilient(row.title);
       const elapsed = Date.now() - startedAt;
 
       const detail = await this.getCase(caseId);
@@ -903,6 +960,10 @@ export class DbCasesRepository implements CasesRepository {
       // UNE requête transactionnelle : la presse, ses événements, leur preuve, le
       // signal éventuel et les scores apparaissent ensemble — jamais à moitié.
       const batch = [
+        // Reprise : la ligne GDELT d'une tentative précédente NON aboutie (aucune
+        // preuve ne s'y rattache) est remplacée par la nouvelle. La tentative
+        // reste documentée dans le journal de preuve (événement source_consultee).
+        db.delete(sourceRecords).where(unachievedGdeltRecords(caseId)),
         db.insert(sourceRecords).values(plan.sourceRecord),
         ...chunkRows(plan.eventRows).map((r) => db.insert(events).values(r)),
         ...chunkRows(plan.signalRows).map((r) => db.insert(riskSignals).values(r)),

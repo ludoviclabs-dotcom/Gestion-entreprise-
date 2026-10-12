@@ -6,6 +6,8 @@ import { isPressStale, PRESS_STALE_MS } from "@/lib/data/press-status";
 
 const refresh = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
+const retry = vi.hoisted(() => vi.fn());
+vi.mock("@/app/(app)/cases/actions", () => ({ retryPressAction: retry }));
 
 import PressNotice from "@/components/cases/PressNotice.client";
 
@@ -84,6 +86,57 @@ describe("PressNotice — rafraîchissement jusqu'à l'échéance serveur", () =
     const total = refresh.mock.calls.length;
     advance(30 * 60_000);
     expect(refresh).toHaveBeenCalledTimes(total);
+  });
+});
+
+describe("PressNotice — reprise manuelle de la collecte", () => {
+  beforeEach(() => {
+    retry.mockReset();
+    refresh.mockClear();
+  });
+  afterEach(() => {
+    act(() => root?.unmount());
+    host?.remove();
+    root = null;
+    host = null;
+  });
+  const button = () =>
+    Array.from(host!.querySelectorAll("button")).find((b) => /Relancer/.test(b.textContent ?? ""));
+  const flush = () => act(async () => { await Promise.resolve(); });
+
+  it("GDELT n'a jamais répondu : « non consultée », jamais « aucun article », avec reprise", () => {
+    mount({ state: "unreachable", caseId: "c1" });
+    expect(host!.textContent).toContain("Presse non consultée");
+    expect(host!.textContent).toContain("Ce n'est pas « aucun article »");
+    expect(host!.textContent).toContain("saturée");
+    expect(button()).toBeTruthy();
+  });
+
+  it("reprise acceptée : l'action est appelée puis la page se rafraîchit", async () => {
+    retry.mockResolvedValue({ ok: true });
+    mount({ state: "interrupted", caseId: "c1" });
+    await act(async () => { button()!.click(); });
+    await flush();
+    expect(retry).toHaveBeenCalledWith("c1");
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("reprise refusée : le message est affiché, aucun rafraîchissement", async () => {
+    retry.mockResolvedValue({ ok: false, error: "Aucune reprise nécessaire pour ce dossier." });
+    mount({ state: "unreachable", caseId: "c1" });
+    await act(async () => { button()!.click(); });
+    await flush();
+    expect(host!.textContent).toContain("Aucune reprise nécessaire");
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("sans dossier : pas de bouton ; en cours : pas de bouton", () => {
+    mount({ state: "interrupted" });
+    expect(button()).toBeUndefined();
+    act(() => root?.unmount());
+    host?.remove();
+    mount({ state: "pending", requestedAt: new Date().toISOString(), caseId: "c1" });
+    expect(button()).toBeUndefined();
   });
 });
 

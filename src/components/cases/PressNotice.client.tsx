@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Newspaper } from "lucide-react";
 import { PRESS_STALE_MS } from "@/lib/data/press-status";
+import { retryPressAction } from "@/app/(app)/cases/actions";
 
 /** Rafraîchissement rapide pendant la première minute (la presse arrive en ≈ 15 s). */
 const FAST_POLL_MS = 5_000;
@@ -22,16 +23,33 @@ const DEADLINE_GRACE_MS = 60_000;
  *    interrompue — le bandeau ne reste donc jamais « en cours » indéfiniment.
  *  - `interrupted` : la collecte n'a pas abouti. La presse n'a PAS été consultée :
  *    ce n'est pas « aucun article », et la vigilance n'en tient pas compte.
+ *  - `unreachable` : la source a été interrogée à plusieurs reprises sans réponse
+ *    exploitable (saturation). Même conclusion : presse non consultée.
+ * Dans les deux derniers cas, la collecte peut être relancée.
  */
 export default function PressNotice({
   state,
   requestedAt,
+  caseId,
 }: {
-  state: "pending" | "interrupted";
+  state: "pending" | "interrupted" | "unreachable";
   /** Horodatage serveur de la demande de collecte (ISO 8601). */
   requestedAt?: string;
+  /** Dossier : requis pour proposer la reprise de la collecte. */
+  caseId?: string;
 }) {
   const router = useRouter();
+  const [pendingRetry, startRetry] = useTransition();
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const retry = () => {
+    if (!caseId) return;
+    setRetryError(null);
+    startRetry(async () => {
+      const res = await retryPressAction(caseId);
+      if (res.ok) router.refresh();
+      else setRetryError(res.error);
+    });
+  };
 
   useEffect(() => {
     if (state !== "pending") return;
@@ -73,17 +91,35 @@ export default function PressNotice({
           </span>{" "}
           Les autres sources sont déjà consultées. Les articles, le score de
           vigilance et la qualité de preuve seront mis à jour dès la réponse de
-          GDELT (une dizaine de secondes).
+          GDELT : cette source sature souvent, la collecte retente
+          automatiquement (jusqu&apos;à 1 minute 30).
         </p>
       ) : (
-        <p>
-          <span className="font-medium text-foreground">
-            Presse non consultée pour ce dossier.
-          </span>{" "}
-          La collecte n&apos;a pas abouti : ce n&apos;est pas « aucun article »,
-          et la vigilance n&apos;en tient pas compte. Recréer le dossier relance
-          la consultation.
-        </p>
+        <div className="flex flex-col gap-2">
+          <p>
+            <span className="font-medium text-foreground">
+              Presse non consultée pour ce dossier.
+            </span>{" "}
+            {state === "unreachable"
+              ? "GDELT n'a pas donné de réponse exploitable après plusieurs tentatives (source saturée). "
+              : "La collecte n'a pas abouti. "}
+            Ce n&apos;est pas « aucun article » : la vigilance n&apos;en tient
+            pas compte.
+          </p>
+          {caseId ? (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={retry}
+                disabled={pendingRetry}
+                className="rounded-md border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground hover:bg-surface disabled:opacity-60"
+              >
+                {pendingRetry ? "Relance…" : "Relancer la collecte de presse"}
+              </button>
+              {retryError ? <span role="alert">{retryError}</span> : null}
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );

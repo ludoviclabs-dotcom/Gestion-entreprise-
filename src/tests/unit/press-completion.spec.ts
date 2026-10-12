@@ -16,7 +16,7 @@ const SUBJECT = "aaaaaaaa-0000-4000-8000-000000000001";
 const OTHER = "aaaaaaaa-0000-4000-8000-000000000002";
 
 type Row = Record<string, unknown>;
-type Op = { kind: "insert" | "update"; table: unknown; rows: Row[]; values?: Row };
+type Op = { kind: "insert" | "update" | "delete"; table: unknown; rows: Row[]; values?: Row };
 
 const state = vi.hoisted(() => ({
   batches: [] as unknown[][],
@@ -24,6 +24,10 @@ const state = vi.hoisted(() => ({
   caseRow: null as Record<string, unknown> | null,
   gdelt: null as unknown,
   failBatch: false,
+  /** Lignes renvoyées par une lecture de `source_records` (reprise de la collecte). */
+  sourceRows: [] as Record<string, unknown>[],
+  /** Lignes mises à jour par la prise de possession d'une reprise (0 = course perdue). */
+  claimRows: [{ id: "claimed" }] as Record<string, unknown>[],
   proof: [] as { kind: string; payload: Record<string, unknown> }[],
 }));
 
@@ -31,10 +35,15 @@ function makeDb() {
   const select = () => {
     const chain: Record<string, unknown> = {};
     const result = () => {
+      // Lecture des preuves de source (reprise) : lignes contrôlées par le test.
+      if (chain.__table === sourceRecords) return state.sourceRows;
       // La jointure sujet renvoie l'id de l'entité ; sinon la ligne du dossier.
       return chain.__join ? [{ id: SUBJECT }] : state.caseRow ? [state.caseRow] : [];
     };
-    chain.from = () => chain;
+    chain.from = (table: unknown) => {
+      chain.__table = table;
+      return chain;
+    };
     chain.innerJoin = () => {
       chain.__join = true;
       return chain;
@@ -53,6 +62,13 @@ function makeDb() {
         },
       };
     },
+    delete(table: unknown) {
+      return {
+        where() {
+          return { kind: "delete", table, rows: [] } as Op;
+        },
+      };
+    },
     update(table: unknown) {
       return {
         set(values: Row) {
@@ -63,6 +79,11 @@ function makeDb() {
               (op as unknown as { then: unknown }).then = (resolve: (v?: unknown) => void) => {
                 state.updates.push({ table, values });
                 resolve(undefined);
+              };
+              // Prise de possession atomique : update … where … returning id.
+              (op as unknown as { returning: unknown }).returning = async () => {
+                state.updates.push({ table, values });
+                return state.claimRows;
               };
               return op;
             },
@@ -80,7 +101,11 @@ function makeDb() {
 
 vi.mock("@/lib/db/client", () => ({ getDb: () => makeDb() }));
 vi.mock("@/lib/connectors/gdelt", () => ({
-  gdelt: { byName: async () => state.gdelt },
+  gdelt: {
+    byName: async () => state.gdelt,
+    // Collecte différée : avec reprises (comportement testé dans le connecteur).
+    byNameResilient: async () => state.gdelt,
+  },
 }));
 vi.mock("@/lib/ingestion/assemble-case", () => ({ assembleCase: vi.fn() }));
 
@@ -300,6 +325,16 @@ describe("DbCasesRepository.completePendingPress", () => {
     expect(state.proof[1].payload).toMatchObject({ complement: "presse", scoreModelVersion: "kyb-risk-2026.2" });
   });
 
+  it("reprise : la tentative précédente non aboutie est remplacée dans le MÊME lot", async () => {
+    await new DbCasesRepository().completePendingPress(CASE_ID);
+    const ops = batchOps();
+    // Suppression (bornée aux consultations non abouties sans preuve) AVANT l'insertion.
+    const del = ops.findIndex((o) => o.kind === "delete" && o.table === sourceRecords);
+    const ins = ops.findIndex((o) => o.kind === "insert" && o.table === sourceRecords);
+    expect(del).toBeGreaterThanOrEqual(0);
+    expect(ins).toBeGreaterThan(del);
+  });
+
   it("n'agit pas si la presse n'est pas en attente (déjà collectée)", async () => {
     state.caseRow = { ...state.caseRow, metadata: { press: { state: "done" } } };
     await new DbCasesRepository().completePendingPress(CASE_ID);
@@ -318,5 +353,60 @@ describe("DbCasesRepository.completePendingPress", () => {
     expect(state.updates).toHaveLength(1);
     expect(state.updates[0].table).toBe(cases);
     expect(state.proof).toHaveLength(0);
+  });
+});
+
+describe("DbCasesRepository.requestPressRetry", () => {
+  const failedRow = { source: "gdelt", endpoint: "https://api.gdeltproject.org/api/v2/doc/doc (erreur 429)", httpStatus: "429", isFixture: "false" };
+  const okRow = { source: "gdelt", endpoint: "https://api.gdeltproject.org/api/v2/doc/doc?query=%22X%22", httpStatus: "200", isFixture: "false" };
+
+  beforeEach(() => {
+    state.updates.length = 0;
+    state.sourceRows = [];
+    state.claimRows = [{ id: "claimed" }];
+    state.caseRow = {
+      id: CASE_ID, title: "SOCIETE EXEMPLE", rootSiren: "552032534", metadata: { press: { state: "done" } },
+    };
+  });
+
+  it("collecte terminée mais GDELT jamais aboutie (429) : reprise acceptée, état « en attente »", async () => {
+    state.sourceRows = [failedRow];
+    await expect(new DbCasesRepository().requestPressRetry(CASE_ID)).resolves.toBe(true);
+    expect(state.updates).toHaveLength(1);
+    expect(state.updates[0].table).toBe(cases);
+  });
+
+  it("course perdue : l'autre relance a déjà pris la main → false, rien n'est planifié", async () => {
+    state.sourceRows = [failedRow];
+    state.claimRows = []; // la mise à jour conditionnelle ne touche aucune ligne
+    await expect(new DbCasesRepository().requestPressRetry(CASE_ID)).resolves.toBe(false);
+  });
+
+  it("collecte en échec ou interrompue : reprise acceptée", async () => {
+    state.caseRow = { ...state.caseRow, metadata: { press: { state: "failed" } } };
+    await expect(new DbCasesRepository().requestPressRetry(CASE_ID)).resolves.toBe(true);
+    state.caseRow = {
+      ...state.caseRow,
+      metadata: { press: { state: "pending", requestedAt: "2020-01-01T00:00:00.000Z" } },
+    };
+    await expect(new DbCasesRepository().requestPressRetry(CASE_ID)).resolves.toBe(true);
+  });
+
+  it("presse déjà consultée avec succès, ou collecte en cours : aucune reprise", async () => {
+    state.sourceRows = [okRow];
+    await expect(new DbCasesRepository().requestPressRetry(CASE_ID)).resolves.toBe(false);
+    state.sourceRows = [failedRow];
+    state.caseRow = {
+      ...state.caseRow,
+      metadata: { press: { state: "pending", requestedAt: new Date().toISOString() } },
+    };
+    await expect(new DbCasesRepository().requestPressRetry(CASE_ID)).resolves.toBe(false);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("identifiant non UUID (fixture) ou dossier inconnu : false, sans exception", async () => {
+    await expect(new DbCasesRepository().requestPressRetry("demo-orion")).resolves.toBe(false);
+    state.caseRow = null;
+    await expect(new DbCasesRepository().requestPressRetry(CASE_ID)).resolves.toBe(false);
   });
 });
