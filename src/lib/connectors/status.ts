@@ -27,6 +27,8 @@ import {
   isDecpEnabled,
   isIcpeImportEnabled,
   isTresorGelsImportEnabled,
+  isBrregEnabled,
+  isAcraEnabled,
   isSanctionsIntlEnabled,
   isSanctionsPersonsEnabled,
   isAnnuaireAdministrationEnabled,
@@ -321,6 +323,28 @@ export function getConnectorStatuses(): ConnectorStatus[] {
           : isAnnuaireAdministrationEnabled()
             ? "Flag actif — actif dès la sortie du mode démo."
             : "ANNUAIRE_ADMINISTRATION_ENABLED non activé → inactif.",
+    },
+    {
+      key: "brreg",
+      label: "Registre norvégien (Brønnøysund)",
+      live: !demo && isBrregEnabled(),
+      detail:
+        !demo && isBrregEnabled()
+          ? "Sociétés mères norvégiennes (via GLEIF), par numéro d'organisation : statut, forme, comptes déposés."
+          : isBrregEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "BRREG_ENABLED non activé → inactif.",
+    },
+    {
+      key: "acra",
+      label: "Registre de Singapour (ACRA)",
+      live: !demo && isAcraEnabled(),
+      detail:
+        !demo && isAcraEnabled()
+          ? "Sociétés mères singapouriennes (via GLEIF), par UEN : statut, type, date d'immatriculation."
+          : isAcraEnabled()
+            ? "Flag actif — actif dès la sortie du mode démo."
+            : "ACRA_ENABLED non activé → inactif.",
     },
     {
       key: "companies_house",

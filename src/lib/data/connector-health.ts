@@ -52,6 +52,8 @@ export const CONNECTOR_SOURCE: Record<string, SourceKind | null> = {
   hatvp: "hatvp",
   decp: "decp",
   companies_house: "companies_house",
+  brreg: "brreg",
+  acra: "acra",
   database: null,
 };
 

@@ -11,6 +11,8 @@ export type SourceKind =
   | "gdelt"
   | "pappers"
   | "companies_house"
+  | "brreg"
+  | "acra"
   | "recherche_entreprises"
   | "balo"
   | "boamp"
