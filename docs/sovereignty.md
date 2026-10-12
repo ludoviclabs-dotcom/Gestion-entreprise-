@@ -1,6 +1,6 @@
 # Souveraineté — feuille de route SecNumCloud
 
-> Statut actuel : démos publiques sur Vercel (US, CLOUD Act), sur **données fictives anonymisées**. Acceptable pour la démo. **Disqualifiant** pour des données réelles relevant de Tracfin / ACPR / DGSI / DINUM.
+> Statut actuel : pilote sur Vercel (US, CLOUD Act) traitant des **données publiques réelles** (registres, annonces légales, listes de sanctions, dirigeants de sociétés) ; aucune donnée confidentielle de client n'est importée. Les pages Démo et les maquettes restent sur **données fictives anonymisées**. Acceptable pour ce pilote. **Disqualifiant** pour des données réelles relevant de Tracfin / ACPR / DGSI / DINUM.
 
 ## Cadre réglementaire et doctrinal
 
@@ -39,7 +39,7 @@
 
 | Trigger | Action |
 |---|---|
-| Démo publique sur fixtures | Statut actuel — Vercel acceptable. |
+| Pilote sur données publiques réelles | Statut actuel — Vercel et Neon (UE) acceptables ; pages Démo sur fixtures. |
 | **Premier prospect institutionnel concret** | Provisionner Neon EU + activer connecteurs live. |
 | Pilote sous accord de confidentialité | Migrer la BDD vers OVHcloud Postgres EU + activer Apache AGE. Migrer Sentry vers GlitchTip. |
 | Contrat signé Tracfin / ACPR / CAC 40 | Migration complète Frontend + API hors Vercel. Substituer Anthropic par Mistral souverain. Audit ANSSI préalable. |

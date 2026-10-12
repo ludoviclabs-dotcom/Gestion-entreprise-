@@ -7,10 +7,10 @@ import { REG, type RegRef } from "@/lib/domain/regulatory-refs";
  */
 
 export const SOVEREIGNTY_STATUS = {
-  badge: "Démonstrateur — Vercel / AWS, données fictives anonymisées",
+  badge: "Pilote sur données publiques réelles — Vercel / AWS",
   headline:
-    "Aujourd'hui démonstrateur souverain par construction, cible SecNumCloud qualifié.",
-  body: "Les démos publiques tournent sur Vercel (États-Unis, CLOUD Act) sur des données fictives anonymisées — acceptable pour une démonstration, mais disqualifiant pour des données réelles relevant de Tracfin, de l'ACPR, de la DGSI ou de la DINUM. La trajectoire ci-dessous matérialise la migration vers un hébergement qualifié SecNumCloud, déclenchée par des jalons commerciaux explicites.",
+    "Aujourd'hui un pilote sur données publiques réelles, cible SecNumCloud qualifié.",
+  body: "L'application tourne sur Vercel (États-Unis, CLOUD Act) et traite des informations issues de sources publiques — registres, annonces légales, listes de sanctions —, y compris des dirigeants de sociétés. Aucune donnée confidentielle de client n'y est importée. Cet hébergement est acceptable pour ce pilote, mais disqualifiant pour des données relevant de Tracfin, de l'ACPR, de la DGSI ou de la DINUM. Les pages Démo et les maquettes restent sur des données fictives anonymisées. La trajectoire ci-dessous matérialise la migration vers un hébergement qualifié SecNumCloud, déclenchée par des jalons commerciaux explicites.",
 } as const;
 
 /** Cadre réglementaire et doctrinal de la souveraineté. */
@@ -104,16 +104,34 @@ export const SOVEREIGNTY_COMPONENTS: SovereigntyComponent[] = [
     sovereign: false,
   },
   {
-    component: "Sanctions / PEP",
-    today: "OpenSanctions (UE)",
+    component: "Sanctions et gels des avoirs",
+    today: "DG Trésor et listes États-Unis, Royaume-Uni, ONU, Suisse, Canada, importées dans notre base",
+    target: "Inchangé — déjà souverain à la consultation",
+    sovereign: true,
+  },
+  {
+    component: "Personnes politiquement exposées",
+    today: "OpenSanctions (UE) — en cours de mise en service",
     target: "Inchangé — déjà souverain",
     sovereign: true,
   },
   {
-    component: "Sirene / BODACC / INPI / DG Trésor",
-    today: "API gouvernementales françaises",
+    component: "Registres et jeux ouverts de l'administration française",
+    today: "Sirene, BODACC, Recherche d'entreprises, jeux ouverts importés (HATVP, DECP, DGAL, Géorisques…)",
     target: "Inchangé — déjà souverain",
     sovereign: true,
+  },
+  {
+    component: "Registres étrangers (GLEIF, Companies House, Brønnøysund, ACRA)",
+    today: "Interrogés par identifiant public ; aucune autre donnée du dossier transmise",
+    target: "Inchangé — identifiants publics seulement",
+    sovereign: true,
+  },
+  {
+    component: "Presse (GDELT)",
+    today: "GDELT Project (États-Unis) : reçoit le nom de l'entité recherchée",
+    target: "À arbitrer selon le pilote : fournisseur européen ou désactivation",
+    sovereign: false,
   },
   {
     component: "Synthèse (LLM)",
@@ -131,12 +149,14 @@ export type MigrationStep = {
 /** Jalons de migration déclenchés par des événements commerciaux. */
 export const MIGRATION_STEPS: MigrationStep[] = [
   {
-    trigger: "Démo publique sur fixtures",
-    action: "Statut actuel — Vercel acceptable, aucune donnée réelle traitée.",
+    trigger: "Pilote sur données publiques réelles",
+    action:
+      "Statut actuel — Vercel et Neon (UE) acceptables : aucune donnée confidentielle de client n'est importée ; les pages Démo restent sur fixtures.",
   },
   {
     trigger: "Premier prospect institutionnel concret",
-    action: "Provisionner Neon EU et activer les connecteurs live.",
+    action:
+      "Formaliser les sous-traitants (DPA), puis activer les sources en cours (INPI/RNE sur intérêt légitime documenté, OpenSanctions).",
   },
   {
     trigger: "Pilote sous accord de confidentialité",

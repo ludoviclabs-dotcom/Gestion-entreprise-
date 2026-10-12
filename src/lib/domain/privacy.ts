@@ -30,7 +30,7 @@ export type PrivacyPrinciple = {
 export const PRIVACY_PRINCIPLES: PrivacyPrinciple[] = [
   {
     title: "Minimisation",
-    body: "Aucune donnée stockée au-delà du nécessaire. En démonstration publique, seules des fixtures anonymisées sont affichées — aucun bénéficiaire effectif réel.",
+    body: "Aucune donnée stockée au-delà du nécessaire. Les dossiers du pilote ne reprennent que des informations publiques ; l'année de naissance d'un dirigeant sert au seul rapprochement avec les listes de sanctions et n'est jamais affichée. Les pages Démo n'utilisent que des fixtures anonymisées, sans bénéficiaire effectif réel.",
   },
   {
     title: "Conservation — 5 ans",
@@ -78,8 +78,9 @@ export const GUARDRAILS: Guardrail[] = [
     justification: "AMLR — opposabilité des décisions de vigilance.",
   },
   {
-    measure: "Synthèse manuelle, zéro appel API tiers depuis la production",
-    justification: "RGPD — aucun transfert hors UE des données du dossier.",
+    measure: "Synthèse manuelle : aucun appel à un service d'IA tiers depuis la production",
+    justification:
+      "RGPD — aucune donnée du dossier n'est transmise à un service d'IA. Les consultations de sources publiques ne transmettent que l'identifiant ou le nom de l'entité.",
   },
 ];
 
